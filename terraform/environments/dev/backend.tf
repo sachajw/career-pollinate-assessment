@@ -30,8 +30,7 @@ terraform {
     # Resource group containing the storage account
     # resource_group_name = "rg-terraform-state"
 
-    # Enable encryption at rest for state files (RECOMMENDED)
-    encrypt = true
+    # Note: Encryption is enabled by default in Azure Storage
 
     # Use Azure AD authentication for storage account (recommended)
     # Requires Storage Blob Data Contributor role on the storage account

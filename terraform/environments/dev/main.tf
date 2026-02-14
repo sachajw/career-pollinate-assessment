@@ -206,17 +206,17 @@ module "container_app" {
   traffic_latest_revision = true
   traffic_percentage      = 100
 
-  # CORS configuration (enable for web frontends)
-  cors_enabled         = true
-  cors_allowed_origins = ["*"] # Dev: Allow all origins
-  cors_allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
+  # NOTE: CORS is handled at the application level (FastAPI middleware)
+  # The azurerm_container_app resource does not support CORS configuration
 
   # Container registry configuration
   registry_server       = module.container_registry.login_server
+  enable_acr_pull       = true
   container_registry_id = module.container_registry.id
 
   # Key Vault RBAC access
-  key_vault_id = module.key_vault.id
+  enable_key_vault_access = true
+  key_vault_id            = module.key_vault.id
 
   tags = local.common_tags
 
