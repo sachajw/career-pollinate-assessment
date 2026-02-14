@@ -1,0 +1,25 @@
+# Backend Configuration File
+# Copy this file to backend.hcl and update with your values
+# DO NOT commit backend.hcl with real values to version control
+
+# Storage account name (must be globally unique)
+storage_account_name = "stterraformstate<your-unique-suffix>"
+
+# Container name for state files
+container_name = "tfstate"
+
+# State file key (unique per environment)
+key = "riskscoring-dev.tfstate"
+
+# Resource group containing the storage account
+resource_group_name = "rg-terraform-state"
+
+# Authentication method
+# Option 1: Use Azure AD authentication (recommended)
+use_azuread_auth = true
+
+# Option 2: Use Managed Identity (for CI/CD)
+# use_msi = true
+
+# Option 3: Use storage account access key (less secure)
+# access_key will be read from ARM_ACCESS_KEY environment variable
