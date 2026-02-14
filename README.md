@@ -49,6 +49,10 @@ Loan System → API Gateway → Risk Scoring Service → RiskShield API
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
 | [Architecture Decisions](./documentation/architecture/adr/README.md) | ADRs for key decisions |
 | [Decision Log](./documentation/architecture/DECISION_LOG.md) | Chronological decision history |
+| [API Specification](./documentation/api/API_SPECIFICATION.md) | REST API documentation |
+| [Developer Guide](./documentation/api/DEVELOPER_GUIDE.md) | Development practices and guidelines |
+| [Operations Runbook](./documentation/runbooks/OPERATIONS_RUNBOOK.md) | Operational procedures |
+| [App README](./app/README.md) | Application-specific documentation |
 
 ## 📁 Repository Structure
 
@@ -56,39 +60,38 @@ Loan System → API Gateway → Risk Scoring Service → RiskShield API
 .
 ├── app/                          # Application code
 │   ├── src/
-│   │   ├── controllers/         # Request handlers
-│   │   ├── services/            # Business logic
-│   │   ├── middleware/          # Express middleware
-│   │   └── config/              # Configuration
-│   ├── tests/                   # Unit, integration, e2e tests
-│   ├── Dockerfile               # Multi-stage container build
-│   └── package.json             # Dependencies
-├── terraform/                   # Infrastructure as Code
-│   ├── modules/                 # Reusable Terraform modules
+│   │   ├── api/v1/             # FastAPI routes
+│   │   ├── models/             # Pydantic models
+│   │   ├── services/           # Business logic
+│   │   ├── core/               # Config, logging
+│   │   └── main.py             # Application entry point
+│   ├── tests/                  # Unit, integration tests
+│   ├── Dockerfile              # Multi-stage container build
+│   ├── pyproject.toml          # Project metadata (uv)
+│   └── README.md               # Application documentation
+├── terraform/                  # Infrastructure as Code
+│   ├── modules/                # Reusable Terraform modules
 │   │   ├── container-app/
 │   │   ├── key-vault/
 │   │   ├── container-registry/
 │   │   └── observability/
-│   ├── environments/            # Environment-specific configs
-│   │   ├── dev/
-│   │   ├── staging/
-│   │   └── prod/
-│   └── backend.tf               # Remote state configuration
-├── pipelines/                   # CI/CD definitions
-│   ├── azure-pipelines.yml      # Main pipeline
-│   ├── templates/               # Pipeline templates
-│   └── scripts/                 # Build/deploy scripts
-├── documentation/               # Architecture documentation
-│   ├── architecture/            # Solution architecture
+│   ├── environments/           # Environment-specific configs
+│   │   └── dev/
+│   └── README.md               # Terraform documentation
+├── pipelines/                  # CI/CD definitions
+│   ├── azure-pipelines.yml     # Main pipeline
+│   └── README.md               # Pipeline documentation
+├── documentation/              # Architecture documentation
+│   ├── architecture/           # Solution architecture
 │   │   ├── solution-architecture.md
 │   │   ├── architecture-diagram.md
-│   │   └── adr/                # Architecture Decision Records
-│   ├── api/                    # API specifications
-│   │   └── openapi.yaml
-│   └── runbooks/               # Operational procedures
-├── .github/                    # GitHub configuration
-│   └── workflows/              # GitHub Actions (optional)
-└── README.md                   # This file
+│   │   └── adr/               # Architecture Decision Records
+│   ├── api/                   # API specifications
+│   │   ├── API_SPECIFICATION.md
+│   │   └── DEVELOPER_GUIDE.md
+│   └── runbooks/              # Operational procedures
+│       └── OPERATIONS_RUNBOOK.md
+└── README.md                  # This file
 ```
 
 ## 🚀 Quick Start

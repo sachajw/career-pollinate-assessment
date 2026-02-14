@@ -32,6 +32,7 @@ terraform/
 ### Prerequisites
 
 1. **Install Terraform**
+
    ```bash
    # macOS
    brew install terraform
@@ -41,6 +42,7 @@ terraform/
    ```
 
 2. **Install Azure CLI**
+
    ```bash
    # macOS
    brew install azure-cli
@@ -167,12 +169,14 @@ terraform output -raw quick_start_commands
 ### Secrets Management
 
 **❌ DO NOT:**
+
 - Commit `terraform.tfvars` with sensitive values
 - Hardcode secrets in `.tf` files
 - Store state files locally
 - Share access keys in plain text
 
 **✅ DO:**
+
 - Use Azure Key Vault for application secrets
 - Use backend.hcl for backend configuration (gitignored)
 - Use Azure AD authentication for state storage
@@ -203,11 +207,13 @@ az storage blob service-properties delete-policy update \
 Creates an Azure Resource Group.
 
 **Inputs:**
+
 - `name`: Resource group name (must start with `rg-`)
 - `location`: Azure region
 - `tags`: Resource tags
 
 **Outputs:**
+
 - `id`: Resource group ID
 - `name`: Resource group name
 - `location`: Azure region
@@ -217,12 +223,14 @@ Creates an Azure Resource Group.
 Creates an Azure Container Registry (ACR) for Docker images.
 
 **Inputs:**
+
 - `name`: Registry name (alphanumeric, globally unique)
 - `sku`: SKU tier (Basic, Standard, Premium)
 - `public_network_access_enabled`: Enable public access
 - `log_analytics_workspace_id`: Optional Log Analytics workspace
 
 **Outputs:**
+
 - `id`: Registry ID
 - `login_server`: Registry URL
 - `name`: Registry name
@@ -232,6 +240,7 @@ Creates an Azure Container Registry (ACR) for Docker images.
 Creates an Azure Key Vault for secure secret storage.
 
 **Inputs:**
+
 - `name`: Vault name (3-24 chars, globally unique)
 - `sku_name`: SKU (standard or premium)
 - `soft_delete_retention_days`: Retention period (7-90 days)
@@ -239,6 +248,7 @@ Creates an Azure Key Vault for secure secret storage.
 - `deployer_object_id`: Principal ID for RBAC
 
 **Outputs:**
+
 - `id`: Vault ID
 - `vault_uri`: Vault URI
 - `name`: Vault name
@@ -248,12 +258,14 @@ Creates an Azure Key Vault for secure secret storage.
 Creates Log Analytics workspace and Application Insights.
 
 **Inputs:**
+
 - `log_analytics_name`: Workspace name
 - `app_insights_name`: App Insights name
 - `log_analytics_retention_days`: Log retention (30-730 days)
 - `sampling_percentage`: Telemetry sampling (1-100%)
 
 **Outputs:**
+
 - `log_analytics_workspace_id`: Workspace ID
 - `app_insights_connection_string`: Connection string (sensitive)
 - `app_insights_instrumentation_key`: Instrumentation key (sensitive)
@@ -263,6 +275,7 @@ Creates Log Analytics workspace and Application Insights.
 Creates Azure Container App with environment.
 
 **Inputs:**
+
 - `name`: Container app name
 - `container_image`: Full image path
 - `container_cpu`: CPU allocation (0.25-2.0)
@@ -274,6 +287,7 @@ Creates Azure Container App with environment.
 - `container_registry_id`: ACR for RBAC
 
 **Outputs:**
+
 - `application_url`: Public HTTPS URL
 - `identity_principal_id`: Managed identity principal ID
 - `ingress_fqdn`: Application FQDN
@@ -413,6 +427,7 @@ checkov --directory .
 Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) to estimate costs.
 
 **Estimated Monthly Cost (Dev):**
+
 - Resource Group: Free
 - Container App: ~$30 (scale-to-zero)
 - Container Registry (Basic): ~$5
@@ -442,6 +457,7 @@ infracost diff --path .
 ### Common Issues
 
 **Issue: Backend initialization fails**
+
 ```bash
 # Check storage account access
 az storage account show --name stterraformstate<name> --resource-group rg-terraform-state
@@ -451,6 +467,7 @@ az role assignment list --assignee $(az ad signed-in-user show --query id --outp
 ```
 
 **Issue: Provider authentication fails**
+
 ```bash
 # Re-login to Azure
 az login
@@ -462,6 +479,7 @@ az login
 ```
 
 **Issue: Resource already exists**
+
 ```bash
 # Import existing resource into state
 terraform import <resource_address> <azure_resource_id>
@@ -470,6 +488,7 @@ terraform import <resource_address> <azure_resource_id>
 ```
 
 **Issue: State locked**
+
 ```bash
 # Force unlock (use with caution!)
 terraform force-unlock <lock-id>

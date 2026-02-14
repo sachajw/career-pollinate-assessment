@@ -15,7 +15,7 @@ crash.*.log
 *.tfvars
 *.tfvars.json
 
-# Exclude backend configuration files
+# Exclude backend configuration files (contain storage account names)
 backend.hcl
 
 # Ignore override files
@@ -28,11 +28,19 @@ override.tf.json
 .terraformrc
 terraform.rc
 
-# Ignore lock files (or commit them if you want to lock provider versions)
-.terraform.lock.hcl
+# COMMIT lock files for reproducibility (uncomment to ignore)
+# .terraform.lock.hcl
 
 # Ignore plan files
 *.tfplan
 
 # Ignore any generated documentation
 *.md.backup
+
+# Security scanning outputs
+infracost.json
+tfsec-results.json
+checkov-results.json
+
+# Cost estimation
+.infracost/

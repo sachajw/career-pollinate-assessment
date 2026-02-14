@@ -6,23 +6,26 @@ data "azurerm_client_config" "current" {}
 
 # Local variables for naming convention and common tags
 locals {
-  environment = "dev"
-  project     = "riskscoring"
-  location    = "eastus2"
+  environment = var.environment
+  project     = var.project_name
+  location    = var.location
 
   # Naming convention: {resource_type}-{project}-{environment}
   # Example: rg-riskscoring-dev, kv-riskscoring-dev
   naming_prefix = "${local.project}-${local.environment}"
 
   # Common tags applied to all resources
-  common_tags = {
-    Environment = local.environment
-    Project     = local.project
-    ManagedBy   = "Terraform"
-    CostCenter  = "Engineering"
-    Owner       = "Platform Team"
-    Compliance  = "SOC2"
-  }
+  common_tags = merge(
+    {
+      Environment = local.environment
+      Project     = local.project
+      ManagedBy   = "Terraform"
+      CostCenter  = "Engineering"
+      Owner       = "Platform Team"
+      Compliance  = "SOC2"
+    },
+    var.tags # Allow additional tags from variables
+  )
 
   # Container image from ACR (placeholder, will be updated by CI/CD)
   container_image = "${module.container_registry.login_server}/risk-scoring-api:latest"
@@ -47,25 +50,25 @@ module "observability" {
   location            = module.resource_group.location
 
   # Log Analytics configuration
-  log_analytics_name          = "log-${local.naming_prefix}"
-  log_analytics_sku           = "PerGB2018"
-  log_analytics_retention_days = 30 # Dev: 30 days to minimize cost
-  log_analytics_daily_quota_gb = 5  # Cap at 5GB/day to prevent cost overruns
+  log_analytics_name           = "log-${local.naming_prefix}"
+  log_analytics_sku            = "PerGB2018"
+  log_analytics_retention_days = var.log_analytics_retention_days
+  log_analytics_daily_quota_gb = 5 # Cap at 5GB/day to prevent cost overruns
 
   # Application Insights configuration
-  app_insights_name        = "appi-${local.naming_prefix}"
-  application_type         = "web"
-  sampling_percentage      = 100 # Dev: 100% sampling for full visibility
-  app_insights_daily_cap_gb = 2  # Cap at 2GB/day
+  app_insights_name         = "appi-${local.naming_prefix}"
+  application_type          = "web"
+  sampling_percentage       = 100 # Dev: 100% sampling for full visibility
+  app_insights_daily_cap_gb = 2   # Cap at 2GB/day
 
   # Dev settings: Enable for easier debugging
-  disable_ip_masking              = true  # Show full IPs for debugging
-  local_authentication_disabled   = false # Allow API key auth for dev
-  internet_ingestion_enabled      = true
-  internet_query_enabled          = true
+  disable_ip_masking            = true  # Show full IPs for debugging
+  local_authentication_disabled = false # Allow API key auth for dev
+  internet_ingestion_enabled    = true
+  internet_query_enabled        = true
 
   # Availability test (optional, useful for dev)
-  create_availability_test = false # Enable after deployment
+  create_availability_test = var.enable_availability_test
 
   tags = local.common_tags
 }
@@ -158,26 +161,26 @@ module "container_app" {
   zone_redundancy_enabled = false
 
   # Container configuration
-  container_name  = "risk-scoring-api"
-  container_image = local.container_image
-  container_cpu   = 0.5  # 0.5 vCPU
+  container_name   = "risk-scoring-api"
+  container_image  = local.container_image
+  container_cpu    = 0.5   # 0.5 vCPU
   container_memory = "1Gi" # 1GB RAM
 
   # Dev: Scale to zero to save costs when not in use
   # Note: This causes ~2-3s cold start on first request
-  min_replicas = 0
-  max_replicas = 5
+  min_replicas = var.container_app_min_replicas
+  max_replicas = var.container_app_max_replicas
 
   # HTTP-based autoscaling
-  http_scale_rule_enabled       = true
+  http_scale_rule_enabled        = true
   http_scale_concurrent_requests = 100 # Scale out at 100 concurrent requests
 
   # Environment variables (non-sensitive)
   environment_variables = {
-    ENVIRONMENT              = local.environment
-    LOG_LEVEL               = "INFO"
-    PORT                    = "8080"
-    KEY_VAULT_URL           = module.key_vault.vault_uri
+    ENVIRONMENT                           = local.environment
+    LOG_LEVEL                             = "INFO"
+    PORT                                  = "8080"
+    KEY_VAULT_URL                         = module.key_vault.vault_uri
     APPLICATIONINSIGHTS_CONNECTION_STRING = module.observability.app_insights_connection_string
   }
 
@@ -193,24 +196,24 @@ module "container_app" {
   readiness_probe_interval = 10
 
   # Ingress configuration
-  ingress_enabled              = true
-  ingress_external_enabled     = true  # Public internet access
-  ingress_target_port          = 8080
-  ingress_transport            = "http"
-  allow_insecure_connections   = false # HTTPS only
+  ingress_enabled            = true
+  ingress_external_enabled   = true # Public internet access
+  ingress_target_port        = 8080
+  ingress_transport          = "http"
+  allow_insecure_connections = false # HTTPS only
 
   # Traffic routing (100% to latest revision)
   traffic_latest_revision = true
   traffic_percentage      = 100
 
   # CORS configuration (enable for web frontends)
-  cors_enabled        = true
+  cors_enabled         = true
   cors_allowed_origins = ["*"] # Dev: Allow all origins
   cors_allowed_methods = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
 
   # Container registry configuration
-  registry_server        = module.container_registry.login_server
-  container_registry_id  = module.container_registry.id
+  registry_server       = module.container_registry.login_server
+  container_registry_id = module.container_registry.id
 
   # Key Vault RBAC access
   key_vault_id = module.key_vault.id

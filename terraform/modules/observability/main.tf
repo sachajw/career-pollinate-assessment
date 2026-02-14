@@ -111,8 +111,8 @@ resource "azurerm_application_insights_standard_web_test" "health" {
 
   # Validation rules
   validation_rules {
-    expected_status_code = 200
-    ssl_check_enabled    = true
+    expected_status_code        = 200
+    ssl_check_enabled           = true
     ssl_cert_remaining_lifetime = 7
   }
 

@@ -91,9 +91,9 @@ resource "azurerm_container_app" "this" {
           port      = var.startup_probe_port
           path      = var.startup_probe_path
 
-          initial_delay = var.startup_probe_initial_delay
-          interval      = var.startup_probe_interval
-          timeout       = var.startup_probe_timeout
+          initial_delay           = var.startup_probe_initial_delay
+          interval                = var.startup_probe_interval
+          timeout                 = var.startup_probe_timeout
           failure_count_threshold = var.startup_probe_failure_threshold
         }
       }
@@ -106,9 +106,9 @@ resource "azurerm_container_app" "this" {
           port      = var.liveness_probe_port
           path      = var.liveness_probe_path
 
-          initial_delay = var.liveness_probe_initial_delay
-          interval      = var.liveness_probe_interval
-          timeout       = var.liveness_probe_timeout
+          initial_delay           = var.liveness_probe_initial_delay
+          interval                = var.liveness_probe_interval
+          timeout                 = var.liveness_probe_timeout
           failure_count_threshold = var.liveness_probe_failure_threshold
         }
       }
@@ -121,8 +121,8 @@ resource "azurerm_container_app" "this" {
           port      = var.readiness_probe_port
           path      = var.readiness_probe_path
 
-          interval      = var.readiness_probe_interval
-          timeout       = var.readiness_probe_timeout
+          interval                = var.readiness_probe_interval
+          timeout                 = var.readiness_probe_timeout
           failure_count_threshold = var.readiness_probe_failure_threshold
           success_count_threshold = var.readiness_probe_success_threshold
         }
@@ -188,25 +188,27 @@ resource "azurerm_container_app" "this" {
       dynamic "cors" {
         for_each = var.cors_enabled ? [1] : []
         content {
-          allowed_origins     = var.cors_allowed_origins
-          allowed_methods     = var.cors_allowed_methods
-          allowed_headers     = var.cors_allowed_headers
-          expose_headers      = var.cors_expose_headers
-          max_age_in_seconds  = var.cors_max_age
-          allow_credentials   = var.cors_allow_credentials
+          allowed_origins    = var.cors_allowed_origins
+          allowed_methods    = var.cors_allowed_methods
+          allowed_headers    = var.cors_allowed_headers
+          expose_headers     = var.cors_expose_headers
+          max_age_in_seconds = var.cors_max_age
+          allow_credentials  = var.cors_allow_credentials
         }
       }
     }
   }
 
   # Registry credentials (for pulling from private ACR)
-  # This is automatically handled by managed identity for ACR
-  # but can be explicitly configured if needed
+  # NOTE: Authentication is handled automatically via the AcrPull RBAC assignment
+  # The managed identity is granted AcrPull role separately (see azurerm_role_assignment.acr_pull)
+  # We only specify the server - Azure handles authentication via the identity
   dynamic "registry" {
     for_each = var.registry_server != null ? [1] : []
     content {
-      server   = var.registry_server
-      identity = azurerm_container_app.this.identity[0].principal_id
+      server = var.registry_server
+      # Identity authentication is handled by the RBAC assignment below
+      # No explicit identity reference needed - avoids circular dependency
     }
   }
 
@@ -231,6 +233,34 @@ resource "azurerm_container_app" "this" {
   }
 
   tags = var.tags
+
+  # Lifecycle management
+  lifecycle {
+    # Prevent accidental destruction of production container apps
+    # Set prevent_destroy = true in production environments
+    # prevent_destroy = true
+
+    # Ignore changes to revision suffix (managed by CI/CD)
+    ignore_changes = [
+      template[0].revision_suffix
+    ]
+
+    # Preconditions: Validate configuration before apply
+    precondition {
+      condition     = var.min_replicas <= var.max_replicas
+      error_message = "min_replicas (${var.min_replicas}) must be less than or equal to max_replicas (${var.max_replicas})."
+    }
+
+    precondition {
+      condition     = var.container_cpu >= 0.25 && var.container_cpu <= 2.0
+      error_message = "Container CPU must be between 0.25 and 2.0 vCPU."
+    }
+
+    precondition {
+      condition     = var.ingress_target_port > 0 && var.ingress_target_port <= 65535
+      error_message = "Ingress target port must be a valid port number (1-65535)."
+    }
+  }
 }
 
 # RBAC: Grant Container App managed identity access to ACR

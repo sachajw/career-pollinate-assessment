@@ -43,6 +43,29 @@ resource "azurerm_key_vault" "this" {
   }
 
   tags = var.tags
+
+  # Lifecycle management for Key Vault
+  lifecycle {
+    # Prevent accidental destruction of Key Vault (contains sensitive secrets)
+    # Uncomment for production environments
+    # prevent_destroy = true
+
+    # Preconditions: Validate configuration
+    precondition {
+      condition     = length(var.name) >= 3 && length(var.name) <= 24
+      error_message = "Key Vault name must be between 3 and 24 characters."
+    }
+
+    precondition {
+      condition     = can(regex("^[a-z][a-z0-9-]{2,23}$", var.name))
+      error_message = "Key Vault name must start with a letter, contain only lowercase alphanumeric characters or hyphens, and be 3-24 characters."
+    }
+
+    precondition {
+      condition     = var.soft_delete_retention_days >= 7 && var.soft_delete_retention_days <= 90
+      error_message = "Soft delete retention must be between 7 and 90 days."
+    }
+  }
 }
 
 # Diagnostic settings for audit logging
@@ -97,4 +120,9 @@ resource "azurerm_key_vault_secret" "secrets" {
 
   # Depends on RBAC assignment to ensure deployer has permission
   depends_on = [azurerm_role_assignment.deployer]
+
+  lifecycle {
+    # Create new secret before destroying old one during updates
+    create_before_destroy = true
+  }
 }

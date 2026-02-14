@@ -77,7 +77,7 @@ output "log_analytics_workspace_id" {
 # Quick Start Commands
 output "quick_start_commands" {
   description = "Quick start commands for deployment"
-  value = <<-EOT
+  value       = <<-EOT
     # Login to Azure Container Registry
     az acr login --name ${module.container_registry.name}
 

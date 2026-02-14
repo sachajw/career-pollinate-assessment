@@ -30,8 +30,14 @@ terraform {
     # Resource group containing the storage account
     # resource_group_name = "rg-terraform-state"
 
-    # Use storage account access key or Azure AD authentication
-    # use_azuread_auth = true (recommended, requires Storage Blob Data Contributor role)
+    # Enable encryption at rest for state files (RECOMMENDED)
+    encrypt = true
+
+    # Use Azure AD authentication for storage account (recommended)
+    # Requires Storage Blob Data Contributor role on the storage account
+    # use_azuread_auth = true
+
+    # Use managed identity for CI/CD authentication
     # use_msi = true (for CI/CD with managed identity)
   }
 }
