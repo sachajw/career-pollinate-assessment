@@ -117,12 +117,16 @@ stages:
               containerRegistry: $(dockerRegistryServiceConnection)
 
           - script: |
+              # Use OrbStack docker which has buildx
+              export PATH="/Users/tvl/.orbstack/bin:/usr/local/bin:$PATH"
+
               # Setup buildx for cross-platform builds
               docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
               docker buildx inspect --bootstrap
             displayName: 'Setup Docker Buildx'
 
           - script: |
+              export PATH="/Users/tvl/.orbstack/bin:/usr/local/bin:$PATH"
               cd app
               docker buildx build \
                 --platform linux/amd64 \
