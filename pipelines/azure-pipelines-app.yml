@@ -118,7 +118,7 @@ stages:
               dockerfile: '$(System.DefaultWorkingDirectory)/app/Dockerfile'
               containerRegistry: $(dockerRegistryServiceConnection)
               buildContext: '$(System.DefaultWorkingDirectory)/app'
-              arguments: '--target production'
+              arguments: '--target production --platform linux/amd64'
               tags: |
                 $(imageTag)
                 latest
