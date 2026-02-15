@@ -111,35 +111,38 @@ stages:
           - checkout: self
 
           - task: Docker@2
-            displayName: 'Build Docker Image'
+            displayName: 'Login to ACR'
             inputs:
-              command: build
-              repository: $(imageName)
-              dockerfile: '$(System.DefaultWorkingDirectory)/app/Dockerfile'
+              command: login
               containerRegistry: $(dockerRegistryServiceConnection)
-              buildContext: '$(System.DefaultWorkingDirectory)/app'
-              arguments: '--target production --platform linux/amd64'
-              tags: |
-                $(imageTag)
-                latest
 
           - script: |
-              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
-              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
-              sudo apt-get update && sudo apt-get install -y trivy
-              trivy image --severity HIGH,CRITICAL $(containerRegistry)/$(imageName):$(imageTag)
+              # Setup buildx for cross-platform builds
+              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
+              docker buildx inspect --bootstrap
+            displayName: 'Setup Docker Buildx'
+
+          - script: |
+              cd app
+              docker buildx build \
+                --platform linux/amd64 \
+                --target production \
+                -t $(containerRegistry)/$(imageName):$(imageTag) \
+                -t $(containerRegistry)/$(imageName):latest \
+                --push \
+                .
+            displayName: 'Build and Push Docker Image (AMD64)'
+            env:
+              DOCKER_BUILDKIT: 1
+
+          - script: |
+              # Install trivy on macOS
+              if command -v brew &> /dev/null; then
+                brew install trivy 2>/dev/null || true
+                trivy image --severity HIGH,CRITICAL $(containerRegistry)/$(imageName):$(imageTag)
+              fi
             displayName: 'Scan Image (Trivy)'
             continueOnError: true
-
-          - task: Docker@2
-            displayName: 'Push to ACR'
-            inputs:
-              command: push
-              repository: $(imageName)
-              containerRegistry: $(dockerRegistryServiceConnection)
-              tags: |
-                $(imageTag)
-                latest
 
   # ========================================
   # STAGE 2: DEPLOY
