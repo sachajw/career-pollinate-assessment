@@ -82,7 +82,7 @@ stages:
             continueOnError: true
 
           - script: |
-              cd app && uv run bandit -r src/
+              cd app && uv run bandit -r src/ -c pyproject.toml
             displayName: 'Security Scan (Bandit)'
             continueOnError: true
 

@@ -51,6 +51,7 @@ select = [
 ]
 ignore = [
     "E501",  # line too long (handled by formatter)
+    "UP042", # class inherits from both str and Enum (valid pattern)
 ]
 
 [tool.mypy]
@@ -67,3 +68,7 @@ python_classes = ["Test*"]
 python_functions = ["test_*"]
 asyncio_mode = "auto"
 addopts = "-v --tb=short --cov=src --cov-report=term-missing"
+
+[tool.bandit]
+exclude_dirs = ["tests"]
+skips = ["B104"]  # hardcoded_bind_all_interfaces - expected for containerized apps
