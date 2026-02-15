@@ -22,7 +22,7 @@ RUN uv venv /opt/venv && \
 #------------------------------------------------------------------------------
 # Stage 2: Runtime - Minimal production image
 #------------------------------------------------------------------------------
-FROM python:3.13-slim
+FROM python:3.13-slim AS production
 
 # Create non-root user for security
 RUN groupadd -r appuser && useradd -r -g appuser appuser
