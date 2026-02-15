@@ -68,7 +68,7 @@ stages:
             displayName: 'Verify uv'
 
           - script: |
-              cd app && uv sync
+              cd app && uv sync --extra dev
             displayName: 'Install Dependencies'
 
           - script: |
