@@ -257,11 +257,12 @@ resource "azurerm_container_app" "this" {
   # Registry configuration for private container registries
   # Authentication is handled via Managed Identity (RBAC)
   # The AcrPull role is assigned separately below
+  # Note: For initial deployment, we temporarily use a public image to avoid
+  # circular dependency. CI/CD will update with ACR image after managed identity exists.
   dynamic "registry" {
     for_each = var.registry_server != null ? [1] : []
     content {
       server = var.registry_server
-      # Authentication via RBAC - no explicit identity reference needed
     }
   }
 

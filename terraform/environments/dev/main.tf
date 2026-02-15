@@ -27,9 +27,10 @@ locals {
     var.tags # Allow additional tags from variables
   )
 
-  # Container image from ACR (placeholder, will be updated by CI/CD)
+  # Container image - using public hello-world for initial deployment
+  # Once infrastructure is deployed, CI/CD will update to ACR image
   # Domain service name: applicant-validator (DDD - describes domain capability)
-  container_image = "${module.container_registry.login_server}/applicant-validator:latest"
+  container_image = "mcr.microsoft.com/k8se/quickstart:latest"
 }
 
 # Resource Group
@@ -212,7 +213,9 @@ module "container_app" {
   # The azurerm_container_app resource does not support CORS configuration
 
   # Container registry configuration
-  registry_server       = module.container_registry.login_server
+  # Temporarily disabled for initial deployment to avoid circular dependency
+  # Will be enabled after managed identity is created
+  registry_server       = null # module.container_registry.login_server
   enable_acr_pull       = true
   container_registry_id = module.container_registry.id
 
