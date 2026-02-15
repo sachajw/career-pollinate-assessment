@@ -58,15 +58,14 @@ stages:
           - checkout: self
             fetchDepth: 0
 
-          - task: UsePythonVersion@0
-            inputs:
-              versionSpec: '$(pythonVersion)'
-              addToPath: true
+          - script: |
+              echo "##vso[task.prependpath]/opt/homebrew/opt/python@3.13/bin"
+              echo "##vso[task.prependpath]/Users/tvl/.local/bin"
+            displayName: 'Setup Python PATH'
 
           - script: |
-              curl -LsSf https://astral.sh/uv/install.sh | sh
-              echo "##vso[task.prependpath]$HOME/.cargo/bin"
-            displayName: 'Install uv'
+              uv --version || (curl -LsSf https://astral.sh/uv/install.sh | sh)
+            displayName: 'Verify uv'
 
           - script: |
               cd app && uv sync
