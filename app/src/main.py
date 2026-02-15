@@ -8,36 +8,45 @@ from .api.v1 import router as v1_router
 from .core.config import get_settings
 from .core.logging import configure_logging
 
-# Configure structured logging
+
+def create_app() -> FastAPI:
+    """Create and configure the FastAPI application."""
+    # Configure structured logging
+    settings = get_settings()
+    configure_logging(settings.LOG_LEVEL)
+
+    # Create FastAPI application
+    application = FastAPI(
+        title="Applicant Validator API",
+        description="FinRisk Platform - Loan Applicant Fraud Risk Validation Service",
+        version="0.1.0",
+        docs_url="/docs",
+        redoc_url="/redoc",
+        openapi_url="/openapi.json",
+    )
+
+    # Configure CORS
+    application.add_middleware(
+        CORSMiddleware,
+        allow_origins=settings.CORS_ORIGINS,
+        allow_credentials=True,
+        allow_methods=["*"],
+        allow_headers=["*"],
+    )
+
+    # Include API routes
+    application.include_router(v1_router, prefix="/api/v1", tags=["Validation"])
+
+    # Root health endpoints (no /api/v1 prefix for Container Apps health probes)
+    application.include_router(v1_router, tags=["Health"])
+
+    return application
+
+
+# Create app instance for production use
+app = create_app()
 settings = get_settings()
-configure_logging(settings.LOG_LEVEL)
-
 logger = structlog.get_logger()
-
-# Create FastAPI application
-app = FastAPI(
-    title="Applicant Validator API",
-    description="FinRisk Platform - Loan Applicant Fraud Risk Validation Service",
-    version="0.1.0",
-    docs_url="/docs",
-    redoc_url="/redoc",
-    openapi_url="/openapi.json",
-)
-
-# Configure CORS
-app.add_middleware(
-    CORSMiddleware,
-    allow_origins=settings.CORS_ORIGINS,
-    allow_credentials=True,
-    allow_methods=["*"],
-    allow_headers=["*"],
-)
-
-# Include API routes
-app.include_router(v1_router, prefix="/api/v1", tags=["Validation"])
-
-# Root health endpoints (no /api/v1 prefix for Container Apps health probes)
-app.include_router(v1_router, tags=["Health"])
 
 
 @app.on_event("startup")

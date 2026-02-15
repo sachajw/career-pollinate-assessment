@@ -12,15 +12,12 @@ from src.core.config import Settings
 def test_settings() -> Settings:
     """Create test settings."""
     return Settings(
-        environment="dev",
-        log_level="DEBUG",
-        port=8080,
-        riskshield_api_url="https://api.test.riskshield.com/v1",
-        riskshield_api_key="test-api-key",
-        cors_origins=["*"],
-        rate_limit_enabled=False,  # Disable rate limiting for tests
-        enable_openapi_docs=True,
-        enable_health_endpoints=True,
+        ENVIRONMENT="dev",
+        LOG_LEVEL="DEBUG",
+        PORT=8080,
+        RISKSHIELD_API_URL="https://api.test.riskshield.com/v1",
+        RISKSHIELD_API_KEY="test-api-key",
+        CORS_ORIGINS=["*"],
     )
 
 
@@ -48,14 +45,13 @@ def client(test_settings):
 @pytest.fixture
 def mock_riskshield_client(mock_riskshield_response):
     """Mock RiskShield client."""
-    from src.services import RiskShieldResult
+    from src.models.validation import RiskLevel
 
     mock = MagicMock()
-    mock.validate = AsyncMock(
-        return_value=RiskShieldResult(
-            risk_score=mock_riskshield_response["riskScore"],
-            risk_level=mock_riskshield_response["riskLevel"],
-            additional_data=mock_riskshield_response.get("additionalData"),
+    mock.validate_applicant = AsyncMock(
+        return_value=(
+            mock_riskshield_response["riskScore"],
+            RiskLevel[mock_riskshield_response["riskLevel"]],
         )
     )
     return mock
