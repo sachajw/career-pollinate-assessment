@@ -39,8 +39,7 @@ stages:
     displayName: 'Terraform Plan'
     jobs:
       - job: TerraformPlan
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         steps:
           - checkout: self
 
@@ -85,8 +84,7 @@ stages:
     condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
     jobs:
       - deployment: TerraformApply
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         environment: '$(environmentName)-infrastructure'
         strategy:
           runOnce:

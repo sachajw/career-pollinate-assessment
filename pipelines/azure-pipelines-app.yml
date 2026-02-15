@@ -53,8 +53,7 @@ stages:
     displayName: 'Build & Test'
     jobs:
       - job: Test
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         steps:
           - checkout: self
             fetchDepth: 0
@@ -108,8 +107,7 @@ stages:
 
       - job: BuildImage
         dependsOn: Test
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         steps:
           - checkout: self
 
@@ -153,8 +151,7 @@ stages:
     condition: succeeded()
     jobs:
       - deployment: DeployContainerApp
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         environment: '$(environmentName)'
         strategy:
           runOnce:
@@ -184,8 +181,7 @@ stages:
     dependsOn: Deploy
     jobs:
       - job: SmokeTests
-        pool:
-          vmImage: 'ubuntu-latest'
+        pool: Default
         steps:
           - task: AzureCLI@2
             displayName: 'Get App URL'
