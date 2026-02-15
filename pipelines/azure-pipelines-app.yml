@@ -1,0 +1,220 @@
+# Azure DevOps Application Pipeline
+# FinRisk Platform - Applicant Validator Build & Deploy Only
+#
+# This pipeline handles application CI/CD:
+# - Build, test, lint Docker image
+# - Deploy to Azure Container Apps
+# - Assumes infrastructure already exists (use infra pipeline first)
+
+trigger:
+  branches:
+    include:
+      - main
+      - develop
+  paths:
+    include:
+      - app/**
+      - pipelines/azure-pipelines-app.yml
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - app/**
+
+variables:
+  - group: finrisk-dev
+  - name: azureSubscription
+    value: 'azure-service-connection'
+  - name: environmentName
+    value: 'dev'
+  - name: pythonVersion
+    value: '3.13'
+  - name: dockerRegistryServiceConnection
+    value: 'acr-service-connection'
+  - name: containerRegistry
+    value: 'acrfinriskdev.azurecr.io'      # Matches Terraform: acr${project_name}${environment}
+  - name: imageName
+    value: 'applicant-validator'            # Domain service name (DDD)
+  - name: imageTag
+    value: '$(Build.BuildId)'
+  - name: containerAppName
+    value: 'ca-finrisk-dev'                 # Matches Terraform: ca-${project_name}-${environment}
+  - name: resourceGroupName
+    value: 'rg-finrisk-dev'                 # Matches Terraform: rg-${project_name}-${environment}
+
+stages:
+  # ========================================
+  # STAGE 1: BUILD & TEST
+  # ========================================
+  - stage: Build
+    displayName: 'Build & Test'
+    jobs:
+      - job: Test
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+            fetchDepth: 0
+
+          - task: UsePythonVersion@0
+            inputs:
+              versionSpec: '$(pythonVersion)'
+              addToPath: true
+
+          - script: |
+              curl -LsSf https://astral.sh/uv/install.sh | sh
+              echo "##vso[task.prependpath]$HOME/.cargo/bin"
+            displayName: 'Install uv'
+
+          - script: |
+              cd app && uv sync
+            displayName: 'Install Dependencies'
+
+          - script: |
+              cd app && uv run ruff check src/ --output-format=github
+            displayName: 'Lint (Ruff)'
+            continueOnError: true
+
+          - script: |
+              cd app && uv run mypy src/
+            displayName: 'Type Check (mypy)'
+            continueOnError: true
+
+          - script: |
+              cd app && uv run bandit -r src/
+            displayName: 'Security Scan (Bandit)'
+            continueOnError: true
+
+          - script: |
+              cd app && uv run pytest tests/unit/ \
+                --junitxml=junit/test-results.xml \
+                --cov=src --cov-report=xml --cov-report=html
+            displayName: 'Run Unit Tests'
+
+          - task: PublishTestResults@2
+            condition: succeededOrFailed()
+            inputs:
+              testResultsFormat: 'JUnit'
+              testResultsFiles: '**/test-*.xml'
+
+          - task: PublishCodeCoverageResults@2
+            condition: succeededOrFailed()
+            inputs:
+              codeCoverageTool: 'Cobertura'
+              summaryFileLocation: '$(System.DefaultWorkingDirectory)/app/coverage.xml'
+
+      - job: BuildImage
+        dependsOn: Test
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - task: Docker@2
+            displayName: 'Build Docker Image'
+            inputs:
+              command: build
+              repository: $(imageName)
+              dockerfile: '$(System.DefaultWorkingDirectory)/app/Dockerfile'
+              containerRegistry: $(dockerRegistryServiceConnection)
+              buildContext: '$(System.DefaultWorkingDirectory)/app'
+              arguments: '--target production'
+              tags: |
+                $(imageTag)
+                latest
+
+          - script: |
+              wget -qO - https://aquasecurity.github.io/trivy-repo/deb/public.key | sudo apt-key add -
+              echo "deb https://aquasecurity.github.io/trivy-repo/deb $(lsb_release -sc) main" | sudo tee -a /etc/apt/sources.list.d/trivy.list
+              sudo apt-get update && sudo apt-get install -y trivy
+              trivy image --severity HIGH,CRITICAL $(containerRegistry)/$(imageName):$(imageTag)
+            displayName: 'Scan Image (Trivy)'
+            continueOnError: true
+
+          - task: Docker@2
+            displayName: 'Push to ACR'
+            inputs:
+              command: push
+              repository: $(imageName)
+              containerRegistry: $(dockerRegistryServiceConnection)
+              tags: |
+                $(imageTag)
+                latest
+
+  # ========================================
+  # STAGE 2: DEPLOY
+  # ========================================
+  - stage: Deploy
+    displayName: 'Deploy to Container Apps'
+    dependsOn: Build
+    condition: succeeded()
+    jobs:
+      - deployment: DeployContainerApp
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: '$(environmentName)'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - task: AzureCLI@2
+                  displayName: 'Update Container App'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      az containerapp update \
+                        --name $(containerAppName) \
+                        --resource-group $(resourceGroupName) \
+                        --image $(containerRegistry)/$(imageName):$(imageTag) \
+                        --output table
+
+                - script: sleep 30
+                  displayName: 'Wait for Deployment'
+
+  # ========================================
+  # STAGE 3: VERIFY
+  # ========================================
+  - stage: Verify
+    displayName: 'Smoke Tests'
+    dependsOn: Deploy
+    jobs:
+      - job: SmokeTests
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - task: AzureCLI@2
+            displayName: 'Get App URL'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                APP_URL=$(az containerapp show \
+                  --name $(containerAppName) \
+                  --resource-group $(resourceGroupName) \
+                  --query properties.configuration.ingress.fqdn \
+                  --output tsv)
+                echo "##vso[task.setvariable variable=appUrl]https://$APP_URL"
+
+          - script: |
+              for i in {1..10}; do
+                STATUS=$(curl -s -o /dev/null -w "%{http_code}" $(appUrl)/health)
+                if [ "$STATUS" = "200" ]; then
+                  echo "Health check passed"
+                  exit 0
+                fi
+                echo "Attempt $i: HTTP $STATUS - retrying..."
+                sleep 10
+              done
+              exit 1
+            displayName: 'Health Check'
+
+          - script: |
+              curl -sf $(appUrl)/docs > /dev/null && echo "Docs OK" || exit 1
+              curl -sf $(appUrl)/ready > /dev/null && echo "Ready OK" || exit 1
+            displayName: 'Endpoint Checks'

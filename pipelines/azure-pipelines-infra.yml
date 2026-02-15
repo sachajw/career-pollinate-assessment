@@ -1,0 +1,131 @@
+# Azure DevOps Infrastructure Pipeline
+# FinRisk Platform - Terraform Only
+#
+# This pipeline manages infrastructure provisioning:
+# - Terraform plan/apply for Azure resources
+# - Triggered on changes to terraform/ directory
+# - Manual approval for production changes
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+      - pipelines/azure-pipelines-infra.yml
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+
+variables:
+  - group: finrisk-dev
+  - name: azureSubscription
+    value: 'azure-service-connection'
+  - name: environmentName
+    value: 'dev'
+  - name: terraformVersion
+    value: '1.7.0'
+  - name: terraformWorkingDirectory
+    value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+
+stages:
+  - stage: Plan
+    displayName: 'Terraform Plan'
+    jobs:
+      - job: TerraformPlan
+        pool:
+          vmImage: 'ubuntu-latest'
+        steps:
+          - checkout: self
+
+          - task: TerraformInstaller@1
+            inputs:
+              terraformVersion: '$(terraformVersion)'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Init'
+            inputs:
+              provider: 'azurerm'
+              command: 'init'
+              workingDirectory: '$(terraformWorkingDirectory)'
+              backendServiceArm: '$(azureSubscription)'
+              backendAzureRmResourceGroupName: 'rg-terraform-state'
+              backendAzureRmStorageAccountName: '$(terraformStateStorageAccount)'
+              backendAzureRmContainerName: 'tfstate'
+              backendAzureRmKey: 'finrisk-$(environmentName).tfstate'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Validate'
+            inputs:
+              provider: 'azurerm'
+              command: 'validate'
+              workingDirectory: '$(terraformWorkingDirectory)'
+
+          - task: TerraformTaskV4@4
+            displayName: 'Terraform Plan'
+            inputs:
+              provider: 'azurerm'
+              command: 'plan'
+              workingDirectory: '$(terraformWorkingDirectory)'
+              commandOptions: '-out=tfplan'
+              environmentServiceNameAzureRM: '$(azureSubscription)'
+
+          - publish: '$(terraformWorkingDirectory)/tfplan'
+            artifact: tfplan
+
+  - stage: Apply
+    displayName: 'Terraform Apply'
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: TerraformApply
+        pool:
+          vmImage: 'ubuntu-latest'
+        environment: '$(environmentName)-infrastructure'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+
+                - download: current
+                  artifact: tfplan
+
+                - task: TerraformInstaller@1
+                  inputs:
+                    terraformVersion: '$(terraformVersion)'
+
+                - task: TerraformTaskV4@4
+                  displayName: 'Terraform Init'
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'init'
+                    workingDirectory: '$(terraformWorkingDirectory)'
+                    backendServiceArm: '$(azureSubscription)'
+                    backendAzureRmResourceGroupName: 'rg-terraform-state'
+                    backendAzureRmStorageAccountName: '$(terraformStateStorageAccount)'
+                    backendAzureRmContainerName: 'tfstate'
+                    backendAzureRmKey: 'finrisk-$(environmentName).tfstate'
+
+                - task: TerraformTaskV4@4
+                  displayName: 'Terraform Apply'
+                  inputs:
+                    provider: 'azurerm'
+                    command: 'apply'
+                    workingDirectory: '$(terraformWorkingDirectory)'
+                    commandOptions: '$(Pipeline.Workspace)/tfplan/tfplan'
+                    environmentServiceNameAzureRM: '$(azureSubscription)'
+
+                - script: |
+                    cd $(terraformWorkingDirectory)
+                    terraform output -json > terraform-outputs.json
+                  displayName: 'Save Outputs'
+
+                - publish: '$(terraformWorkingDirectory)/terraform-outputs.json'
+                  artifact: terraform-outputs
