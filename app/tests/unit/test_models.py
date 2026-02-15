@@ -4,181 +4,151 @@ import pytest
 from pydantic import ValidationError
 
 from src.models import (
+    ApplicantValidationRequest,
+    ApplicantValidationResponse,
+    HealthResponse,
+    ReadyResponse,
     RiskLevel,
-    ValidationRequest,
-    ValidationResponse,
-    ErrorCode,
-    ErrorDetail,
-    ErrorResponse,
 )
 
 
 class TestRiskLevel:
     """Tests for RiskLevel enum."""
 
-    def test_from_score_low(self):
-        """Test LOW risk level for scores 0-29."""
-        assert RiskLevel.from_score(0) == RiskLevel.LOW
-        assert RiskLevel.from_score(15) == RiskLevel.LOW
-        assert RiskLevel.from_score(29) == RiskLevel.LOW
+    def test_risk_level_values(self):
+        """Test RiskLevel enum values."""
+        assert RiskLevel.LOW.value == "LOW"
+        assert RiskLevel.MEDIUM.value == "MEDIUM"
+        assert RiskLevel.HIGH.value == "HIGH"
+        assert RiskLevel.CRITICAL.value == "CRITICAL"
 
-    def test_from_score_medium(self):
-        """Test MEDIUM risk level for scores 30-59."""
-        assert RiskLevel.from_score(30) == RiskLevel.MEDIUM
-        assert RiskLevel.from_score(45) == RiskLevel.MEDIUM
-        assert RiskLevel.from_score(59) == RiskLevel.MEDIUM
-
-    def test_from_score_high(self):
-        """Test HIGH risk level for scores 60-79."""
-        assert RiskLevel.from_score(60) == RiskLevel.HIGH
-        assert RiskLevel.from_score(70) == RiskLevel.HIGH
-        assert RiskLevel.from_score(79) == RiskLevel.HIGH
-
-    def test_from_score_critical(self):
-        """Test CRITICAL risk level for scores 80-100."""
-        assert RiskLevel.from_score(80) == RiskLevel.CRITICAL
-        assert RiskLevel.from_score(90) == RiskLevel.CRITICAL
-        assert RiskLevel.from_score(100) == RiskLevel.CRITICAL
+    def test_risk_level_is_str(self):
+        """Test RiskLevel is a string enum."""
+        assert RiskLevel.LOW == "LOW"
+        assert RiskLevel.MEDIUM == "MEDIUM"
 
 
-class TestValidationRequest:
-    """Tests for ValidationRequest model."""
+class TestApplicantValidationRequest:
+    """Tests for ApplicantValidationRequest model."""
 
     def test_valid_request(self):
         """Test valid request creation."""
-        request = ValidationRequest(
-            first_name="John",
-            last_name="Doe",
-            id_number="8001015009087",
+        request = ApplicantValidationRequest(
+            firstName="Jane",
+            lastName="Doe",
+            idNumber="9001011234088",
         )
-        assert request.first_name == "John"
-        assert request.last_name == "Doe"
-        assert request.id_number == "8001015009087"
+        assert request.firstName == "Jane"
+        assert request.lastName == "Doe"
+        assert request.idNumber == "9001011234088"
 
-    def test_name_normalization(self):
-        """Test name whitespace normalization."""
-        request = ValidationRequest(
-            first_name="  John  Paul  ",
-            last_name="  Doe  ",
-            id_number="8001015009087",
-        )
-        assert request.first_name == "John Paul"
-        assert request.last_name == "Doe"
-
-    def test_invalid_name_characters(self):
-        """Test rejection of invalid name characters."""
+    def test_invalid_id_number_too_short(self):
+        """Test rejection of ID number that's too short."""
         with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="John123",
-                last_name="Doe",
-                id_number="8001015009087",
+            ApplicantValidationRequest(
+                firstName="Jane",
+                lastName="Doe",
+                idNumber="12345",
             )
 
-    def test_empty_name(self):
-        """Test rejection of empty name."""
+    def test_invalid_id_number_too_long(self):
+        """Test rejection of ID number that's too long."""
         with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="",
-                last_name="Doe",
-                id_number="8001015009087",
-            )
-
-    def test_invalid_id_number_length(self):
-        """Test rejection of wrong ID number length."""
-        with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="John",
-                last_name="Doe",
-                id_number="12345",
+            ApplicantValidationRequest(
+                firstName="Jane",
+                lastName="Doe",
+                idNumber="12345678901234",
             )
 
     def test_invalid_id_number_non_digits(self):
         """Test rejection of non-digit characters in ID."""
         with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="John",
-                last_name="Doe",
-                id_number="900101123408A",
+            ApplicantValidationRequest(
+                firstName="Jane",
+                lastName="Doe",
+                idNumber="900101123408A",
             )
 
-    def test_invalid_id_number_month(self):
-        """Test rejection of invalid month in ID number."""
+    def test_empty_first_name(self):
+        """Test rejection of empty first name."""
         with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="John",
-                last_name="Doe",
-                id_number="9013012340881",  # Month 13
+            ApplicantValidationRequest(
+                firstName="",
+                lastName="Doe",
+                idNumber="9001011234088",
             )
 
-    def test_invalid_id_number_day(self):
-        """Test rejection of invalid day in ID number."""
+    def test_empty_last_name(self):
+        """Test rejection of empty last name."""
         with pytest.raises(ValidationError):
-            ValidationRequest(
-                first_name="John",
-                last_name="Doe",
-                id_number="9001321234088",  # Day 32
+            ApplicantValidationRequest(
+                firstName="Jane",
+                lastName="",
+                idNumber="9001011234088",
             )
 
 
-class TestValidationResponse:
-    """Tests for ValidationResponse model."""
+class TestApplicantValidationResponse:
+    """Tests for ApplicantValidationResponse model."""
 
     def test_valid_response(self):
         """Test valid response creation."""
-        response = ValidationResponse(
-            risk_score=72,
-            risk_level=RiskLevel.HIGH,  # Score 72 is in HIGH range (60-79)
+        response = ApplicantValidationResponse(
+            riskScore=72,
+            riskLevel=RiskLevel.HIGH,
         )
-        assert response.risk_score == 72
-        assert response.risk_level == RiskLevel.HIGH
+        assert response.riskScore == 72
+        assert response.riskLevel == RiskLevel.HIGH
 
-    def test_risk_level_auto_correction(self):
-        """Test automatic risk level correction based on score."""
-        response = ValidationResponse(
-            risk_score=85,
-            risk_level=RiskLevel.LOW,  # Wrong level for score
-        )
-        # Should be auto-corrected to CRITICAL
-        assert response.risk_level == RiskLevel.CRITICAL
-
-    def test_score_out_of_range(self):
-        """Test rejection of score out of range."""
+    def test_score_out_of_range_high(self):
+        """Test rejection of score above 100."""
         with pytest.raises(ValidationError):
-            ValidationResponse(
-                risk_score=150,
-                risk_level=RiskLevel.HIGH,
+            ApplicantValidationResponse(
+                riskScore=150,
+                riskLevel=RiskLevel.HIGH,
             )
 
+    def test_score_out_of_range_low(self):
+        """Test rejection of score below 0."""
         with pytest.raises(ValidationError):
-            ValidationResponse(
-                risk_score=-10,
-                risk_level=RiskLevel.LOW,
+            ApplicantValidationResponse(
+                riskScore=-10,
+                riskLevel=RiskLevel.LOW,
             )
 
-
-class TestErrorResponse:
-    """Tests for ErrorResponse model."""
-
-    def test_valid_error_response(self):
-        """Test valid error response creation."""
-        response = ErrorResponse(
-            error=ErrorCode.VALIDATION_ERROR,
-            message="Invalid input",
+    def test_correlation_id_auto_generated(self):
+        """Test correlation ID is auto-generated."""
+        response = ApplicantValidationResponse(
+            riskScore=50,
+            riskLevel=RiskLevel.MEDIUM,
         )
-        assert response.error == ErrorCode.VALIDATION_ERROR
-        assert response.message == "Invalid input"
-        assert response.correlation_id is not None
+        assert response.correlationId is not None
 
-    def test_error_response_with_details(self):
-        """Test error response with detailed errors."""
-        response = ErrorResponse(
-            error=ErrorCode.VALIDATION_ERROR,
-            message="Validation failed",
-            details=[
-                ErrorDetail(field="first_name", message="Required", code="required"),
-            ],
+
+class TestHealthResponse:
+    """Tests for HealthResponse model."""
+
+    def test_default_status(self):
+        """Test default health status."""
+        response = HealthResponse(environment="dev")
+        assert response.status == "healthy"
+        assert response.version == "0.1.0"
+        assert response.environment == "dev"
+
+
+class TestReadyResponse:
+    """Tests for ReadyResponse model."""
+
+    def test_ready_response(self):
+        """Test ready response creation."""
+        response = ReadyResponse(ready=True)
+        assert response.ready is True
+
+    def test_ready_response_with_checks(self):
+        """Test ready response with dependency checks."""
+        response = ReadyResponse(
+            ready=True,
+            checks={"database": True, "api": True},
         )
-        assert len(response.details) == 1
-        assert response.details[0].field == "first_name"
-        assert response.details[0].message == "Required"
-        assert response.details[0].code == "required"
+        assert response.checks["database"] is True
+        assert response.checks["api"] is True

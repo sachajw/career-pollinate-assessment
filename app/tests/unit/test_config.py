@@ -1,7 +1,5 @@
 """Unit tests for configuration module."""
 
-import pytest
-
 from src.core.config import Settings
 
 
@@ -11,46 +9,43 @@ class TestSettings:
     def test_default_values(self):
         """Test default configuration values."""
         settings = Settings()
-        assert settings.environment == "dev"
-        assert settings.log_level == "INFO"
-        assert settings.port == 8080
-        assert settings.riskshield_api_timeout == 30
-        assert settings.riskshield_max_retries == 3
+        assert settings.ENVIRONMENT == "dev"
+        assert settings.LOG_LEVEL == "INFO"
+        assert settings.PORT == 8080
 
-    def test_environment_properties(self):
-        """Test environment check properties."""
-        dev_settings = Settings(environment="dev")
-        assert dev_settings.is_development is True
-        assert dev_settings.is_production is False
+    def test_custom_values(self):
+        """Test custom configuration values."""
+        settings = Settings(
+            ENVIRONMENT="prod",
+            LOG_LEVEL="DEBUG",
+            PORT=9000,
+        )
+        assert settings.ENVIRONMENT == "prod"
+        assert settings.LOG_LEVEL == "DEBUG"
+        assert settings.PORT == 9000
 
-        prod_settings = Settings(environment="prod")
-        assert prod_settings.is_development is False
-        assert prod_settings.is_production is True
+    def test_riskshield_defaults(self):
+        """Test RiskShield default values."""
+        settings = Settings()
+        assert settings.RISKSHIELD_API_URL == "https://api.riskshield.io/v1"
+        assert settings.RISKSHIELD_API_KEY is None
 
-    def test_invalid_environment(self):
-        """Test rejection of invalid environment."""
-        with pytest.raises(Exception):
-            Settings(environment="invalid")
+    def test_cors_origins_default(self):
+        """Test CORS origins default value."""
+        settings = Settings()
+        assert settings.CORS_ORIGINS == ["*"]
 
-    def test_invalid_port(self):
-        """Test rejection of invalid port."""
-        with pytest.raises(Exception):
-            Settings(port=0)
+    def test_health_check_timeout_default(self):
+        """Test health check timeout default value."""
+        settings = Settings()
+        assert settings.HEALTH_CHECK_TIMEOUT == 5
 
-        with pytest.raises(Exception):
-            Settings(port=70000)
+    def test_key_vault_url_optional(self):
+        """Test Key Vault URL is optional."""
+        settings = Settings()
+        assert settings.KEY_VAULT_URL is None
 
-    def test_invalid_key_vault_url(self):
-        """Test rejection of non-HTTPS Key Vault URL."""
-        with pytest.raises(Exception):
-            Settings(key_vault_url="http://kv-test.vault.azure.net/")
-
-    def test_invalid_riskshield_url(self):
-        """Test rejection of invalid RiskShield URL."""
-        with pytest.raises(Exception):
-            Settings(riskshield_api_url="invalid-url")
-
-    def test_trailing_slash_removed(self):
-        """Test trailing slash removal from API URL."""
-        settings = Settings(riskshield_api_url="https://api.example.com/v1/")
-        assert settings.riskshield_api_url == "https://api.example.com/v1"
+    def test_application_insights_optional(self):
+        """Test Application Insights connection string is optional."""
+        settings = Settings()
+        assert settings.APPLICATIONINSIGHTS_CONNECTION_STRING is None

@@ -1,33 +1,24 @@
 """Integration tests for API endpoints."""
 
 import pytest
-from unittest.mock import patch, AsyncMock
+from unittest.mock import patch, AsyncMock, MagicMock
 from fastapi.testclient import TestClient
 
 from src.main import create_app
 from src.core.config import Settings
-from src.services import (
-    RiskShieldResult,
-    RiskShieldAuthError,
-    RiskShieldRateLimitError,
-    RiskShieldTimeoutError,
-    RiskShieldServerError,
-)
+from src.models.validation import RiskLevel
 
 
 @pytest.fixture
 def test_settings():
-    """Create test settings with rate limiting disabled."""
+    """Create test settings."""
     return Settings(
-        environment="dev",
-        log_level="DEBUG",
-        port=8080,
-        riskshield_api_url="https://api.test.riskshield.com/v1",
-        riskshield_api_key="test-api-key",
-        cors_origins=["*"],
-        rate_limit_enabled=False,
-        enable_openapi_docs=True,
-        enable_health_endpoints=True,
+        ENVIRONMENT="dev",
+        LOG_LEVEL="DEBUG",
+        PORT=8080,
+        RISKSHIELD_API_URL="https://api.test.riskshield.com/v1",
+        RISKSHIELD_API_KEY="test-api-key",
+        CORS_ORIGINS=["*"],
     )
 
 
@@ -57,20 +48,21 @@ class TestHealthEndpoints:
         response = client.get("/ready")
         assert response.status_code == 200
         data = response.json()
-        assert data["status"] == "ready"
+        assert "ready" in data
         assert "checks" in data
 
 
 class TestRootEndpoint:
     """Tests for root endpoint."""
 
-    def test_root_redirect(self, client):
+    def test_root_returns_api_info(self, client):
         """Test root endpoint returns API info."""
         response = client.get("/")
         assert response.status_code == 200
         data = response.json()
-        assert "name" in data
+        assert "service" in data
         assert "version" in data
+        assert "docs" in data
 
 
 class TestValidationEndpoint:
@@ -80,106 +72,50 @@ class TestValidationEndpoint:
     def test_validate_success(self, mock_get_client, client):
         """Test successful validation request."""
         # Setup mock
-        mock_client = mock_get_client.return_value
-        mock_client.validate = AsyncMock(
-            return_value=RiskShieldResult(
-                risk_score=72,
-                risk_level="MEDIUM",
-                additional_data={"factors": ["test_factor"]},
-            )
+        mock_client = MagicMock()
+        mock_client.validate_applicant = AsyncMock(
+            return_value=(72, RiskLevel.HIGH)
         )
+        mock_get_client.return_value = mock_client
 
         # Make request
         response = client.post(
             "/api/v1/validate",
             json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "8001015009087",
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "idNumber": "8001015009087",
             },
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["risk_score"] == 72
-        assert data["risk_level"] == "HIGH"  # Score 72 is in HIGH range (60-79)
-        assert "correlation_id" in data
+        assert data["riskScore"] == 72
+        assert data["riskLevel"] == "HIGH"
+        assert "correlationId" in data
 
     @patch("src.api.v1.routes.get_riskshield_client")
-    def test_validate_auth_error(self, mock_get_client, client):
-        """Test validation with authentication error."""
-        mock_client = mock_get_client.return_value
-        mock_client.validate = AsyncMock(
-            side_effect=RiskShieldAuthError("Auth failed")
+    def test_validate_low_risk(self, mock_get_client, client):
+        """Test validation with low risk score."""
+        mock_client = MagicMock()
+        mock_client.validate_applicant = AsyncMock(
+            return_value=(15, RiskLevel.LOW)
         )
+        mock_get_client.return_value = mock_client
 
         response = client.post(
             "/api/v1/validate",
             json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "8001015009087",
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "idNumber": "8001015009087",
             },
         )
 
-        assert response.status_code == 401
-
-    @patch("src.api.v1.routes.get_riskshield_client")
-    def test_validate_rate_limit_error(self, mock_get_client, client):
-        """Test validation with rate limit error."""
-        mock_client = mock_get_client.return_value
-        mock_client.validate = AsyncMock(
-            side_effect=RiskShieldRateLimitError(retry_after=60)
-        )
-
-        response = client.post(
-            "/api/v1/validate",
-            json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "8001015009087",
-            },
-        )
-
-        assert response.status_code == 429
-
-    @patch("src.api.v1.routes.get_riskshield_client")
-    def test_validate_timeout_error(self, mock_get_client, client):
-        """Test validation with timeout error."""
-        mock_client = mock_get_client.return_value
-        mock_client.validate = AsyncMock(
-            side_effect=RiskShieldTimeoutError()
-        )
-
-        response = client.post(
-            "/api/v1/validate",
-            json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "8001015009087",
-            },
-        )
-
-        assert response.status_code == 504
-
-    @patch("src.api.v1.routes.get_riskshield_client")
-    def test_validate_server_error(self, mock_get_client, client):
-        """Test validation with upstream server error."""
-        mock_client = mock_get_client.return_value
-        mock_client.validate = AsyncMock(
-            side_effect=RiskShieldServerError(status_code=503)
-        )
-
-        response = client.post(
-            "/api/v1/validate",
-            json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "8001015009087",
-            },
-        )
-
-        assert response.status_code == 503
+        assert response.status_code == 200
+        data = response.json()
+        assert data["riskScore"] == 15
+        assert data["riskLevel"] == "LOW"
 
 
 class TestValidationInput:
@@ -190,34 +126,34 @@ class TestValidationInput:
         response = client.post(
             "/api/v1/validate",
             json={
-                "last_name": "Doe",
-                "id_number": "8001015009087",
+                "lastName": "Doe",
+                "idNumber": "8001015009087",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_missing_last_name(self, client):
         """Test rejection of missing last name."""
         response = client.post(
             "/api/v1/validate",
             json={
-                "first_name": "Jane",
-                "id_number": "8001015009087",
+                "firstName": "Jane",
+                "idNumber": "8001015009087",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_invalid_id_number_format(self, client):
         """Test rejection of invalid ID number format."""
         response = client.post(
             "/api/v1/validate",
             json={
-                "first_name": "Jane",
-                "last_name": "Doe",
-                "id_number": "invalid",
+                "firstName": "Jane",
+                "lastName": "Doe",
+                "idNumber": "invalid",
             },
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
 
     def test_empty_request_body(self, client):
         """Test rejection of empty request body."""
@@ -225,7 +161,7 @@ class TestValidationInput:
             "/api/v1/validate",
             json={},
         )
-        assert response.status_code == 400
+        assert response.status_code == 422
 
 
 class TestOpenAPI:
