@@ -1,0 +1,35 @@
+# Environment files (NEVER COMMIT THESE)
+.env
+.env.local
+.env.*.local
+*.tfvars
+
+# Terraform
+**/.terraform/*
+**/tfplan
+*.tfstate
+*.tfstate.*
+*.tfvars
+!*.tfvars.example
+backend.hcl
+!backend.hcl.example
+
+# Application
+app/.venv/
+app/__pycache__/
+app/.pytest_cache/
+app/.coverage
+app/htmlcov/
+app/.mypy_cache/
+app/.ruff_cache/
+app/*.egg-info/
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+
+# OS
+.DS_Store
+Thumbs.db
