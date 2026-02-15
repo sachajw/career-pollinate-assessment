@@ -1,13 +1,6 @@
-"""Core module initialization."""
+"""Core application components."""
 
-from src.core.config import Settings, get_settings
-from src.core.logging import get_correlation_id, get_logger, set_correlation_id, setup_logging
+from .config import Settings, get_settings
+from .logging import configure_logging
 
-__all__ = [
-    "Settings",
-    "get_settings",
-    "setup_logging",
-    "get_logger",
-    "set_correlation_id",
-    "get_correlation_id",
-]
+__all__ = ["Settings", "get_settings", "configure_logging"]

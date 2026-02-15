@@ -1,5 +1,5 @@
-"""API v1 module initialization."""
+"""API v1 package."""
 
-from src.api.v1.routes import router
+from .routes import router
 
 __all__ = ["router"]

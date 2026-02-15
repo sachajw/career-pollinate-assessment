@@ -4,23 +4,33 @@ __pycache__/
 *$py.class
 *.so
 .Python
-*.egg-info/
-dist/
-build/
-*.egg
-
-# Virtual environments
-.venv/
-venv/
-ENV/
 env/
+venv/
+.venv/
+ENV/
+build/
+develop-eggs/
+dist/
+downloads/
+eggs/
+.eggs/
+lib/
+lib64/
+parts/
+sdist/
+var/
+wheels/
+*.egg-info/
+.installed.cfg
+*.egg
 
 # Testing
 .pytest_cache/
 .coverage
 htmlcov/
 .tox/
-.nox/
+.mypy_cache/
+.ruff_cache/
 
 # IDE
 .vscode/
@@ -29,41 +39,19 @@ htmlcov/
 *.swo
 *~
 
+# Environment
+.env
+.env.local
+.env.*.local
+
+# Documentation
+# README.md is needed for pyproject.toml
+docs/
+
 # Git
 .git/
 .gitignore
 
-# Docker
-Dockerfile*
-docker-compose*
-.docker/
-
-# Documentation
-docs/
-*.md
-!README.md
-
 # CI/CD
 .github/
-.gitlab-ci.yml
-.azure-pipelines/
-
-# Terraform (not needed in container)
-terraform/
-
-# Local files
-.env
-.env.*
-*.local
-
-# OS
-.DS_Store
-Thumbs.db
-
-# Build artifacts
-*.log
-*.tmp
-
-# Test artifacts
-test-results/
-coverage/
+azure-pipelines.yml

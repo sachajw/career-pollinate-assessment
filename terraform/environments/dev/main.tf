@@ -27,10 +27,9 @@ locals {
     var.tags # Allow additional tags from variables
   )
 
-  # Container image - using public hello-world for initial deployment
-  # Once infrastructure is deployed, CI/CD will update to ACR image
+  # Container image - using ACR image
   # Domain service name: applicant-validator (DDD - describes domain capability)
-  container_image = "mcr.microsoft.com/k8se/quickstart:latest"
+  container_image = "${module.container_registry.login_server}/applicant-validator:latest"
 }
 
 # Resource Group
@@ -42,10 +41,6 @@ module "resource_group" {
   name     = "rg-${local.naming_prefix}"
   location = local.location
   tags     = local.common_tags
-
-  depends_on = [
-    time_sleep.wait_for_providers
-  ]
 }
 
 # Observability Stack (Log Analytics + Application Insights)
@@ -218,9 +213,8 @@ module "container_app" {
   # The azurerm_container_app resource does not support CORS configuration
 
   # Container registry configuration
-  # Temporarily disabled for initial deployment to avoid circular dependency
-  # Will be enabled after managed identity is created
-  registry_server       = null # module.container_registry.login_server
+  # Now enabled - managed identity exists and can pull from ACR
+  registry_server       = module.container_registry.login_server
   enable_acr_pull       = true
   container_registry_id = module.container_registry.id
 

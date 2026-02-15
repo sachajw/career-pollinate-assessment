@@ -1,44 +1,30 @@
 [project]
 name = "applicant-validator"
-version = "1.0.0"
-description = "FinRisk Platform - Loan applicant fraud risk validation domain service"
+version = "0.1.0"
+description = "FinRisk Platform - Applicant Validator Service"
 readme = "README.md"
 requires-python = ">=3.13"
-license = { text = "Proprietary" }
-authors = [
-    { name = "FinSure Capital Platform Engineering" }
-]
-classifiers = [
-    "Development Status :: 4 - Beta",
-    "Framework :: FastAPI",
-    "Intended Audience :: Developers",
-    "Programming Language :: Python :: 3.13",
-    "Topic :: Software Development :: Libraries :: Application Frameworks",
-]
-
 dependencies = [
-    "fastapi>=0.109.0",
-    "uvicorn[standard]>=0.27.0",
-    "pydantic>=2.5.0",
-    "pydantic-settings>=2.1.0",
-    "httpx>=0.26.0",
-    "azure-identity>=1.15.0",
-    "azure-keyvault-secrets>=4.8.0",
+    "fastapi>=0.115.0",
+    "uvicorn[standard]>=0.32.0",
+    "pydantic>=2.9.0",
+    "pydantic-settings>=2.6.0",
+    "httpx>=0.27.0",
+    "python-multipart>=0.0.12",
+    "azure-identity>=1.19.0",
+    "azure-keyvault-secrets>=4.9.0",
     "opencensus-ext-azure>=1.1.13",
-    "structlog>=24.1.0",
-    "tenacity>=8.2.0",
-    "slowapi>=0.1.9",
+    "structlog>=24.4.0",
 ]
 
 [project.optional-dependencies]
 dev = [
-    "pytest>=8.0.0",
-    "pytest-asyncio>=0.23.0",
-    "pytest-cov>=4.1.0",
-    "mypy>=1.8.0",
-    "ruff>=0.2.0",
-    "bandit>=1.7.0",
-    "httpx>=0.26.0",
+    "pytest>=8.3.0",
+    "pytest-asyncio>=0.24.0",
+    "pytest-cov>=6.0.0",
+    "httpx>=0.27.0",
+    "ruff>=0.7.0",
+    "mypy>=1.13.0",
 ]
 
 [build-system]
@@ -49,58 +35,34 @@ build-backend = "hatchling.build"
 packages = ["src"]
 
 [tool.ruff]
-target-version = "py313"
 line-length = 100
+target-version = "py313"
+
+[tool.ruff.lint]
 select = [
-    "E",      # pycodestyle errors
-    "W",      # pycodestyle warnings
-    "F",      # Pyflakes
-    "I",      # isort
-    "B",      # flake8-bugbear
-    "C4",     # flake8-comprehensions
-    "UP",     # pyupgrade
-    "ARG",    # flake8-unused-arguments
-    "SIM",    # flake8-simplify
+    "E",   # pycodestyle errors
+    "W",   # pycodestyle warnings
+    "F",   # pyflakes
+    "I",   # isort
+    "B",   # flake8-bugbear
+    "C4",  # flake8-comprehensions
+    "UP",  # pyupgrade
 ]
 ignore = [
-    "E501",   # line too long (handled by formatter)
-    "B008",   # do not perform function calls in argument defaults
-    "B904",   # raise without from inside except
+    "E501",  # line too long (handled by formatter)
 ]
-
-[tool.ruff.isort]
-known-first-party = ["src"]
 
 [tool.mypy]
 python_version = "3.13"
 strict = true
 warn_return_any = true
-warn_unused_ignores = true
+warn_unused_configs = true
 disallow_untyped_defs = true
-plugins = ["pydantic.mypy"]
-
-[[tool.mypy.overrides]]
-module = ["opencensus.*", "azure.*"]
-ignore_missing_imports = true
 
 [tool.pytest.ini_options]
 testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
 asyncio_mode = "auto"
-addopts = "-v --tb=short"
-filterwarnings = [
-    "ignore::DeprecationWarning",
-]
-
-[tool.coverage.run]
-source = ["src"]
-branch = true
-omit = ["tests/*", "*/__pycache__/*"]
-
-[tool.coverage.report]
-exclude_lines = [
-    "pragma: no cover",
-    "def __repr__",
-    "raise NotImplementedError",
-    "if TYPE_CHECKING:",
-    "if __name__ == .__main__.:",
-]
+addopts = "-v --tb=short --cov=src --cov-report=term-missing"

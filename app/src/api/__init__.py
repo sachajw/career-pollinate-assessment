@@ -1,1 +1,1 @@
-"""API module initialization."""
+"""API package."""

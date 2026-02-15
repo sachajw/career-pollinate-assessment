@@ -262,7 +262,8 @@ resource "azurerm_container_app" "this" {
   dynamic "registry" {
     for_each = var.registry_server != null ? [1] : []
     content {
-      server = var.registry_server
+      server   = var.registry_server
+      identity = "system"
     }
   }
 

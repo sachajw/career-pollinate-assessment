@@ -1,23 +1,17 @@
-"""Models module initialization."""
+"""Pydantic models for request/response validation."""
 
-from src.models.schemas import (
-    ErrorCode,
-    ErrorDetail,
-    ErrorResponse,
+from .validation import (
+    ApplicantValidationRequest,
+    ApplicantValidationResponse,
     HealthResponse,
     ReadyResponse,
     RiskLevel,
-    ValidationRequest,
-    ValidationResponse,
 )
 
 __all__ = [
-    "RiskLevel",
-    "ValidationRequest",
-    "ValidationResponse",
-    "ErrorCode",
-    "ErrorDetail",
-    "ErrorResponse",
+    "ApplicantValidationRequest",
+    "ApplicantValidationResponse",
     "HealthResponse",
     "ReadyResponse",
+    "RiskLevel",
 ]

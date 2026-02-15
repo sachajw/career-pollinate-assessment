@@ -1,166 +1,178 @@
-"""API v1 routes for the Risk Scoring API."""
+"""API v1 routes for applicant validation."""
 
-import uuid
-from typing import Any
+from typing import Annotated
 
-from fastapi import APIRouter, Depends, HTTPException, Request, status
-from fastapi.responses import JSONResponse
-from slowapi import Limiter
-from slowapi.util import get_remote_address
+import structlog
+from fastapi import APIRouter, Depends, HTTPException, status
 
-from src.core.config import get_settings
-from src.core.logging import get_logger, set_correlation_id
-from src.models import (
-    ErrorCode,
-    ErrorDetail,
-    ErrorResponse,
-    ValidationRequest,
-    ValidationResponse,
-    RiskLevel,
+from ...core.config import Settings, get_settings
+from ...models.validation import (
+    ApplicantValidationRequest,
+    ApplicantValidationResponse,
+    HealthResponse,
+    ReadyResponse,
 )
-from src.services import (
-    RiskShieldAuthError,
-    RiskShieldError,
-    RiskShieldRateLimitError,
-    RiskShieldServerError,
-    RiskShieldTimeoutError,
-    get_riskshield_client,
-)
+from ...services.riskshield import RiskShieldClient
 
-logger = get_logger(__name__)
-router = APIRouter(prefix="/v1")
-settings = get_settings()
+logger = structlog.get_logger()
 
-# Rate limiter
-limiter = Limiter(key_func=get_remote_address)
+router = APIRouter()
+
+
+def get_riskshield_client(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> RiskShieldClient:
+    """Get RiskShield client dependency.
+
+    Args:
+        settings: Application settings
+
+    Returns:
+        Configured RiskShield client
+    """
+    return RiskShieldClient(
+        api_url=settings.RISKSHIELD_API_URL,
+        api_key=settings.RISKSHIELD_API_KEY,
+    )
 
 
 @router.post(
     "/validate",
-    response_model=ValidationResponse,
-    responses={
-        400: {"model": ErrorResponse, "description": "Validation error"},
-        401: {"model": ErrorResponse, "description": "Authentication error"},
-        429: {"model": ErrorResponse, "description": "Rate limit exceeded"},
-        500: {"model": ErrorResponse, "description": "Internal server error"},
-        502: {"model": ErrorResponse, "description": "Upstream error"},
-        503: {"model": ErrorResponse, "description": "Service unavailable"},
-    },
+    response_model=ApplicantValidationResponse,
+    status_code=status.HTTP_200_OK,
     summary="Validate loan applicant",
-    description="Validates a loan applicant and returns their fraud risk score.",
+    description="Validates a loan applicant against RiskShield API for fraud risk assessment",
+    responses={
+        200: {
+            "description": "Applicant validated successfully",
+            "content": {
+                "application/json": {
+                    "example": {
+                        "riskScore": 72,
+                        "riskLevel": "MEDIUM",
+                        "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+                    }
+                }
+            },
+        },
+        422: {"description": "Validation error (invalid input)"},
+        500: {"description": "Internal server error"},
+        503: {"description": "RiskShield API unavailable"},
+    },
 )
-@limiter.limit(f"{settings.rate_limit_requests}/minute")
 async def validate_applicant(
-    request: Request,
-    validation_request: ValidationRequest,
-) -> ValidationResponse:
-    """Validate a loan applicant for fraud risk.
+    request: ApplicantValidationRequest,
+    riskshield: Annotated[RiskShieldClient, Depends(get_riskshield_client)],
+) -> ApplicantValidationResponse:
+    """Validate loan applicant for fraud risk.
 
-    This endpoint accepts applicant details and returns a risk score
-    along with a categorical risk level (LOW, MEDIUM, HIGH, CRITICAL).
+    Args:
+        request: Applicant validation request
+        riskshield: RiskShield API client
 
-    The risk score ranges from 0 (lowest risk) to 100 (highest risk).
+    Returns:
+        Validation response with risk score and level
 
-    **Rate Limiting:** 100 requests per minute per IP address.
-
-    **Correlation ID:** Each request is assigned a unique correlation ID
-    for tracing across distributed systems.
+    Raises:
+        HTTPException: If validation fails
     """
-    # Generate correlation ID for this request
-    correlation_id = uuid.uuid4()
-    set_correlation_id(str(correlation_id))  # Convert to str for logging context
-
-    logger.info(
-        "validation_request_received",
-        first_name=validation_request.first_name,
-        id_number_prefix=validation_request.id_number[:4] + "***",
-    )
-
     try:
-        client = get_riskshield_client()
-        result = await client.validate(
-            first_name=validation_request.first_name,
-            last_name=validation_request.last_name,
-            id_number=validation_request.id_number,
+        logger.info(
+            "Processing validation request",
+            first_name=request.firstName,
+            last_name=request.lastName,
         )
 
-        response = ValidationResponse(
-            risk_score=result.risk_score,
-            risk_level=RiskLevel.from_score(result.risk_score),  # Always derive from score
-            correlation_id=correlation_id,
-            additional_data=result.additional_data,
+        # Validate applicant via RiskShield API
+        risk_score, risk_level = await riskshield.validate_applicant(request)
+
+        response = ApplicantValidationResponse(
+            riskScore=risk_score,
+            riskLevel=risk_level,
         )
 
         logger.info(
-            "validation_request_completed",
-            risk_score=response.risk_score,
-            risk_level=response.risk_level.value,
+            "Validation successful",
+            risk_score=risk_score,
+            risk_level=risk_level.value,
+            correlation_id=str(response.correlationId),
         )
 
         return response
 
-    except RiskShieldAuthError as e:
-        logger.error("validation_auth_error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_401_UNAUTHORIZED,
-            detail=ErrorResponse(
-                error=ErrorCode.AUTHENTICATION_ERROR,
-                message="Failed to authenticate with risk validation service",
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
-
-    except RiskShieldRateLimitError as e:
-        logger.warning("validation_rate_limited", retry_after=e.retry_after)
-        raise HTTPException(
-            status_code=status.HTTP_429_TOO_MANY_REQUESTS,
-            detail=ErrorResponse(
-                error=ErrorCode.RATE_LIMIT_ERROR,
-                message="Rate limit exceeded. Please try again later.",
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
-
-    except RiskShieldTimeoutError as e:
-        logger.error("validation_timeout", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_504_GATEWAY_TIMEOUT,
-            detail=ErrorResponse(
-                error=ErrorCode.TIMEOUT_ERROR,
-                message="Risk validation service timed out",
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
-
-    except RiskShieldServerError as e:
-        logger.error("validation_server_error", error=str(e), status_code=e.status_code)
-        raise HTTPException(
-            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
-            detail=ErrorResponse(
-                error=ErrorCode.UPSTREAM_ERROR,
-                message="Risk validation service is temporarily unavailable",
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
-
-    except RiskShieldError as e:
-        logger.error("validation_api_error", error=str(e))
-        raise HTTPException(
-            status_code=status.HTTP_502_BAD_GATEWAY,
-            detail=ErrorResponse(
-                error=ErrorCode.UPSTREAM_ERROR,
-                message=str(e),
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
-
     except Exception as e:
-        logger.exception("validation_unexpected_error", error=str(e))
+        logger.error(
+            "Validation failed",
+            error=str(e),
+            error_type=type(e).__name__,
+        )
         raise HTTPException(
             status_code=status.HTTP_500_INTERNAL_SERVER_ERROR,
-            detail=ErrorResponse(
-                error=ErrorCode.INTERNAL_ERROR,
-                message="An unexpected error occurred",
-                correlation_id=correlation_id,
-            ).model_dump(mode='json'),
-        )
+            detail="Applicant validation failed",
+        ) from e
+
+
+@router.get(
+    "/health",
+    response_model=HealthResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Health check",
+    description="Check if the service is running",
+    tags=["Health"],
+)
+async def health_check(
+    settings: Annotated[Settings, Depends(get_settings)],
+) -> HealthResponse:
+    """Health check endpoint.
+
+    Args:
+        settings: Application settings
+
+    Returns:
+        Health status
+    """
+    return HealthResponse(
+        status="healthy",
+        version="0.1.0",
+        environment=settings.ENVIRONMENT,
+    )
+
+
+@router.get(
+    "/ready",
+    response_model=ReadyResponse,
+    status_code=status.HTTP_200_OK,
+    summary="Readiness check",
+    description="Check if the service is ready to handle requests",
+    tags=["Health"],
+)
+async def readiness_check(
+    settings: Annotated[Settings, Depends(get_settings)],
+    riskshield: Annotated[RiskShieldClient, Depends(get_riskshield_client)],
+) -> ReadyResponse:
+    """Readiness check endpoint.
+
+    Checks:
+    - RiskShield API connectivity
+
+    Args:
+        settings: Application settings
+        riskshield: RiskShield API client
+
+    Returns:
+        Readiness status
+    """
+    # Check RiskShield API health
+    riskshield_healthy = await riskshield.health_check()
+
+    checks = {
+        "riskshield_api": riskshield_healthy,
+    }
+
+    # Service is ready if all checks pass
+    ready = all(checks.values())
+
+    if not ready:
+        logger.warning("Readiness check failed", checks=checks)
+
+    return ReadyResponse(ready=ready, checks=checks)
