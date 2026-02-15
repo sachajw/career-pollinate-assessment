@@ -1,0 +1,312 @@
+version: '3'
+
+#------------------------------------------------------------------------------
+# Terraform Taskfile - Development Environment
+#------------------------------------------------------------------------------
+# Modern task runner for Terraform operations with built-in safety checks
+#
+# Installation:
+#   brew install go-task/tap/go-task  # macOS
+#   or: https://taskfile.dev/installation/
+#
+# Usage:
+#   task                - Show available tasks
+#   task preflight      - Run pre-deployment checks
+#   task init           - Initialize Terraform
+#   task plan           - Plan infrastructure changes
+#   task apply          - Apply infrastructure changes
+#   task deploy         - Full deployment workflow
+#   task destroy        - Destroy all infrastructure
+#------------------------------------------------------------------------------
+
+vars:
+  TERRAFORM_DIR: '{{.USER_WORKING_DIR}}'
+  BACKEND_CONFIG: backend.hcl
+  TFVARS_FILE: terraform.tfvars
+
+tasks:
+  default:
+    desc: Show available tasks
+    cmds:
+      - task --list
+
+  preflight:
+    desc: Run pre-deployment checks
+    cmds:
+      - echo "Running pre-flight checks..."
+      - task: check-azure-cli
+      - task: check-azure-auth
+      - task: check-terraform
+      - task: check-providers
+      - task: check-config-files
+      - echo "✅ All pre-flight checks passed!"
+
+  check-azure-cli:
+    desc: Check if Azure CLI is installed
+    cmds:
+      - |
+        if ! command -v az &> /dev/null; then
+          echo "❌ Azure CLI not installed"
+          echo "   Install: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli"
+          exit 1
+        fi
+        echo "✅ Azure CLI installed ($(az version --query '"azure-cli"' -o tsv))"
+    silent: false
+
+  check-azure-auth:
+    desc: Check if authenticated to Azure
+    cmds:
+      - |
+        if ! az account show &>/dev/null; then
+          echo "❌ Not authenticated to Azure"
+          echo "   Run: az login"
+          exit 1
+        fi
+        ACCOUNT=$(az account show --query name -o tsv)
+        echo "✅ Authenticated to Azure ($ACCOUNT)"
+    silent: false
+
+  check-terraform:
+    desc: Check if Terraform is installed
+    cmds:
+      - |
+        if ! command -v terraform &> /dev/null; then
+          echo "❌ Terraform not installed"
+          echo "   Install: https://www.terraform.io/downloads"
+          exit 1
+        fi
+        TF_VERSION=$(terraform version -json 2>/dev/null | grep -o '"terraform_version":"[^"]*' | cut -d'"' -f4)
+        echo "✅ Terraform installed (version: $TF_VERSION)"
+    silent: false
+
+  check-providers:
+    desc: Check and register Azure providers
+    cmds:
+      - |
+        echo "Checking Azure resource providers..."
+        PROVIDERS=(
+          "Microsoft.App"
+          "Microsoft.ContainerRegistry"
+          "Microsoft.KeyVault"
+          "Microsoft.OperationalInsights"
+          "Microsoft.Insights"
+          "Microsoft.Storage"
+        )
+
+        for PROVIDER in "${PROVIDERS[@]}"; do
+          STATE=$(az provider show --namespace "$PROVIDER" --query registrationState -o tsv 2>/dev/null || echo "Unknown")
+
+          if [ "$STATE" = "Registered" ]; then
+            echo "  ✅ $PROVIDER: Registered"
+          else
+            echo "  ⏳ $PROVIDER: Registering..."
+            az provider register --namespace "$PROVIDER" --wait
+            echo "  ✅ $PROVIDER: Registered"
+          fi
+        done
+    silent: false
+
+  check-config-files:
+    desc: Check if required configuration files exist
+    cmds:
+      - |
+        if [ ! -f {{.BACKEND_CONFIG}} ]; then
+          echo "❌ backend.hcl not found"
+          echo "   Copy backend.hcl.example to backend.hcl and configure"
+          exit 1
+        fi
+        echo "✅ Backend configuration exists"
+
+        if [ ! -f {{.TFVARS_FILE}} ]; then
+          echo "❌ terraform.tfvars not found"
+          echo "   Copy terraform.tfvars.example to terraform.tfvars and configure"
+          exit 1
+        fi
+        echo "✅ Variables configuration exists"
+    silent: false
+
+  init:
+    desc: Initialize Terraform with backend
+    deps: [preflight]
+    cmds:
+      - terraform init -backend-config={{.BACKEND_CONFIG}}
+      - echo "✅ Terraform initialized"
+
+  fmt:
+    desc: Format Terraform files
+    cmds:
+      - terraform fmt -recursive ../../..
+      - echo "✅ Terraform files formatted"
+
+  validate:
+    desc: Validate Terraform configuration
+    deps: [init]
+    cmds:
+      - terraform validate
+      - echo "✅ Configuration validated"
+
+  plan:
+    desc: Plan infrastructure changes
+    deps: [init, validate]
+    cmds:
+      - terraform plan -out=tfplan
+      - echo "✅ Plan generated (tfplan)"
+
+  apply:
+    desc: Apply infrastructure changes
+    deps: [plan]
+    prompt: This will modify Azure infrastructure. Continue?
+    cmds:
+      - terraform apply tfplan
+      - rm -f tfplan
+      - echo ""
+      - echo "✅ Infrastructure deployed!"
+      - echo ""
+      - terraform output
+
+  deploy:
+    desc: Full deployment workflow (preflight + init + plan + apply)
+    cmds:
+      - task: preflight
+      - task: init
+      - task: validate
+      - task: plan
+      - echo ""
+      - echo "╔══════════════════════════════════════════════════════════════╗"
+      - echo "║                                                              ║"
+      - echo "║          Ready to Deploy FinRisk Platform Infrastructure         ║"
+      - echo "║                                                              ║"
+      - echo "╚══════════════════════════════════════════════════════════════╝"
+      - echo ""
+      - echo "✅ Pre-flight checks passed"
+      - echo "✅ Terraform initialized"
+      - echo "✅ Configuration validated"
+      - echo "✅ Plan generated"
+      - echo ""
+      - task: apply
+
+  destroy:
+    desc: Destroy all infrastructure
+    deps: [init]
+    prompt: This will DESTROY all infrastructure. Type 'yes' to confirm
+    cmds:
+      - terraform destroy
+      - echo "✅ Infrastructure destroyed"
+
+  output:
+    desc: Show Terraform outputs
+    deps: [init]
+    cmds:
+      - terraform output
+
+  output-json:
+    desc: Show Terraform outputs in JSON format
+    deps: [init]
+    cmds:
+      - terraform output -json
+
+  clean:
+    desc: Clean Terraform cache and generated files
+    cmds:
+      - rm -rf .terraform
+      - rm -f .terraform.lock.hcl
+      - rm -f tfplan
+      - rm -f terraform.tfstate.backup
+      - echo "✅ Terraform cache cleaned"
+
+  refresh:
+    desc: Refresh Terraform state from Azure
+    deps: [init]
+    cmds:
+      - terraform refresh
+      - echo "✅ State refreshed"
+
+  show:
+    desc: Show current Terraform state
+    deps: [init]
+    cmds:
+      - terraform show
+
+  list:
+    desc: List resources in Terraform state
+    deps: [init]
+    cmds:
+      - terraform state list
+
+  status:
+    desc: Show deployment status
+    cmds:
+      - |
+        echo ""
+        echo "FinRisk Platform - Infrastructure Status"
+        echo "========================================"
+        echo ""
+
+        if [ -d .terraform ]; then
+          echo "✅ Terraform initialized"
+        else
+          echo "❌ Terraform not initialized (run: task init)"
+        fi
+
+        if [ -f {{.BACKEND_CONFIG}} ]; then
+          echo "✅ Backend configured"
+        else
+          echo "❌ Backend not configured (copy backend.hcl.example)"
+        fi
+
+        if [ -f {{.TFVARS_FILE}} ]; then
+          echo "✅ Variables configured"
+        else
+          echo "❌ Variables not configured (copy terraform.tfvars.example)"
+        fi
+
+        if az account show &>/dev/null; then
+          ACCOUNT=$(az account show --query name -o tsv)
+          echo "✅ Azure authenticated ($ACCOUNT)"
+        else
+          echo "❌ Not authenticated to Azure (run: az login)"
+        fi
+
+        echo ""
+
+  logs:
+    desc: View Container App logs
+    cmds:
+      - |
+        az containerapp logs show \
+          --name ca-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --follow
+
+  test-endpoint:
+    desc: Test deployed Container App endpoint
+    deps: [init]
+    cmds:
+      - |
+        URL=$(terraform output -raw container_app_url 2>/dev/null || echo "")
+        if [ -z "$URL" ]; then
+          echo "❌ Container App not deployed yet"
+          exit 1
+        fi
+        echo "Testing endpoint: $URL"
+        curl -s "$URL" | head -20
+        echo ""
+        echo "✅ Endpoint is responding"
+
+  cost-estimate:
+    desc: Show estimated monthly cost
+    cmds:
+      - |
+        echo ""
+        echo "Estimated Monthly Cost (Development)"
+        echo "====================================="
+        echo ""
+        echo "Container App:          $0-15   (scale-to-zero)"
+        echo "Container Registry:     $5      (Basic SKU)"
+        echo "Log Analytics:          $0-25   (5GB quota)"
+        echo "Application Insights:   $0-20   (2GB cap)"
+        echo "Key Vault:             ~$0.03   (operations)"
+        echo "Storage (state):       ~$0.50   (minimal)"
+        echo ""
+        echo "Total:                  $5.53 - $65.53 USD/month"
+        echo ""

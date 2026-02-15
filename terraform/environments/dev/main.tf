@@ -35,12 +35,17 @@ locals {
 
 # Resource Group
 # Logical container for all Azure resources
+# Wait for provider registration to complete before creating any resources
 module "resource_group" {
   source = "../../modules/resource-group"
 
   name     = "rg-${local.naming_prefix}"
   location = local.location
   tags     = local.common_tags
+
+  depends_on = [
+    time_sleep.wait_for_providers
+  ]
 }
 
 # Observability Stack (Log Analytics + Application Insights)
