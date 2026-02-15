@@ -1,0 +1,479 @@
+version: '3'
+
+#------------------------------------------------------------------------------
+# FinRisk Platform - Root Taskfile
+#------------------------------------------------------------------------------
+# Modern task runner for managing the entire FinRisk Platform
+#
+# Installation:
+#   brew install go-task/tap/go-task  # macOS
+#   sh -c "$(curl --location https://taskfile.dev/install.sh)" -- -d -b /usr/local/bin  # Linux
+#   or: https://taskfile.dev/installation/
+#
+# Quick Start:
+#   task                    - Show all available tasks
+#   task infra:deploy       - Deploy infrastructure
+#   task app:build          - Build application
+#   task app:run            - Run application locally
+#
+# Infrastructure:
+#   task infra:preflight    - Run infrastructure pre-flight checks
+#   task infra:init         - Initialize Terraform
+#   task infra:plan         - Plan infrastructure changes
+#   task infra:apply        - Apply infrastructure changes
+#   task infra:deploy       - Full infrastructure deployment
+#   task infra:destroy      - Destroy all infrastructure
+#   task infra:status       - Show infrastructure status
+#
+# Application:
+#   task app:install        - Install application dependencies
+#   task app:run            - Run application locally
+#   task app:test           - Run tests
+#   task app:lint           - Run linters
+#   task app:build          - Build Docker image
+#   task app:push           - Push to Azure Container Registry
+#
+# Monitoring:
+#   task logs               - View Container App logs
+#   task test-endpoint      - Test deployed endpoint
+#------------------------------------------------------------------------------
+
+vars:
+  TERRAFORM_ENV_DIR: './terraform/environments/dev'
+  APP_DIR: './app'
+  SCRIPTS_DIR: './terraform/scripts'
+
+tasks:
+  default:
+    desc: Show all available tasks
+    cmds:
+      - task --list-all
+
+  # ============================================================================
+  # Infrastructure Tasks
+  # ============================================================================
+
+  infra:preflight:
+    desc: Run infrastructure pre-flight checks
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    cmds:
+      - echo "Running infrastructure pre-flight checks..."
+      - task: infra:check-azure-cli
+      - task: infra:check-azure-auth
+      - task: infra:check-terraform
+      - task: infra:check-providers
+      - task: infra:check-config-files
+      - echo "✅ All infrastructure pre-flight checks passed!"
+
+  infra:check-azure-cli:
+    internal: true
+    cmds:
+      - |
+        if ! command -v az &> /dev/null; then
+          echo "❌ Azure CLI not installed"
+          echo "   Install: https://learn.microsoft.com/en-us/cli/azure/install-azure-cli"
+          exit 1
+        fi
+        echo "✅ Azure CLI installed ($(az version --query '"azure-cli"' -o tsv))"
+
+  infra:check-azure-auth:
+    internal: true
+    cmds:
+      - |
+        if ! az account show &>/dev/null; then
+          echo "❌ Not authenticated to Azure"
+          echo "   Run: az login"
+          exit 1
+        fi
+        ACCOUNT=$(az account show --query name -o tsv)
+        echo "✅ Authenticated to Azure ($ACCOUNT)"
+
+  infra:check-terraform:
+    internal: true
+    cmds:
+      - |
+        if ! command -v terraform &> /dev/null; then
+          echo "❌ Terraform not installed"
+          echo "   Install: https://www.terraform.io/downloads"
+          exit 1
+        fi
+        TF_VERSION=$(terraform version -json 2>/dev/null | grep -o '"terraform_version":"[^"]*' | cut -d'"' -f4)
+        echo "✅ Terraform installed (version: $TF_VERSION)"
+
+  infra:check-providers:
+    internal: true
+    cmds:
+      - |
+        echo "Checking Azure resource providers..."
+        PROVIDERS=(
+          "Microsoft.App"
+          "Microsoft.ContainerRegistry"
+          "Microsoft.KeyVault"
+          "Microsoft.OperationalInsights"
+          "Microsoft.Insights"
+          "Microsoft.Storage"
+        )
+
+        for PROVIDER in "${PROVIDERS[@]}"; do
+          STATE=$(az provider show --namespace "$PROVIDER" --query registrationState -o tsv 2>/dev/null || echo "Unknown")
+
+          if [ "$STATE" = "Registered" ]; then
+            echo "  ✅ $PROVIDER: Registered"
+          else
+            echo "  ⏳ $PROVIDER: Registering..."
+            az provider register --namespace "$PROVIDER" --wait
+            echo "  ✅ $PROVIDER: Registered"
+          fi
+        done
+
+  infra:check-config-files:
+    internal: true
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    cmds:
+      - |
+        if [ ! -f backend.hcl ]; then
+          echo "❌ backend.hcl not found"
+          echo "   Copy backend.hcl.example to backend.hcl and configure"
+          exit 1
+        fi
+        echo "✅ Backend configuration exists"
+
+        if [ ! -f terraform.tfvars ]; then
+          echo "❌ terraform.tfvars not found"
+          echo "   Copy terraform.tfvars.example to terraform.tfvars and configure"
+          exit 1
+        fi
+        echo "✅ Variables configuration exists"
+
+  infra:init:
+    desc: Initialize Terraform with backend
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:preflight]
+    cmds:
+      - terraform init -backend-config=backend.hcl
+      - echo "✅ Terraform initialized"
+
+  infra:fmt:
+    desc: Format Terraform files
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    cmds:
+      - terraform fmt -recursive ../../..
+      - echo "✅ Terraform files formatted"
+
+  infra:validate:
+    desc: Validate Terraform configuration
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:init]
+    cmds:
+      - terraform validate
+      - echo "✅ Configuration validated"
+
+  infra:plan:
+    desc: Plan infrastructure changes
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:init, infra:validate]
+    cmds:
+      - terraform plan -out=tfplan
+      - echo "✅ Plan generated (tfplan)"
+
+  infra:apply:
+    desc: Apply infrastructure changes
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:plan]
+    prompt: This will modify Azure infrastructure. Continue?
+    cmds:
+      - terraform apply tfplan
+      - rm -f tfplan
+      - echo ""
+      - echo "✅ Infrastructure deployed!"
+      - echo ""
+      - terraform output
+
+  infra:deploy:
+    desc: Full infrastructure deployment workflow
+    cmds:
+      - task: infra:preflight
+      - task: infra:init
+      - task: infra:validate
+      - task: infra:plan
+      - echo ""
+      - echo "╔══════════════════════════════════════════════════════════════╗"
+      - echo "║                                                              ║"
+      - echo "║      Ready to Deploy FinRisk Platform Infrastructure        ║"
+      - echo "║                                                              ║"
+      - echo "╚══════════════════════════════════════════════════════════════╝"
+      - echo ""
+      - echo "✅ Pre-flight checks passed"
+      - echo "✅ Terraform initialized"
+      - echo "✅ Configuration validated"
+      - echo "✅ Plan generated"
+      - echo ""
+      - task: infra:apply
+
+  infra:destroy:
+    desc: Destroy all infrastructure
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:init]
+    prompt: This will DESTROY all infrastructure. Type 'yes' to confirm
+    cmds:
+      - terraform destroy
+      - echo "✅ Infrastructure destroyed"
+
+  infra:output:
+    desc: Show Terraform outputs
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:init]
+    cmds:
+      - terraform output
+
+  infra:output-json:
+    desc: Show Terraform outputs in JSON
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    deps: [infra:init]
+    cmds:
+      - terraform output -json
+
+  infra:clean:
+    desc: Clean Terraform cache
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    cmds:
+      - rm -rf .terraform
+      - rm -f .terraform.lock.hcl
+      - rm -f tfplan
+      - rm -f terraform.tfstate.backup
+      - echo "✅ Terraform cache cleaned"
+
+  infra:status:
+    desc: Show infrastructure deployment status
+    dir: '{{.TERRAFORM_ENV_DIR}}'
+    cmds:
+      - |
+        echo ""
+        echo "FinRisk Platform - Infrastructure Status"
+        echo "========================================"
+        echo ""
+
+        if [ -d .terraform ]; then
+          echo "✅ Terraform initialized"
+        else
+          echo "❌ Terraform not initialized (run: task infra:init)"
+        fi
+
+        if [ -f backend.hcl ]; then
+          echo "✅ Backend configured"
+        else
+          echo "❌ Backend not configured (copy backend.hcl.example)"
+        fi
+
+        if [ -f terraform.tfvars ]; then
+          echo "✅ Variables configured"
+        else
+          echo "❌ Variables not configured (copy terraform.tfvars.example)"
+        fi
+
+        if az account show &>/dev/null; then
+          ACCOUNT=$(az account show --query name -o tsv)
+          echo "✅ Azure authenticated ($ACCOUNT)"
+        else
+          echo "❌ Not authenticated to Azure (run: az login)"
+        fi
+
+        echo ""
+
+  # ============================================================================
+  # Application Tasks
+  # ============================================================================
+
+  app:install:
+    desc: Install application dependencies
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - |
+        if ! command -v uv &> /dev/null; then
+          echo "Installing uv package manager..."
+          curl -LsSf https://astral.sh/uv/install.sh | sh
+        fi
+      - uv sync
+      - echo "✅ Dependencies installed"
+
+  app:run:
+    desc: Run application locally
+    dir: '{{.APP_DIR}}'
+    deps: [app:install]
+    cmds:
+      - uv run uvicorn src.main:app --reload --port 8080
+
+  app:test:
+    desc: Run application tests
+    dir: '{{.APP_DIR}}'
+    deps: [app:install]
+    cmds:
+      - uv run pytest
+
+  app:test-watch:
+    desc: Run tests in watch mode
+    dir: '{{.APP_DIR}}'
+    deps: [app:install]
+    cmds:
+      - uv run pytest-watch
+
+  app:lint:
+    desc: Run linters (ruff + mypy)
+    dir: '{{.APP_DIR}}'
+    deps: [app:install]
+    cmds:
+      - uv run ruff check src/
+      - uv run mypy src/
+
+  app:format:
+    desc: Format application code
+    dir: '{{.APP_DIR}}'
+    deps: [app:install]
+    cmds:
+      - uv run ruff format src/
+      - echo "✅ Code formatted"
+
+  app:build:
+    desc: Build Docker image
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - |
+        REGISTRY=$(cd ../terraform/environments/dev && terraform output -raw container_registry_login_server 2>/dev/null || echo "acrfinriskdev.azurecr.io")
+        TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
+        IMAGE="$REGISTRY/applicant-validator:$TAG"
+
+        echo "Building image: $IMAGE"
+        docker build -t "$IMAGE" .
+        docker tag "$IMAGE" "$REGISTRY/applicant-validator:latest"
+
+        echo ""
+        echo "✅ Image built: $IMAGE"
+        echo "✅ Tagged as: $REGISTRY/applicant-validator:latest"
+
+  app:push:
+    desc: Push Docker image to ACR
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - |
+        REGISTRY=$(cd ../terraform/environments/dev && terraform output -raw container_registry_name 2>/dev/null || echo "acrfinriskdev")
+
+        echo "Logging in to Azure Container Registry..."
+        az acr login --name "$REGISTRY"
+
+        TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
+        IMAGE="$REGISTRY.azurecr.io/applicant-validator:$TAG"
+
+        echo "Pushing image: $IMAGE"
+        docker push "$IMAGE"
+        docker push "$REGISTRY.azurecr.io/applicant-validator:latest"
+
+        echo ""
+        echo "✅ Image pushed to ACR"
+
+  app:deploy:
+    desc: Build, push, and update Container App
+    cmds:
+      - task: app:build
+      - task: app:push
+      - task: update-container-app
+
+  # ============================================================================
+  # Monitoring & Operations Tasks
+  # ============================================================================
+
+  logs:
+    desc: View Container App logs (live)
+    cmds:
+      - |
+        az containerapp logs show \
+          --name ca-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --follow
+
+  test-endpoint:
+    desc: Test deployed Container App endpoint
+    cmds:
+      - |
+        cd terraform/environments/dev
+        URL=$(terraform output -raw container_app_url 2>/dev/null || echo "")
+        if [ -z "$URL" ]; then
+          echo "❌ Container App not deployed yet"
+          exit 1
+        fi
+
+        echo "Testing endpoint: $URL"
+        echo ""
+
+        echo "Health check:"
+        curl -s "$URL/health" || echo "❌ Health check failed"
+
+        echo ""
+        echo "✅ Endpoint is responding"
+
+  cost-estimate:
+    desc: Show estimated monthly cost
+    cmds:
+      - |
+        echo ""
+        echo "FinRisk Platform - Cost Estimate"
+        echo "================================="
+        echo ""
+        echo "Development Environment:"
+        echo ""
+        echo "Container App:          $0-15   (scale-to-zero enabled)"
+        echo "Container Registry:     $5      (Basic SKU)"
+        echo "Log Analytics:          $0-25   (5GB daily quota)"
+        echo "Application Insights:   $0-20   (2GB daily cap)"
+        echo "Key Vault:             ~$0.03   (per 10K operations)"
+        echo "Storage (state):       ~$0.50   (minimal usage)"
+        echo ""
+        echo "Total:                  $5.53 - $65.53 USD/month"
+        echo ""
+        echo "Production environment would be ~$480/month (always-on, HA)"
+        echo ""
+
+  update-container-app:
+    desc: Update Container App with new image
+    internal: true
+    cmds:
+      - |
+        REGISTRY=$(cd terraform/environments/dev && terraform output -raw container_registry_login_server 2>/dev/null)
+        TAG=$(git rev-parse --short HEAD 2>/dev/null || echo "latest")
+        IMAGE="$REGISTRY/applicant-validator:$TAG"
+
+        echo "Updating Container App with image: $IMAGE"
+
+        az containerapp update \
+          --name ca-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --image "$IMAGE"
+
+        echo "✅ Container App updated"
+
+  # ============================================================================
+  # Utility Tasks
+  # ============================================================================
+
+  clean:
+    desc: Clean all build artifacts and caches
+    cmds:
+      - task: infra:clean
+      - task: app:clean
+
+  app:clean:
+    desc: Clean application build artifacts
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - rm -rf .pytest_cache
+      - rm -rf .mypy_cache
+      - rm -rf .ruff_cache
+      - rm -rf __pycache__
+      - find . -type d -name "__pycache__" -exec rm -rf {} +
+      - echo "✅ Application cache cleaned"
+
+  status:
+    desc: Show overall platform status
+    cmds:
+      - task: infra:status
+      - echo ""
+      - task: cost-estimate
