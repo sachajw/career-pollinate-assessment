@@ -1,8 +1,6 @@
 """API v1 routes for the Risk Scoring API."""
 
-import time
-from collections import defaultdict
-from ipaddress import ip_address
+import uuid
 from typing import Any
 
 from fastapi import APIRouter, Depends, HTTPException, Request, status
@@ -69,9 +67,8 @@ async def validate_applicant(
     for tracing across distributed systems.
     """
     # Generate correlation ID for this request
-    import uuid
     correlation_id = uuid.uuid4()
-    set_correlation_id(str(correlation_id))
+    set_correlation_id(str(correlation_id))  # Convert to str for logging context
 
     logger.info(
         "validation_request_received",
@@ -89,9 +86,7 @@ async def validate_applicant(
 
         response = ValidationResponse(
             risk_score=result.risk_score,
-            risk_level=RiskLevel(result.risk_level.lower())
-            if result.risk_level.lower() in [e.value.lower() for e in RiskLevel]
-            else RiskLevel.from_score(result.risk_score),
+            risk_level=RiskLevel.from_score(result.risk_score),  # Always derive from score
             correlation_id=correlation_id,
             additional_data=result.additional_data,
         )
@@ -112,7 +107,7 @@ async def validate_applicant(
                 error=ErrorCode.AUTHENTICATION_ERROR,
                 message="Failed to authenticate with risk validation service",
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )
 
     except RiskShieldRateLimitError as e:
@@ -123,7 +118,7 @@ async def validate_applicant(
                 error=ErrorCode.RATE_LIMIT_ERROR,
                 message="Rate limit exceeded. Please try again later.",
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )
 
     except RiskShieldTimeoutError as e:
@@ -134,7 +129,7 @@ async def validate_applicant(
                 error=ErrorCode.TIMEOUT_ERROR,
                 message="Risk validation service timed out",
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )
 
     except RiskShieldServerError as e:
@@ -145,7 +140,7 @@ async def validate_applicant(
                 error=ErrorCode.UPSTREAM_ERROR,
                 message="Risk validation service is temporarily unavailable",
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )
 
     except RiskShieldError as e:
@@ -156,7 +151,7 @@ async def validate_applicant(
                 error=ErrorCode.UPSTREAM_ERROR,
                 message=str(e),
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )
 
     except Exception as e:
@@ -167,5 +162,5 @@ async def validate_applicant(
                 error=ErrorCode.INTERNAL_ERROR,
                 message="An unexpected error occurred",
                 correlation_id=correlation_id,
-            ).model_dump(),
+            ).model_dump(mode='json'),
         )

@@ -7,7 +7,7 @@ Provides data validation and serialization for:
 """
 
 from enum import Enum
-from typing import Any
+from typing import Any, Literal
 from uuid import UUID, uuid4
 
 from pydantic import BaseModel, Field, field_validator, model_validator
@@ -273,9 +273,6 @@ class ReadyResponse(BaseModel):
         description="Readiness check details",
     )
 
-
-# Import Literal for type hints
-from typing import Literal
 
 # Re-export for convenience
 __all__ = [

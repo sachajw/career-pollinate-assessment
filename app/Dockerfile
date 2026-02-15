@@ -14,13 +14,13 @@ RUN apt-get update && apt-get install -y --no-install-recommends \
 
 # Install uv (ultra-fast Python package manager)
 RUN curl -LsSf https://astral.sh/uv/install.sh | sh
-ENV PATH="/root/.cargo/bin:$PATH"
+ENV PATH="/root/.local/bin:$PATH"
 
 # Set working directory
 WORKDIR /app
 
 # Copy dependency files
-COPY pyproject.toml .
+COPY pyproject.toml README.md .
 
 # Create virtual environment and install dependencies
 RUN uv venv /opt/venv

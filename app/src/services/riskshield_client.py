@@ -9,6 +9,7 @@ Provides a robust HTTP client with:
 """
 
 import asyncio
+import time
 from abc import ABC, abstractmethod
 from dataclasses import dataclass
 from enum import Enum
@@ -122,7 +123,7 @@ class CircuitBreaker:
                 self._state = CircuitState.HALF_OPEN
                 return True
 
-            elapsed = asyncio.get_event_loop().time() - self._last_failure_time
+            elapsed = time.monotonic() - self._last_failure_time
             if elapsed >= self.recovery_timeout:
                 self._state = CircuitState.HALF_OPEN
                 self._half_open_calls = 0
@@ -145,7 +146,7 @@ class CircuitBreaker:
     def record_failure(self) -> None:
         """Record failed request."""
         self._failure_count += 1
-        self._last_failure_time = asyncio.get_event_loop().time()
+        self._last_failure_time = time.monotonic()
 
         if self._state == CircuitState.HALF_OPEN:
             self._state = CircuitState.OPEN
@@ -188,18 +189,18 @@ class RiskShieldClient:
         # Try to load from Key Vault
         if self._settings.key_vault_url:
             try:
-                from azure.identity import DefaultAzureCredential
-                from azure.keyvault.secrets import SecretClient
+                from azure.identity.aio import DefaultAzureCredential as AsyncDefaultAzureCredential
+                from azure.keyvault.secrets.aio import SecretClient as AsyncSecretClient
 
-                credential = DefaultAzureCredential()
-                client = SecretClient(
-                    vault_url=self._settings.key_vault_url,
-                    credential=credential,
-                )
-                secret = client.get_secret("RISKSHIELD-API-KEY")
-                self._api_key = secret.value
-                logger.info("api_key_loaded_from_key_vault")
-                return self._api_key
+                async with AsyncDefaultAzureCredential() as credential:
+                    async with AsyncSecretClient(
+                        vault_url=self._settings.key_vault_url,
+                        credential=credential,
+                    ) as client:
+                        secret = await client.get_secret("RISKSHIELD-API-KEY")
+                        self._api_key = secret.value
+                        logger.info("api_key_loaded_from_key_vault")
+                        return self._api_key
             except Exception as e:
                 logger.error("failed_to_load_api_key_from_key_vault", error=str(e))
                 raise RiskShieldAuthError(

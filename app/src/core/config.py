@@ -100,8 +100,8 @@ class Settings(BaseSettings):
 
     # CORS Configuration
     cors_origins: list[str] = Field(
-        default=["*"],
-        description="Allowed CORS origins",
+        default=[],
+        description="Allowed CORS origins (required in production)",
     )
     cors_allow_credentials: bool = Field(
         default=False,
@@ -157,7 +157,7 @@ class Settings(BaseSettings):
         return self.environment == "dev"
 
 
-@lru_cache
+@lru_cache()
 def get_settings() -> Settings:
     """Get cached application settings.
 
@@ -167,3 +167,12 @@ def get_settings() -> Settings:
         Settings: Application settings instance.
     """
     return Settings()
+
+
+def reset_settings() -> None:
+    """Clear settings cache (for testing).
+
+    This function is useful in tests when you need to reload
+    settings with different environment variables.
+    """
+    get_settings.cache_clear()

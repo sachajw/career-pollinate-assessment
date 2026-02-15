@@ -93,17 +93,17 @@ class TestValidationEndpoint:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
 
         assert response.status_code == 200
         data = response.json()
-        assert data["riskScore"] == 72
-        assert data["riskLevel"] == "MEDIUM"
-        assert "correlationId" in data
+        assert data["risk_score"] == 72
+        assert data["risk_level"] == "HIGH"  # Score 72 is in HIGH range (60-79)
+        assert "correlation_id" in data
 
     @patch("src.api.v1.routes.get_riskshield_client")
     def test_validate_auth_error(self, mock_get_client, client):
@@ -116,9 +116,9 @@ class TestValidationEndpoint:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
 
@@ -135,9 +135,9 @@ class TestValidationEndpoint:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
 
@@ -154,9 +154,9 @@ class TestValidationEndpoint:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
 
@@ -173,9 +173,9 @@ class TestValidationEndpoint:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
 
@@ -190,8 +190,8 @@ class TestValidationInput:
         response = client.post(
             "/api/v1/validate",
             json={
-                "lastName": "Doe",
-                "idNumber": "9001011234088",
+                "last_name": "Doe",
+                "id_number": "8001015009087",
             },
         )
         assert response.status_code == 400
@@ -201,8 +201,8 @@ class TestValidationInput:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "idNumber": "9001011234088",
+                "first_name": "Jane",
+                "id_number": "8001015009087",
             },
         )
         assert response.status_code == 400
@@ -212,9 +212,9 @@ class TestValidationInput:
         response = client.post(
             "/api/v1/validate",
             json={
-                "firstName": "Jane",
-                "lastName": "Doe",
-                "idNumber": "invalid",
+                "first_name": "Jane",
+                "last_name": "Doe",
+                "id_number": "invalid",
             },
         )
         assert response.status_code == 400

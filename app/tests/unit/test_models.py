@@ -8,6 +8,7 @@ from src.models import (
     ValidationRequest,
     ValidationResponse,
     ErrorCode,
+    ErrorDetail,
     ErrorResponse,
 )
 
@@ -48,18 +49,18 @@ class TestValidationRequest:
         request = ValidationRequest(
             first_name="John",
             last_name="Doe",
-            id_number="9001011234088",
+            id_number="8001015009087",
         )
         assert request.first_name == "John"
         assert request.last_name == "Doe"
-        assert request.id_number == "9001011234088"
+        assert request.id_number == "8001015009087"
 
     def test_name_normalization(self):
         """Test name whitespace normalization."""
         request = ValidationRequest(
             first_name="  John  Paul  ",
             last_name="  Doe  ",
-            id_number="9001011234088",
+            id_number="8001015009087",
         )
         assert request.first_name == "John Paul"
         assert request.last_name == "Doe"
@@ -70,7 +71,7 @@ class TestValidationRequest:
             ValidationRequest(
                 first_name="John123",
                 last_name="Doe",
-                id_number="9001011234088",
+                id_number="8001015009087",
             )
 
     def test_empty_name(self):
@@ -79,7 +80,7 @@ class TestValidationRequest:
             ValidationRequest(
                 first_name="",
                 last_name="Doe",
-                id_number="9001011234088",
+                id_number="8001015009087",
             )
 
     def test_invalid_id_number_length(self):
@@ -126,10 +127,10 @@ class TestValidationResponse:
         """Test valid response creation."""
         response = ValidationResponse(
             risk_score=72,
-            risk_level=RiskLevel.MEDIUM,
+            risk_level=RiskLevel.HIGH,  # Score 72 is in HIGH range (60-79)
         )
         assert response.risk_score == 72
-        assert response.risk_level == RiskLevel.MEDIUM
+        assert response.risk_level == RiskLevel.HIGH
 
     def test_risk_level_auto_correction(self):
         """Test automatic risk level correction based on score."""
@@ -174,8 +175,10 @@ class TestErrorResponse:
             error=ErrorCode.VALIDATION_ERROR,
             message="Validation failed",
             details=[
-                {"field": "first_name", "message": "Required", "code": "required"},
+                ErrorDetail(field="first_name", message="Required", code="required"),
             ],
         )
         assert len(response.details) == 1
-        assert response.details[0]["field"] == "first_name"
+        assert response.details[0].field == "first_name"
+        assert response.details[0].message == "Required"
+        assert response.details[0].code == "required"

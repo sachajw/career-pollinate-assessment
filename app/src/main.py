@@ -8,6 +8,7 @@ This module creates and configures the FastAPI application with:
 - OpenAPI documentation
 """
 
+import uuid
 from contextlib import asynccontextmanager
 from typing import Any
 
@@ -110,7 +111,6 @@ All errors follow a consistent JSON format with error codes and correlation IDs.
         request: Request, exc: RequestValidationError
     ) -> JSONResponse:
         """Handle validation errors with consistent format."""
-        import uuid
         correlation_id = uuid.uuid4()
         set_correlation_id(str(correlation_id))
 
@@ -147,7 +147,6 @@ All errors follow a consistent JSON format with error codes and correlation IDs.
         request: Request, exc: Exception
     ) -> JSONResponse:
         """Handle unexpected exceptions."""
-        import uuid
         correlation_id = uuid.uuid4()
 
         logger.exception(
