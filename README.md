@@ -1,12 +1,12 @@
-# RiskShield API Integration Platform
+# FinRisk Platform - Applicant Validator
 
 > **Technical Assessment Solution** for Pollinate Platform Engineering Role
 >
-> A secure, cloud-native integration platform for fraud and risk validation services.
+> A secure, cloud-native domain service for loan applicant fraud risk validation.
 
 ## 📋 Project Overview
 
-FinSure Capital requires a production-ready integration service to validate loan applicants through RiskShield's fraud detection API. This solution delivers a secure, scalable Azure-based platform using modern cloud-native patterns.
+FinSure Capital requires a production-ready integration service to validate loan applicants through RiskShield's fraud detection API. This solution delivers a secure, scalable Azure-based platform using modern cloud-native patterns and Domain-Driven Design principles.
 
 ### Key Features
 
@@ -17,13 +17,15 @@ FinSure Capital requires a production-ready integration service to validate loan
 - ✅ CI/CD with Azure DevOps
 - ✅ Comprehensive observability
 - ✅ SOC 2 Type II compliance ready
+- ✅ DDD-aligned naming conventions
 
 ## 🏗️ Architecture
 
 ### High-Level Design
 
 ```
-Loan System → API Gateway → Risk Scoring Service → RiskShield API
+Loan System → API Gateway → Applicant Validator → RiskShield API
+              (FinRisk)           (Domain Service)
                                     ↓
                             Azure Key Vault
                             Application Insights
@@ -32,9 +34,9 @@ Loan System → API Gateway → Risk Scoring Service → RiskShield API
 
 **Key Technologies:**
 - **Runtime**: Python 3.13 (FastAPI)
-- **Compute**: Azure Container Apps
+- **Compute**: Azure Container Apps (ca-finrisk-dev)
 - **Container**: Docker (Python Slim)
-- **Secrets**: Azure Key Vault
+- **Secrets**: Azure Key Vault (kv-finrisk-dev)
 - **Identity**: Managed Identity
 - **Observability**: Application Insights
 - **IaC**: Terraform
@@ -45,6 +47,7 @@ Loan System → API Gateway → Risk Scoring Service → RiskShield API
 | Document | Description |
 |----------|-------------|
 | [Technical Assessment](./documentation/technical-assessment.md) | Original assessment requirements |
+| [Assessment Compliance Report](./documentation/ASSESSMENT_COMPLIANCE_REPORT.md) | Requirement verification matrix |
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
 | [Architecture Decisions](./documentation/architecture/adr/README.md) | ADRs for key decisions |
@@ -138,10 +141,10 @@ uv run mypy src/
 uv run ruff check src/
 
 # Build container
-docker build -t risk-scoring-api:local .
+docker build -t applicant-validator:local .
 
 # Run container
-docker run -p 8080:8080 risk-scoring-api:local
+docker run -p 8080:8080 applicant-validator:local
 ```
 
 ### Deploy to Azure
@@ -376,7 +379,7 @@ uv run pytest-watch
 k6 run tests/load/stress-test.js
 
 # Using Azure Load Testing
-az load test run --test-id risk-scoring-load-test
+az load test run --test-id finrisk-load-test
 ```
 
 **Test Scenario:** 1000 concurrent users, 10 min duration

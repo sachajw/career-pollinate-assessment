@@ -28,7 +28,8 @@ locals {
   )
 
   # Container image from ACR (placeholder, will be updated by CI/CD)
-  container_image = "${module.container_registry.login_server}/risk-scoring-api:latest"
+  # Domain service name: applicant-validator (DDD - describes domain capability)
+  container_image = "${module.container_registry.login_server}/applicant-validator:latest"
 }
 
 # Resource Group
@@ -161,7 +162,8 @@ module "container_app" {
   zone_redundancy_enabled = false
 
   # Container configuration
-  container_name   = "risk-scoring-api"
+  # Domain service name describes business capability (DDD)
+  container_name   = "applicant-validator"
   container_image  = local.container_image
   container_cpu    = 0.5   # 0.5 vCPU
   container_memory = "1Gi" # 1GB RAM

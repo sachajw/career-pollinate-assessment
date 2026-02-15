@@ -5,7 +5,7 @@
 
 ## Summary
 
-Successfully built and tested the Risk Scoring API Docker image with multi-stage build optimization and multi-architecture support.
+Successfully built and tested the Applicant Validator Docker image with multi-stage build optimization and multi-architecture support.
 
 ---
 
@@ -14,7 +14,7 @@ Successfully built and tested the Risk Scoring API Docker image with multi-stage
 ### Single Platform Build (arm64)
 
 ```bash
-docker build -t risk-scoring-api:latest -t risk-scoring-api:1.0.0 .
+docker build -t applicant-validator:latest -t applicant-validator:1.0.0 .
 ```
 
 **Result**: ✅ Success
@@ -30,9 +30,9 @@ docker build -t risk-scoring-api:latest -t risk-scoring-api:1.0.0 .
 ### Image Details
 
 ```
-REPOSITORY         TAG       IMAGE ID       CREATED         SIZE
-risk-scoring-api   1.0.0     cce6d9a5d322   6 seconds ago   370MB
-risk-scoring-api   latest    cce6d9a5d322   6 seconds ago   370MB
+REPOSITORY              TAG       IMAGE ID       CREATED         SIZE
+applicant-validator     1.0.0     cce6d9a5d322   6 seconds ago   370MB
+applicant-validator     latest    cce6d9a5d322   6 seconds ago   370MB
 ```
 
 ---
@@ -44,8 +44,8 @@ risk-scoring-api   latest    cce6d9a5d322   6 seconds ago   370MB
 Container started successfully with health check passing:
 
 ```bash
-CONTAINER ID   IMAGE                     STATUS
-be5f6760169c   risk-scoring-api:latest   Up 6 seconds (healthy)
+CONTAINER ID   IMAGE                       STATUS
+be5f6760169c   applicant-validator:latest  Up 6 seconds (healthy)
 ```
 
 ### API Endpoints Tested
@@ -77,7 +77,7 @@ curl http://localhost:8080/
 **Response**:
 ```json
 {
-    "name": "Risk Scoring API",
+    "name": "Applicant Validator",
     "version": "1.0.0",
     "docs": "/docs"
 }
@@ -154,7 +154,7 @@ docker buildx create --name multiarch-builder --use
 # Build for multiple platforms and push
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t your-registry/risk-scoring-api:1.0.0 \
+  -t your-registry/applicant-validator:1.0.0 \
   --push \
   .
 ```
@@ -305,7 +305,7 @@ All secrets passed via environment variables at runtime:
 - task: Docker@2
   inputs:
     command: buildAndPush
-    repository: yourregistry.azurecr.io/risk-scoring-api
+    repository: acrfinriskdev.azurecr.io/applicant-validator
     tags: |
       $(Build.BuildId)
       latest
@@ -321,34 +321,34 @@ All secrets passed via environment variables at runtime:
 1. **Push to Container Registry**
    ```bash
    # Tag for registry
-   docker tag risk-scoring-api:1.0.0 your-registry.azurecr.io/risk-scoring-api:1.0.0
+   docker tag applicant-validator:1.0.0 acrfinriskdev.azurecr.io/applicant-validator:1.0.0
 
    # Push
-   docker push your-registry.azurecr.io/risk-scoring-api:1.0.0
+   docker push acrfinriskdev.azurecr.io/applicant-validator:1.0.0
    ```
 
 2. **Build Multi-Architecture Images**
    ```bash
-   ./build-multiarch.sh PUSH=true REGISTRY=your-registry.azurecr.io
+   ./build-multiarch.sh PUSH=true REGISTRY=acrfinriskdev.azurecr.io
    ```
 
 3. **Security Scanning**
    ```bash
    # Scan with Trivy
-   trivy image risk-scoring-api:1.0.0
+   trivy image applicant-validator:1.0.0
 
    # Scan with Docker Scout
-   docker scout cves risk-scoring-api:1.0.0
+   docker scout cves applicant-validator:1.0.0
    ```
 
 4. **Deploy to Azure Container Apps**
    ```bash
    # Using Azure CLI
    az containerapp create \
-     --name risk-scoring-api \
-     --resource-group rg-riskshield-dev \
-     --image your-registry.azurecr.io/risk-scoring-api:1.0.0 \
-     --environment containerapp-env-dev \
+     --name ca-finrisk-dev \
+     --resource-group rg-finrisk-dev \
+     --image acrfinriskdev.azurecr.io/applicant-validator:1.0.0 \
+     --environment cae-finrisk-dev \
      --ingress external \
      --target-port 8080
    ```

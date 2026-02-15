@@ -1,7 +1,7 @@
 # Container Endpoint Test Results
 
 **Date**: 2026-02-15
-**Container**: risk-scoring-api:latest
+**Container**: applicant-validator:latest
 **Status**: ✅ **ALL TESTS PASSED**
 
 ---
@@ -21,8 +21,8 @@
 ## Container Status
 
 ```
-CONTAINER ID   IMAGE                     STATUS                   PORTS
-2dea98394f4e   risk-scoring-api:latest   Up 5 minutes (healthy)   0.0.0.0:8080->8080/tcp
+CONTAINER ID   IMAGE                       STATUS                   PORTS
+2dea98394f4e   applicant-validator:latest  Up 5 minutes (healthy)   0.0.0.0:8080->8080/tcp
 ```
 
 **Health Status**: 🟢 HEALTHY
@@ -102,7 +102,7 @@ curl http://localhost:8080/
 **Response** (200 OK):
 ```json
 {
-    "name": "Risk Scoring API",
+    "name": "Applicant Validator",
     "version": "1.0.0",
     "docs": "/docs"
 }
@@ -130,7 +130,7 @@ curl http://localhost:8080/openapi.json
 {
   "openapi": "3.1.0",
   "info": {
-    "title": "Risk Scoring API",
+    "title": "Applicant Validator",
     "description": "...",
     "version": "1.0.0"
   },

@@ -33,6 +33,58 @@ wheels = [
 ]
 
 [[package]]
+name = "applicant-validator"
+version = "1.0.0"
+source = { editable = "." }
+dependencies = [
+    { name = "azure-identity" },
+    { name = "azure-keyvault-secrets" },
+    { name = "fastapi" },
+    { name = "httpx" },
+    { name = "opencensus-ext-azure" },
+    { name = "pydantic" },
+    { name = "pydantic-settings" },
+    { name = "slowapi" },
+    { name = "structlog" },
+    { name = "tenacity" },
+    { name = "uvicorn", extra = ["standard"] },
+]
+
+[package.optional-dependencies]
+dev = [
+    { name = "bandit" },
+    { name = "httpx" },
+    { name = "mypy" },
+    { name = "pytest" },
+    { name = "pytest-asyncio" },
+    { name = "pytest-cov" },
+    { name = "ruff" },
+]
+
+[package.metadata]
+requires-dist = [
+    { name = "azure-identity", specifier = ">=1.15.0" },
+    { name = "azure-keyvault-secrets", specifier = ">=4.8.0" },
+    { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
+    { name = "fastapi", specifier = ">=0.109.0" },
+    { name = "httpx", specifier = ">=0.26.0" },
+    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.26.0" },
+    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
+    { name = "opencensus-ext-azure", specifier = ">=1.1.13" },
+    { name = "pydantic", specifier = ">=2.5.0" },
+    { name = "pydantic-settings", specifier = ">=2.1.0" },
+    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
+    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
+    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
+    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2.0" },
+    { name = "slowapi", specifier = ">=0.1.9" },
+    { name = "structlog", specifier = ">=24.1.0" },
+    { name = "tenacity", specifier = ">=8.2.0" },
+    { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0" },
+]
+provides-extras = ["dev"]
+
+[[package]]
 name = "azure-core"
 version = "1.38.1"
 source = { registry = "https://pypi.org/simple" }
@@ -998,58 +1050,6 @@ sdist = { url = "https://files.pythonhosted.org/packages/74/99/a4cab2acbb884f80e
 wheels = [
     { url = "https://files.pythonhosted.org/packages/ef/45/615f5babd880b4bd7d405cc0dc348234c5ffb6ed1ea33e152ede08b2072d/rich-14.3.2-py3-none-any.whl", hash = "sha256:08e67c3e90884651da3239ea668222d19bea7b589149d8014a21c633420dbb69", size = 309963, upload-time = "2026-02-01T16:20:46.078Z" },
 ]
-
-[[package]]
-name = "risk-scoring-api"
-version = "1.0.0"
-source = { editable = "." }
-dependencies = [
-    { name = "azure-identity" },
-    { name = "azure-keyvault-secrets" },
-    { name = "fastapi" },
-    { name = "httpx" },
-    { name = "opencensus-ext-azure" },
-    { name = "pydantic" },
-    { name = "pydantic-settings" },
-    { name = "slowapi" },
-    { name = "structlog" },
-    { name = "tenacity" },
-    { name = "uvicorn", extra = ["standard"] },
-]
-
-[package.optional-dependencies]
-dev = [
-    { name = "bandit" },
-    { name = "httpx" },
-    { name = "mypy" },
-    { name = "pytest" },
-    { name = "pytest-asyncio" },
-    { name = "pytest-cov" },
-    { name = "ruff" },
-]
-
-[package.metadata]
-requires-dist = [
-    { name = "azure-identity", specifier = ">=1.15.0" },
-    { name = "azure-keyvault-secrets", specifier = ">=4.8.0" },
-    { name = "bandit", marker = "extra == 'dev'", specifier = ">=1.7.0" },
-    { name = "fastapi", specifier = ">=0.109.0" },
-    { name = "httpx", specifier = ">=0.26.0" },
-    { name = "httpx", marker = "extra == 'dev'", specifier = ">=0.26.0" },
-    { name = "mypy", marker = "extra == 'dev'", specifier = ">=1.8.0" },
-    { name = "opencensus-ext-azure", specifier = ">=1.1.13" },
-    { name = "pydantic", specifier = ">=2.5.0" },
-    { name = "pydantic-settings", specifier = ">=2.1.0" },
-    { name = "pytest", marker = "extra == 'dev'", specifier = ">=8.0.0" },
-    { name = "pytest-asyncio", marker = "extra == 'dev'", specifier = ">=0.23.0" },
-    { name = "pytest-cov", marker = "extra == 'dev'", specifier = ">=4.1.0" },
-    { name = "ruff", marker = "extra == 'dev'", specifier = ">=0.2.0" },
-    { name = "slowapi", specifier = ">=0.1.9" },
-    { name = "structlog", specifier = ">=24.1.0" },
-    { name = "tenacity", specifier = ">=8.2.0" },
-    { name = "uvicorn", extras = ["standard"], specifier = ">=0.27.0" },
-]
-provides-extras = ["dev"]
 
 [[package]]
 name = "rsa"

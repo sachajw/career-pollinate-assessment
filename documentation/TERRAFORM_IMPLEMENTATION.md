@@ -6,7 +6,7 @@
 
 ## Executive Summary
 
-This document summarizes the comprehensive Terraform infrastructure implementation for the RiskShield API Integration Platform. The implementation provides production-ready Infrastructure as Code (IaC) with modular design, security best practices, and CI/CD integration.
+This document summarizes the comprehensive Terraform infrastructure implementation for the FinRisk Platform (Applicant Validator). The implementation provides production-ready Infrastructure as Code (IaC) with modular design, security best practices, and CI/CD integration.
 
 ---
 
@@ -78,7 +78,7 @@ Resource Group
 module "resource_group" {
   source = "../../modules/resource-group"
 
-  name     = "rg-riskscoring-dev"
+  name     = "rg-finrisk-dev"
   location = "eastus2"
   tags     = local.common_tags
 }
@@ -113,7 +113,7 @@ module "resource_group" {
 module "container_registry" {
   source = "../../modules/container-registry"
 
-  name                = "acrriskscoring" # Must be globally unique
+  name                = "acrfinriskdev" # Must be globally unique
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
   sku                 = "Basic" # Dev: Basic, Prod: Premium
@@ -155,7 +155,7 @@ module "container_registry" {
 module "key_vault" {
   source = "../../modules/key-vault"
 
-  name                = "kv-riskscoring-dev"
+  name                = "kv-finrisk-dev"
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
 
@@ -196,12 +196,12 @@ module "observability" {
   resource_group_name = module.resource_group.name
   location            = module.resource_group.location
 
-  log_analytics_name          = "log-riskscoring-dev"
+  log_analytics_name          = "log-finrisk-dev"
   log_analytics_sku           = "PerGB2018"
   log_analytics_retention_days = 30 # Dev: 30 days
   log_analytics_daily_quota_gb = 5  # Cost control
 
-  app_insights_name        = "appi-riskscoring-dev"
+  app_insights_name        = "appi-finrisk-dev"
   application_type         = "web"
   sampling_percentage      = 100 # Dev: 100% sampling
 
@@ -269,13 +269,13 @@ readiness_probe_interval = 10
 
 | Resource Type | Name | SKU/Size | Purpose |
 |---------------|------|----------|---------|
-| Resource Group | rg-riskscoring-dev | N/A | Container for all resources |
-| Container Registry | acrriskscoring | Basic | Docker image storage |
-| Key Vault | kv-riskscoring-dev | Standard | Secrets management |
-| Log Analytics | log-riskscoring-dev | PerGB2018 | Centralized logging |
-| App Insights | appi-riskscoring-dev | Workspace-based | APM & tracing |
-| Container App Env | cae-riskscoring-dev | N/A | Container environment |
-| Container App | ca-riskscoring-dev | 0.5 vCPU, 1Gi RAM | Application runtime |
+| Resource Group | rg-finrisk-dev | N/A | Container for all resources |
+| Container Registry | acrfinriskdev | Basic | Docker image storage |
+| Key Vault | kv-finrisk-dev | Standard | Secrets management |
+| Log Analytics | log-finrisk-dev | PerGB2018 | Centralized logging |
+| App Insights | appi-finrisk-dev | Workspace-based | APM & tracing |
+| Container App Env | cae-finrisk-dev | N/A | Container environment |
+| Container App | ca-finrisk-dev | 0.5 vCPU, 1Gi RAM | Application runtime |
 
 ### Estimated Monthly Cost
 
@@ -411,7 +411,7 @@ terraform {
   backend "azurerm" {
     storage_account_name = "stterraformstate<unique>"
     container_name       = "tfstate"
-    key                  = "riskscoring-dev.tfstate"
+    key                  = "finrisk-dev.tfstate"
     resource_group_name  = "rg-terraform-state"
     use_azuread_auth     = true # Recommended
   }
@@ -484,19 +484,19 @@ curl $APP_URL/health
 ### 2. Naming Conventions
 ```hcl
 # Pattern: {resource_type}-{project}-{environment}
-rg-riskscoring-dev           # Resource group
-kv-riskscoring-dev           # Key Vault
-acrriskscoring               # ACR (no hyphens, must be alphanumeric)
-log-riskscoring-dev          # Log Analytics
-appi-riskscoring-dev         # Application Insights
-ca-riskscoring-dev           # Container App
+rg-finrisk-dev               # Resource group
+kv-finrisk-dev               # Key Vault
+acrfinriskdev                # ACR (no hyphens, must be alphanumeric)
+log-finrisk-dev              # Log Analytics
+appi-finrisk-dev             # Application Insights
+ca-finrisk-dev               # Container App
 ```
 
 ### 3. Tagging Strategy
 ```hcl
 common_tags = {
   Environment = "dev"
-  Project     = "riskscoring"
+  Project     = "finrisk"
   ManagedBy   = "Terraform"
   CostCenter  = "Engineering"
   Owner       = "Platform Team"
@@ -572,8 +572,8 @@ common_tags = {
    git push origin main
 
    # Or manually
-   az acr build --registry acrriskscoring --image risk-scoring-api:v1 ./app
-   terraform apply -var="container_image=acrriskscoring.azurecr.io/risk-scoring-api:v1"
+   az acr build --registry acrfinriskdev --image applicant-validator:v1 ./app
+   terraform apply -var="container_image=acrfinriskdev.azurecr.io/applicant-validator:v1"
    ```
 
 3. **Verify Deployment**

@@ -1,5 +1,6 @@
 #!/bin/bash
-# Build multi-architecture Docker images for Risk Scoring API
+# Build multi-architecture Docker images for Applicant Validator (FinRisk Platform)
+# Domain Service: Loan applicant fraud risk validation
 # Supports: linux/amd64, linux/arm64
 
 set -e
@@ -10,10 +11,10 @@ BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
 NC='\033[0m' # No Color
 
-# Configuration
-IMAGE_NAME="${IMAGE_NAME:-risk-scoring-api}"
+# Configuration (DDD-aligned naming)
+IMAGE_NAME="${IMAGE_NAME:-applicant-validator}"
 VERSION="${VERSION:-1.0.0}"
-REGISTRY="${REGISTRY:-}"  # e.g., ghcr.io/your-org or docker.io/username
+REGISTRY="${REGISTRY:-}"  # e.g., acrfinriskdev.azurecr.io or ghcr.io/your-org
 PLATFORMS="${PLATFORMS:-linux/amd64,linux/arm64}"
 PUSH="${PUSH:-false}"
 

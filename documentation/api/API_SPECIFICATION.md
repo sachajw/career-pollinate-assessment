@@ -1,11 +1,11 @@
-# Risk Scoring API Specification
+# Applicant Validator API Specification
 
 **Version:** 1.0.0
-**Base URL:** `https://{environment}.riskscoring.example.com/api/v1`
+**Base URL:** `https://{environment}.finrisk.example.com/api/v1`
 
 ## Overview
 
-The Risk Scoring API provides fraud risk validation for loan applicants. It integrates with RiskShield's fraud detection service to return risk scores and recommendations.
+The Applicant Validator provides fraud risk validation for loan applicants. It integrates with RiskShield's fraud detection service to return risk scores and recommendations.
 
 ## Authentication
 
@@ -234,7 +234,7 @@ import httpx
 async def validate_applicant(first_name: str, last_name: str, id_number: str) -> dict:
     async with httpx.AsyncClient() as client:
         response = await client.post(
-            "https://api.riskscoring.example.com/api/v1/validate",
+            "https://api.finrisk.example.com/api/v1/validate",
             headers={"Authorization": "Bearer YOUR_API_KEY"},
             json={
                 "firstName": first_name,
@@ -250,7 +250,7 @@ async def validate_applicant(first_name: str, last_name: str, id_number: str) ->
 ### cURL
 
 ```bash
-curl -X POST https://api.riskscoring.example.com/api/v1/validate \
+curl -X POST https://api.finrisk.example.com/api/v1/validate \
   -H "Content-Type: application/json" \
   -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
@@ -268,7 +268,7 @@ async function validateApplicant(
   lastName: string,
   idNumber: string
 ): Promise<ValidationResponse> {
-  const response = await fetch('https://api.riskscoring.example.com/api/v1/validate', {
+  const response = await fetch('https://api.finrisk.example.com/api/v1/validate', {
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',

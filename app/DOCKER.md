@@ -1,23 +1,25 @@
 # Docker Build Guide
 
-This guide explains how to build and run the Risk Scoring API Docker image.
+This guide explains how to build and run the Applicant Validator Docker image.
+
+**Domain Service**: Loan applicant fraud risk validation for FinSure Capital.
 
 ## Quick Start
 
 ### Build for Current Platform
 
 ```bash
-docker build -t risk-scoring-api:latest .
+docker build -t applicant-validator:latest .
 ```
 
 ### Run Locally
 
 ```bash
 docker run -d \
-  --name risk-api \
+  --name applicant-validator \
   -p 8080:8080 \
   -e RISKSHIELD_API_KEY=your-api-key \
-  risk-scoring-api:latest
+  applicant-validator:latest
 ```
 
 ### Test the API
@@ -29,6 +31,62 @@ curl http://localhost:8080/health
 # API documentation
 open http://localhost:8080/docs
 ```
+
+## Build Targets
+
+The Dockerfile has three stages. Use `--target` to select which one to build:
+
+### Production (Default)
+
+```bash
+# Build production image (optimized, ~216MB)
+docker build -t applicant-validator:latest .
+
+# Or explicitly specify target
+docker build --target production -t applicant-validator:prod .
+```
+
+### Development
+
+The development stage includes testing tools and enables hot reload:
+
+```bash
+# Build development image
+docker build --target development -t applicant-validator:dev .
+
+# Run with hot reload (mount source code)
+docker run -p 8080:8080 \
+  -e RISKSHIELD_API_KEY=test-key \
+  -v ./src:/app/src \
+  applicant-validator:dev
+```
+
+### Run Tests in Container
+
+```bash
+# Build development image
+docker build --target development -t applicant-validator:test .
+
+# Run pytest
+docker run --rm \
+  -e RISKSHIELD_API_KEY=test-key \
+  applicant-validator:test \
+  pytest -v --cov=src
+
+# Run specific test file
+docker run --rm \
+  -e RISKSHIELD_API_KEY=test-key \
+  -v ./tests:/app/tests \
+  applicant-validator:test \
+  pytest tests/unit/test_models.py -v
+```
+
+### Target Comparison
+
+| Target | Size | Hot Reload | Test Tools | Use Case |
+|--------|------|------------|------------|----------|
+| `production` | ~216MB | ❌ | ❌ | Deployments |
+| `development` | ~250MB | ✅ | ✅ | Local dev, testing |
 
 ## Multi-Architecture Builds
 
@@ -55,24 +113,24 @@ Build for both **amd64** (x86_64) and **arm64** platforms and push to a containe
 # Using Docker Hub
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t your-username/risk-scoring-api:1.0.0 \
-  -t your-username/risk-scoring-api:latest \
+  -t your-username/applicant-validator:1.0.0 \
+  -t your-username/applicant-validator:latest \
   --push \
   .
 
 # Using GitHub Container Registry
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t ghcr.io/your-org/risk-scoring-api:1.0.0 \
-  -t ghcr.io/your-org/risk-scoring-api:latest \
+  -t ghcr.io/your-org/applicant-validator:1.0.0 \
+  -t ghcr.io/your-org/applicant-validator:latest \
   --push \
   .
 
-# Using Azure Container Registry
+# Using Azure Container Registry (FinRisk platform)
 docker buildx build \
   --platform linux/amd64,linux/arm64 \
-  -t yourregistry.azurecr.io/risk-scoring-api:1.0.0 \
-  -t yourregistry.azurecr.io/risk-scoring-api:latest \
+  -t acrfinriskdev.azurecr.io/applicant-validator:1.0.0 \
+  -t acrfinriskdev.azurecr.io/applicant-validator:latest \
   --push \
   .
 ```
@@ -85,14 +143,14 @@ docker buildx build \
 # Build for arm64 (Apple Silicon, ARM servers)
 docker buildx build \
   --platform linux/arm64 \
-  -t risk-scoring-api:latest-arm64 \
+  -t applicant-validator:latest-arm64 \
   --load \
   .
 
 # Build for amd64 (x86_64, most cloud VMs)
 docker buildx build \
   --platform linux/amd64 \
-  -t risk-scoring-api:latest-amd64 \
+  -t applicant-validator:latest-amd64 \
   --load \
   .
 ```
@@ -144,6 +202,7 @@ PLATFORMS=linux/amd64,linux/arm64,linux/arm/v7 ./build-multiarch.sh
 ### Image Size Optimization
 
 The multi-stage build reduces image size by:
+
 - Not including build tools in final image
 - Using slim Python base image
 - Cleaning up apt cache
@@ -159,22 +218,22 @@ The multi-stage build reduces image size by:
 
 ## Environment Variables
 
-| Variable | Default | Description |
-|----------|---------|-------------|
-| `PORT` | `8080` | Application port |
-| `ENVIRONMENT` | `dev` | Environment (dev/staging/prod) |
-| `LOG_LEVEL` | `INFO` | Logging level |
-| `RISKSHIELD_API_KEY` | - | RiskShield API key (required) |
-| `RISKSHIELD_API_URL` | - | RiskShield API endpoint |
-| `KEY_VAULT_URL` | - | Azure Key Vault URL (optional) |
-| `CORS_ORIGINS` | `[]` | Allowed CORS origins (JSON array) |
+| Variable             | Default | Description                       |
+| -------------------- | ------- | --------------------------------- |
+| `PORT`               | `8080`  | Application port                  |
+| `ENVIRONMENT`        | `dev`   | Environment (dev/staging/prod)    |
+| `LOG_LEVEL`          | `INFO`  | Logging level                     |
+| `RISKSHIELD_API_KEY` | -       | RiskShield API key (required)     |
+| `RISKSHIELD_API_URL` | -       | RiskShield API endpoint           |
+| `KEY_VAULT_URL`      | -       | Azure Key Vault URL (optional)    |
+| `CORS_ORIGINS`       | `[]`    | Allowed CORS origins (JSON array) |
 
 ## Docker Compose
 
 For local development with dependencies:
 
 ```yaml
-version: '3.8'
+version: "3.8"
 
 services:
   api:
@@ -189,7 +248,7 @@ services:
       - RISKSHIELD_API_KEY=test-key
       - RISKSHIELD_API_URL=https://api.riskshield.example.com/v1
     volumes:
-      - ./src:/app/src  # Hot reload
+      - ./src:/app/src # Hot reload
     command: uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
 ```
 
@@ -209,7 +268,7 @@ name: Build and Push Docker Image
 on:
   push:
     branches: [main]
-    tags: ['v*']
+    tags: ["v*"]
 
 jobs:
   docker:
@@ -234,20 +293,20 @@ jobs:
           platforms: linux/amd64,linux/arm64
           push: true
           tags: |
-            ghcr.io/${{ github.repository }}:latest
-            ghcr.io/${{ github.repository }}:${{ github.sha }}
+            ghcr.io/${{ github.repository }}/applicant-validator:latest
+            ghcr.io/${{ github.repository }}/applicant-validator:${{ github.sha }}
           cache-from: type=gha
           cache-to: type=gha,mode=max
 ```
 
-### Azure DevOps
+### Azure DevOps (FinRisk Platform)
 
 ```yaml
 - task: Docker@2
   displayName: Build and push multi-arch image
   inputs:
     command: buildAndPush
-    repository: yourregistry.azurecr.io/risk-scoring-api
+    repository: acrfinriskdev.azurecr.io/applicant-validator
     containerRegistry: your-acr-service-connection
     tags: |
       $(Build.BuildId)
@@ -260,6 +319,7 @@ jobs:
 ### Build fails with "uv: not found"
 
 Make sure the Dockerfile has the correct PATH:
+
 ```dockerfile
 ENV PATH="/root/.local/bin:$PATH"
 ```
@@ -271,20 +331,15 @@ ENV PATH="/root/.local/bin:$PATH"
 ### Health check failing
 
 Check logs:
+
 ```bash
-docker logs <container-id>
+docker logs applicant-validator
 ```
 
 Verify the container can reach localhost:8080:
+
 ```bash
-docker exec <container-id> curl http://localhost:8080/health
-```
-
-### Permission denied errors
-
-Ensure files are owned by the appuser:
-```dockerfile
-COPY --chown=appuser:appgroup . .
+docker exec applicant-validator curl http://localhost:8080/health
 ```
 
 ## Performance Tips
@@ -300,13 +355,13 @@ Scan images for vulnerabilities:
 
 ```bash
 # Using Docker Scout
-docker scout cves risk-scoring-api:latest
+docker scout cves applicant-validator:latest
 
 # Using Trivy
-trivy image risk-scoring-api:latest
+trivy image applicant-validator:latest
 
 # Using Snyk
-snyk container test risk-scoring-api:latest
+snyk container test applicant-validator:latest
 ```
 
 ## References

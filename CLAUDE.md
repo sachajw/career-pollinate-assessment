@@ -4,13 +4,18 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## Project Overview
 
-This repository contains the solution for the **Pollinate Platform Engineering Technical Assessment** - a RiskShield API Integration Platform for FinSure Capital. The platform provides fraud and risk validation services for loan applicants.
+This repository contains the solution for the **Pollinate Platform Engineering Technical Assessment** - the **FinRisk Platform** for FinSure Capital. The platform provides fraud and risk validation services for loan applicants.
 
 **Key Components:**
-- RESTful API for risk score validation (Python 3.13 + FastAPI)
+- **Applicant Validator** - Domain service for loan applicant fraud risk validation (Python 3.13 + FastAPI)
 - Azure Container Apps deployment with Managed Identity
 - Infrastructure as Code (Terraform)
 - CI/CD with Azure DevOps
+
+**DDD Naming Convention:**
+- Project: `finrisk` (FinSure + Risk validation context)
+- Domain Service: `applicant-validator` (describes business capability)
+- Resources: `rg-finrisk-dev`, `ca-finrisk-dev`, `kv-finrisk-dev`, etc.
 
 ## Development Commands
 
@@ -46,11 +51,11 @@ uv run ruff check src/
 # Format code
 uv run ruff format src/
 
-# Build Docker image
-docker build -t risk-scoring-api:local .
+# Build Docker image (DDD domain service name)
+docker build -t applicant-validator:local .
 
 # Run container locally
-docker run -p 8080:8080 risk-scoring-api:local
+docker run -p 8080:8080 applicant-validator:local
 ```
 
 ### Terraform Infrastructure

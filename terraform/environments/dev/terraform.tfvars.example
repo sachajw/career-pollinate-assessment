@@ -9,7 +9,8 @@
 location = "eastus2"
 
 # Project name (used for resource naming)
-project_name = "riskscoring"
+# DDD-aligned: finrisk = FinSure + Risk validation context
+project_name = "finrisk"
 
 # Environment name
 environment = "dev"

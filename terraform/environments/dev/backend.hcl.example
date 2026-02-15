@@ -9,7 +9,7 @@ storage_account_name = "stterraformstate<your-unique-suffix>"
 container_name = "tfstate"
 
 # State file key (unique per environment)
-key = "riskscoring-dev.tfstate"
+key = "finrisk-dev.tfstate"
 
 # Resource group containing the storage account
 resource_group_name = "rg-terraform-state"

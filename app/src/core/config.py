@@ -52,7 +52,7 @@ class Settings(BaseSettings):
         description="Application port",
     )
     app_name: str = Field(
-        default="Risk Scoring API",
+        default="Applicant Validator",
         description="Application name for logging and docs",
     )
     app_version: str = Field(

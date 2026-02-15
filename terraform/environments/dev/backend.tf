@@ -11,7 +11,7 @@
 #    terraform init \
 #      -backend-config="storage_account_name=stterraformstate<unique>" \
 #      -backend-config="container_name=tfstate" \
-#      -backend-config="key=riskscoring-dev.tfstate"
+#      -backend-config="key=finrisk-dev.tfstate"
 #
 # OR use backend.hcl file:
 #    terraform init -backend-config=backend.hcl
@@ -25,7 +25,7 @@ terraform {
     # container_name = "tfstate"
 
     # State file name (unique per environment)
-    # key = "riskscoring-dev.tfstate"
+    # key = "finrisk-dev.tfstate"
 
     # Resource group containing the storage account
     # resource_group_name = "rg-terraform-state"

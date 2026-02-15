@@ -1,6 +1,6 @@
 # Developer Guide
 
-This guide covers development practices, architecture decisions, and contribution guidelines for the Risk Scoring API.
+This guide covers development practices, architecture decisions, and contribution guidelines for the Applicant Validator (FinRisk Platform).
 
 ## Architecture Overview
 

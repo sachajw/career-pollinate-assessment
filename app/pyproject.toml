@@ -1,12 +1,12 @@
 [project]
-name = "risk-scoring-api"
+name = "applicant-validator"
 version = "1.0.0"
-description = "RiskShield API Integration Platform for loan applicant validation"
+description = "FinRisk Platform - Loan applicant fraud risk validation domain service"
 readme = "README.md"
 requires-python = ">=3.13"
 license = { text = "Proprietary" }
 authors = [
-    { name = "Platform Engineering Team" }
+    { name = "FinSure Capital Platform Engineering" }
 ]
 classifiers = [
     "Development Status :: 4 - Beta",

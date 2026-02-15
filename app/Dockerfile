@@ -1,5 +1,7 @@
-# Multi-stage Dockerfile for Risk Scoring API
+# Multi-stage Dockerfile for Applicant Validator (FinRisk Platform)
+# Domain Service: Loan applicant fraud risk validation
 # Optimized for minimal image size and fast builds
+# Build with: DOCKER_BUILDKIT=1 docker build -t applicant-validator .
 
 # ============================================
 # Stage 1: Builder
@@ -32,6 +34,10 @@ RUN uv pip install --no-cache -e .
 # ============================================
 FROM python:3.13-slim AS production
 
+# Install runtime dependencies (curl for health checks)
+RUN apt-get update && apt-get install -y --no-install-recommends curl \
+    && rm -rf /var/lib/apt/lists/*
+
 # Security: Run as non-root user
 RUN groupadd --gid 1000 appgroup \
     && useradd --uid 1000 --gid appgroup --shell /bin/bash --create-home appuser
@@ -52,9 +58,9 @@ USER appuser
 # Expose port
 EXPOSE 8080
 
-# Health check
+# Health check - using curl for lightweight check
 HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-    CMD python -c "import httpx; httpx.get('http://localhost:8080/health').raise_for_status()" || exit 1
+    CMD curl -f http://localhost:8080/health || exit 1
 
 # Environment variables
 ENV PYTHONUNBUFFERED=1 \

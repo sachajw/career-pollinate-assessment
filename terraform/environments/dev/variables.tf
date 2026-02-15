@@ -14,9 +14,9 @@ variable "location" {
 }
 
 variable "project_name" {
-  description = "Project name for resource naming"
+  description = "Project name for resource naming (FinSure Risk Validation context)"
   type        = string
-  default     = "riskscoring"
+  default     = "finrisk"
 }
 
 variable "environment" {

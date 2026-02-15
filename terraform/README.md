@@ -1,6 +1,8 @@
 # Terraform Infrastructure as Code
 
-This directory contains Terraform configuration for the RiskShield API Integration Platform infrastructure on Microsoft Azure.
+This directory contains Terraform configuration for the **FinRisk Platform** infrastructure on Microsoft Azure.
+
+**Domain Service**: Applicant Validator - Loan applicant fraud risk validation for FinSure Capital.
 
 ## 📁 Directory Structure
 
@@ -298,7 +300,7 @@ Creates Azure Container App with environment.
 
 ```bash
 # After building and pushing new image to ACR
-terraform plan -var="container_image=acr<name>.azurecr.io/risk-scoring-api:v1.2.3"
+terraform plan -var="container_image=acr<name>.azurecr.io/applicant-validator:v1.2.3"
 terraform apply
 ```
 
@@ -379,10 +381,10 @@ terraform state pull > state-backup.json
 
 ```bash
 # Import existing resource group
-terraform import module.resource_group.azurerm_resource_group.this /subscriptions/<sub-id>/resourceGroups/rg-riskscoring-dev
+terraform import module.resource_group.azurerm_resource_group.this /subscriptions/<sub-id>/resourceGroups/rg-finrisk-dev
 
 # Import existing Key Vault
-terraform import module.key_vault.azurerm_key_vault.this /subscriptions/<sub-id>/resourceGroups/rg-riskscoring-dev/providers/Microsoft.KeyVault/vaults/kv-riskscoring-dev
+terraform import module.key_vault.azurerm_key_vault.this /subscriptions/<sub-id>/resourceGroups/rg-finrisk-dev/providers/Microsoft.KeyVault/vaults/kv-finrisk-dev
 ```
 
 ### State Locking

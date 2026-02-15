@@ -1,0 +1,128 @@
+# Docker Compose for Applicant Validator (FinRisk Platform)
+# Domain Service: Loan applicant fraud risk validation
+# Usage:
+#   Development: docker compose up
+#   Production:  docker compose --profile production up
+
+services:
+  # ============================================
+  # Development Service (default)
+  # ============================================
+  api:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=dev
+      - LOG_LEVEL=DEBUG
+      - RISKSHIELD_API_KEY=${RISKSHIELD_API_KEY:-test-key}
+      - RISKSHIELD_API_URL=${RISKSHIELD_API_URL:-https://api.riskshield.example.com/v1}
+      - CORS_ORIGINS=["*"]
+    volumes:
+      # Hot reload - mount source code
+      - ./src:/app/src:ro
+      # Prevent overwriting installed packages
+      - /app/.venv
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - finrisk-network
+    profiles:
+      - development
+    command: uvicorn src.main:app --host 0.0.0.0 --port 8080 --reload
+
+  # ============================================
+  # Production Service
+  # ============================================
+  api-prod:
+    build:
+      context: .
+      target: production
+      dockerfile: Dockerfile
+    ports:
+      - "8080:8080"
+    environment:
+      - ENVIRONMENT=prod
+      - LOG_LEVEL=INFO
+      - RISKSHIELD_API_KEY=${RISKSHIELD_API_KEY}
+      - RISKSHIELD_API_URL=${RISKSHIELD_API_URL}
+      - KEY_VAULT_URL=${KEY_VAULT_URL:-}
+      - CORS_ORIGINS=${CORS_ORIGINS:-[]}
+    healthcheck:
+      test: ["CMD", "curl", "-f", "http://localhost:8080/health"]
+      interval: 30s
+      timeout: 3s
+      retries: 3
+      start_period: 10s
+    networks:
+      - finrisk-network
+    profiles:
+      - production
+    deploy:
+      resources:
+        limits:
+          cpus: '1.0'
+          memory: 1G
+        reservations:
+          cpus: '0.25'
+          memory: 256M
+      restart_policy:
+        condition: on-failure
+        delay: 5s
+        max_attempts: 3
+        window: 120s
+    security_opt:
+      - no-new-privileges:true
+    read_only: false  # Set to true if using tmpfs for writable dirs
+
+  # ============================================
+  # Test Service (for CI/CD)
+  # ============================================
+  test:
+    build:
+      context: .
+      target: development
+      dockerfile: Dockerfile
+    environment:
+      - ENVIRONMENT=test
+      - LOG_LEVEL=DEBUG
+      - RISKSHIELD_API_KEY=test-key
+    volumes:
+      - ./src:/app/src:ro
+      - ./tests:/app/tests:ro
+    networks:
+      - finrisk-network
+    profiles:
+      - test
+    command: pytest -v --cov=src --cov-report=term-missing
+
+networks:
+  finrisk-network:
+    driver: bridge
+    name: finrisk-network
+
+# ============================================
+# Development Usage:
+# ============================================
+# docker compose up                    # Start development server
+# docker compose up -d                 # Start in background
+# docker compose logs -f api           # Follow logs
+# docker compose down                  # Stop and remove
+
+# ============================================
+# Production Usage:
+# ============================================
+# docker compose --profile production up -d
+# docker compose --profile production down
+
+# ============================================
+# Test Usage:
+# ============================================
+# docker compose --profile test up --abort-on-container-exit

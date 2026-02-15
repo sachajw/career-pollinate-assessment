@@ -1,6 +1,8 @@
-# Risk Scoring API
+# Applicant Validator
 
-A FastAPI-based REST API for loan applicant fraud risk validation using RiskShield.
+A FastAPI-based domain service for loan applicant fraud risk validation using RiskShield.
+
+**Part of FinSure Capital's FinRisk platform** - validates loan applicants before approval.
 
 ## Features
 
@@ -10,7 +12,7 @@ A FastAPI-based REST API for loan applicant fraud risk validation using RiskShie
 - **Rate Limiting**: Configurable requests per minute per client
 - **Circuit Breaker**: Fault tolerance for upstream service failures
 - **Structured Logging**: JSON logs with correlation IDs for observability
-- **Azure Key Vault Integration**: Secure secret management
+- **Azure Key Vault Integration**: Secure secret management with async SDK
 - **OpenAPI Documentation**: Auto-generated API docs
 
 ## Quick Start
@@ -52,19 +54,42 @@ The API will be available at `http://localhost:8080`
 
 ### Docker
 
+#### Using Docker Compose (Recommended)
+
 ```bash
-# Build image
-docker build -t risk-scoring-api:latest .
+# Development (with hot reload)
+docker compose up
+
+# Production
+docker compose --profile production up -d
+
+# Run tests
+docker compose --profile test up --abort-on-container-exit
+
+# Stop services
+docker compose down
+```
+
+#### Using Docker Directly
+
+```bash
+# Build image (216MB optimized) - DDD domain service name
+docker build -t applicant-validator:latest --target production .
 
 # Run container
 docker run -p 8080:8080 \
   -e ENVIRONMENT=dev \
   -e RISKSHIELD_API_KEY=your-key \
-  risk-scoring-api:latest
+  applicant-validator:latest
 
 # Run with environment file
-docker run -p 8080:8080 --env-file .env risk-scoring-api:latest
+docker run -p 8080:8080 --env-file .env applicant-validator:latest
+
+# Multi-architecture build (amd64 + arm64)
+./build-multiarch.sh
 ```
+
+See [DOCKER.md](./DOCKER.md) for detailed Docker documentation.
 
 ## API Reference
 
@@ -78,9 +103,9 @@ Validates a loan applicant and returns their fraud risk score.
 curl -X POST http://localhost:8080/api/v1/validate \
   -H "Content-Type: application/json" \
   -d '{
-    "firstName": "Jane",
-    "lastName": "Doe",
-    "idNumber": "9001011234088"
+    "first_name": "Jane",
+    "last_name": "Doe",
+    "id_number": "8001015009087"
   }'
 ```
 
@@ -88,10 +113,10 @@ curl -X POST http://localhost:8080/api/v1/validate \
 
 ```json
 {
-  "riskScore": 72,
-  "riskLevel": "MEDIUM",
-  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "additionalData": {
+  "risk_score": 72,
+  "risk_level": "HIGH",
+  "correlation_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "additional_data": {
     "factors": ["high_debt_ratio", "recent_inquiries"]
   }
 }
@@ -103,12 +128,12 @@ curl -X POST http://localhost:8080/api/v1/validate \
 {
   "error": "VALIDATION_ERROR",
   "message": "Request validation failed",
-  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
+  "correlation_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "details": [
     {
-      "field": "idNumber",
-      "message": "ID number must be exactly 13 digits",
-      "code": "string_too_short"
+      "field": "body.id_number",
+      "message": "Value error, Invalid ID number (checksum failed)",
+      "code": "value_error"
     }
   ]
 }
@@ -145,7 +170,7 @@ Configuration is managed via environment variables:
 | `RISKSHIELD_API_KEY` | - | RiskShield API key |
 | `RISKSHIELD_API_TIMEOUT` | `30` | Request timeout in seconds |
 | `RISKSHIELD_MAX_RETRIES` | `3` | Max retry attempts |
-| `CORS_ORIGINS` | `["*"]` | Allowed CORS origins |
+| `CORS_ORIGINS` | `[]` | Allowed CORS origins (must be set in production) |
 | `RATE_LIMIT_REQUESTS` | `100` | Max requests per minute |
 
 ## Development
@@ -170,7 +195,11 @@ app/
 │   ├── unit/                      # Unit tests
 │   ├── integration/               # Integration tests
 │   └── conftest.py                # Test fixtures
-├── Dockerfile                     # Container build
+├── .dockerignore                  # Docker build context exclusions
+├── build-multiarch.sh             # Multi-architecture build script
+├── docker-compose.yml             # Docker Compose configuration
+├── Dockerfile                     # Container build (multi-stage)
+├── DOCKER.md                      # Docker documentation
 ├── pyproject.toml                 # Project metadata
 └── README.md                      # This file
 ```
@@ -261,8 +290,16 @@ The API uses standardized error codes:
 ### Secret Management
 
 - API keys stored in Azure Key Vault
+- Async Key Vault SDK for non-blocking secret retrieval
 - Never logged or exposed in error messages
 - Automatic credential rotation via Azure Managed Identity
+
+### Container Security
+
+- Runs as non-root user (UID 1000)
+- Health checks enabled
+- Minimal attack surface (slim base image, 216MB)
+- No secrets in image layers
 
 ## Observability
 
@@ -274,10 +311,10 @@ All logs are JSON-formatted with:
 {
   "timestamp": "2024-01-15T10:30:00Z",
   "level": "INFO",
-  "message": "validation_request_completed",
+  "event": "validation_request_completed",
   "correlation_id": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
   "risk_score": 72,
-  "risk_level": "MEDIUM"
+  "risk_level": "HIGH"
 }
 ```
 
@@ -326,6 +363,12 @@ az account show
 az keyvault secret list --vault-name <vault-name>
 ```
 
+**Docker build fails with "uv: not found":**
+```bash
+# Ensure BuildKit is enabled
+DOCKER_BUILDKIT=1 docker build -t applicant-validator .
+```
+
 ### Debug Mode
 
 Enable debug logging:
@@ -333,6 +376,13 @@ Enable debug logging:
 export LOG_LEVEL=DEBUG
 uv run uvicorn src.main:app --reload --port 8080
 ```
+
+## Performance
+
+- **Image Size**: 216MB (optimized multi-stage build)
+- **Startup Time**: ~5 seconds
+- **Memory Usage**: ~100MB idle
+- **Supported Platforms**: linux/amd64, linux/arm64
 
 ## License
 

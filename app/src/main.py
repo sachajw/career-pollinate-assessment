@@ -62,9 +62,11 @@ def create_app() -> FastAPI:
     app = FastAPI(
         title=settings.app_name,
         description="""
-# Risk Scoring API
+# Applicant Validator
 
-A RESTful API for loan applicant fraud risk validation using RiskShield.
+A domain service for loan applicant fraud risk validation using RiskShield.
+
+**Part of FinSure Capital's FinRisk Platform**
 
 ## Features
 

@@ -81,9 +81,9 @@ output "quick_start_commands" {
     # Login to Azure Container Registry
     az acr login --name ${module.container_registry.name}
 
-    # Build and push Docker image
-    docker build -t ${module.container_registry.login_server}/risk-scoring-api:latest ../../app
-    docker push ${module.container_registry.login_server}/risk-scoring-api:latest
+    # Build and push Docker image (DDD: applicant-validator domain service)
+    docker build -t ${module.container_registry.login_server}/applicant-validator:latest ../../app
+    docker push ${module.container_registry.login_server}/applicant-validator:latest
 
     # Set RiskShield API key in Key Vault
     az keyvault secret set --vault-name ${module.key_vault.name} --name RISKSHIELD-API-KEY --value "your-api-key-here"
