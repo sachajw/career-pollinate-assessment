@@ -117,18 +117,18 @@ stages:
               containerRegistry: $(dockerRegistryServiceConnection)
 
           - script: |
-              # Use OrbStack docker which has buildx
-              export PATH="/Users/tvl/.orbstack/bin:/usr/local/bin:$PATH"
+              # Use absolute path to OrbStack docker
+              DOCKER=/Users/tvl/.orbstack/bin/docker
 
               # Setup buildx for cross-platform builds
-              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
-              docker buildx inspect --bootstrap
+              $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
+              $DOCKER buildx inspect --bootstrap
             displayName: 'Setup Docker Buildx'
 
           - script: |
-              export PATH="/Users/tvl/.orbstack/bin:/usr/local/bin:$PATH"
+              DOCKER=/Users/tvl/.orbstack/bin/docker
               cd app
-              docker buildx build \
+              $DOCKER buildx build \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
@@ -136,8 +136,6 @@ stages:
                 --push \
                 .
             displayName: 'Build and Push Docker Image (AMD64)'
-            env:
-              DOCKER_BUILDKIT: 1
 
           - script: |
               # Install trivy on macOS
