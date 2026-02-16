@@ -676,6 +676,20 @@ az containerapp update \
 4. ✅ **Proper error handling**: Use `set -e` and validate each step
 5. ✅ **Debug output**: Log environment state for troubleshooting
 
+### Checkout Optimization (Local Agents)
+
+For self-hosted agents, optimize checkout speed with:
+
+```yaml
+- checkout: self
+  fetchDepth: 1      # Shallow fetch - only latest commit
+  clean: false       # Skip post-job cleanup
+```
+
+1. ✅ **Shallow fetch**: `fetchDepth: 1` avoids fetching full git history
+2. ✅ **Skip cleanup**: `clean: false` avoids unnecessary credential cleanup on trusted agents
+3. ✅ **Faster builds**: Reduces checkout time from minutes to seconds
+
 ### Cross-Platform Builds
 
 1. ✅ **Always specify platform**: `--platform linux/amd64`

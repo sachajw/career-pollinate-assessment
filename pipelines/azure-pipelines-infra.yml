@@ -6,6 +6,8 @@
 # - Triggered on changes to terraform/ directory
 # - Manual approval for production changes
 
+name: FinRisk-IaC-Terraform$(Rev:.r)
+
 trigger:
   branches:
     include:
@@ -42,6 +44,8 @@ stages:
         pool: Default
         steps:
           - checkout: self
+            fetchDepth: 1      # Shallow fetch (faster)
+            clean: false       # Skip cleanup on local agent
 
           - task: TerraformInstaller@1
             inputs:
@@ -91,6 +95,8 @@ stages:
             deploy:
               steps:
                 - checkout: self
+                  fetchDepth: 1      # Shallow fetch (faster)
+                  clean: false       # Skip cleanup on local agent
 
                 - download: current
                   artifact: tfplan

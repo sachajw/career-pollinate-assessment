@@ -6,6 +6,8 @@
 # - Deploy to Azure Container Apps
 # - Assumes infrastructure already exists (use infra pipeline first)
 
+name: FinRisk-App-CI-CD$(Rev:.r)
+
 trigger:
   branches:
     include:
@@ -56,7 +58,8 @@ stages:
         pool: Default
         steps:
           - checkout: self
-            fetchDepth: 0
+            fetchDepth: 1      # Shallow fetch (faster)
+            clean: false       # Skip cleanup on local agent
 
           - script: |
               echo "##vso[task.prependpath]/opt/homebrew/opt/python@3.13/bin"
@@ -74,17 +77,17 @@ stages:
           - script: |
               cd app && uv run ruff check src/ --output-format=github
             displayName: 'Lint (Ruff)'
-            continueOnError: true
+            continueOnError: true  # Non-blocking: lint issues don't fail the build
 
           - script: |
               cd app && uv run mypy src/
             displayName: 'Type Check (mypy)'
-            continueOnError: true
+            continueOnError: true  # Non-blocking: type issues don't fail the build
 
           - script: |
               cd app && uv run bandit -r src/ -c pyproject.toml
             displayName: 'Security Scan (Bandit)'
-            continueOnError: true
+            continueOnError: true  # Non-blocking: security warnings don't fail the build
 
           - script: |
               cd app && uv run pytest tests/unit/ \
@@ -109,6 +112,8 @@ stages:
         pool: Default
         steps:
           - checkout: self
+            fetchDepth: 1      # Shallow fetch (faster)
+            clean: false       # Skip cleanup on local agent
 
           - script: |
               # Add OrbStack Docker to PATH for all subsequent tasks
@@ -227,6 +232,7 @@ stages:
 
                 - script: sleep 30
                   displayName: 'Wait for Deployment'
+                  # Allow time for container rollout and DNS propagation
 
   # ========================================
   # STAGE 3: VERIFY
@@ -253,6 +259,8 @@ stages:
                 echo "##vso[task.setvariable variable=appUrl]https://$APP_URL"
 
           - script: |
+              # Retry loop handles cold start (scale-to-zero) and rollout delays
+              # 10 retries * 10s = 100s max wait time
               for i in {1..10}; do
                 STATUS=$(curl -s -o /dev/null -w "%{http_code}" $(appUrl)/health)
                 if [ "$STATUS" = "200" ]; then
