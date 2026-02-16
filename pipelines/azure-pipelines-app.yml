@@ -321,31 +321,67 @@ stages:
             displayName: 'Health Check'
 
           - script: |
-              echo "Checking additional endpoints..."
+              echo "============================================"
+              echo "Endpoint Verification"
+              echo "============================================"
               echo ""
 
-              # Check OpenAPI docs
-              echo "GET $(appUrl)/docs"
-              curl -sf "$(appUrl)/docs" -o /dev/null -w "  HTTP %{http_code}\n" || {
-                echo "  Failed"
-                exit 1
-              }
+              # Check OpenAPI docs - verify HTML content
+              echo "1. OpenAPI Documentation (/docs)"
+              echo "   URL: $(appUrl)/docs"
+              DOCS_RESPONSE=$(curl -s -w "\n%{http_code}" "$(appUrl)/docs")
+              DOCS_STATUS=$(echo "$DOCS_RESPONSE" | tail -n1)
+              DOCS_BODY=$(echo "$DOCS_RESPONSE" | sed '$d')
 
-              # Check readiness probe
-              echo "GET $(appUrl)/ready"
-              READY_RESPONSE=$(curl -s -w "\n%{http_code}" "$(appUrl)/ready")
-              READY_STATUS=$(echo "$READY_RESPONSE" | tail -n1)
-              READY_BODY=$(echo "$READY_RESPONSE" | sed '$d')
-              echo "  HTTP $READY_STATUS"
-              echo "  Response: $READY_BODY"
+              echo "   HTTP Status: $DOCS_STATUS"
 
-              if [ "$READY_STATUS" != "200" ]; then
-                echo "  Ready check failed"
+              if [ "$DOCS_STATUS" != "200" ]; then
+                echo "   ERROR: Expected HTTP 200"
                 exit 1
               fi
 
+              # Verify docs contains expected content
+              if echo "$DOCS_BODY" | grep -q "swagger"; then
+                echo "   Content: Valid OpenAPI/Swagger UI detected"
+              elif echo "$DOCS_BODY" | grep -q "openapi"; then
+                echo "   Content: Valid OpenAPI documentation detected"
+              else
+                echo "   WARNING: Could not verify OpenAPI content"
+              fi
+              echo "   Result: PASSED"
               echo ""
-              echo "All endpoint checks passed"
+
+              # Check readiness probe - validate JSON response
+              echo "2. Readiness Probe (/ready)"
+              echo "   URL: $(appUrl)/ready"
+              READY_RESPONSE=$(curl -s -w "\n%{http_code}" "$(appUrl)/ready")
+              READY_STATUS=$(echo "$READY_RESPONSE" | tail -n1)
+              READY_BODY=$(echo "$READY_RESPONSE" | sed '$d')
+
+              echo "   HTTP Status: $READY_STATUS"
+
+              if [ "$READY_STATUS" != "200" ]; then
+                echo "   ERROR: Expected HTTP 200"
+                echo "   Response: $READY_BODY"
+                exit 1
+              fi
+
+              # Parse and validate JSON response
+              READY_STATUS_VALUE=$(echo "$READY_BODY" | jq -r '.status' 2>/dev/null)
+              if [ "$READY_STATUS_VALUE" = "ready" ]; then
+                echo "   Status Value: $READY_STATUS_VALUE"
+                echo "   Result: PASSED"
+              else
+                echo "   ERROR: Expected status='ready', got '$READY_STATUS_VALUE'"
+                echo "   Response: $READY_BODY"
+                exit 1
+              fi
+              echo ""
+
+              # Summary
+              echo "============================================"
+              echo "Endpoint Verification: ALL CHECKS PASSED"
+              echo "============================================"
             displayName: 'Endpoint Checks'
 
           - script: |
