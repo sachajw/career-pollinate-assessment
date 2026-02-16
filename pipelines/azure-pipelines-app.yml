@@ -235,19 +235,14 @@ stages:
               publish: true
             continueOnError: true  # Fallback: ensure pipeline continues
 
-          # Pull image from ACR so SBOM tool can scan it locally
-          - script: |
-              echo "Pulling image for SBOM scan..."
-              docker pull $(containerRegistry)/$(imageName):$(imageTag)
-            displayName: 'Pull Image for SBOM'
-
           - task: sbom-tool@1
             displayName: 'Generate SBOM Manifest'
             inputs:
               command: 'generate'
               buildSourcePath: '$(Build.SourcesDirectory)/app'
               buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
-              dockerImagesToScan: '$(containerRegistry)/$(imageName):$(imageTag)'
+              # Note: Docker image scanning disabled - image is AMD64 only (for Azure)
+              # and cannot be pulled on ARM64 Mac agent. Source scanning covers Python deps.
               enableManifestSpreadsheetGeneration: true
               enableManifestGraphGeneration: true
               enablePackageMetadataParsing: true
