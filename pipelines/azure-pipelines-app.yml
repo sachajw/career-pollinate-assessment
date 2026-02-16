@@ -229,10 +229,10 @@ stages:
             inputs:
               type: 'image'
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
-              severities: 'CRITICAL,HIGH,MEDIUM'  # Include MEDIUM for visibility
+              severities: 'CRITICAL,HIGH,MEDIUM'
+              exitCode: '0'  # Don't fail build on findings (0=success)
               reports: 'html,junit'
               publish: true
-            continueOnError: true  # Non-blocking: vulnerabilities reviewed in Security tab
 
           - task: sbom-tool@1
             displayName: 'Generate SBOM Manifest'
