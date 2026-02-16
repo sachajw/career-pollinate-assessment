@@ -117,18 +117,25 @@ stages:
               containerRegistry: $(dockerRegistryServiceConnection)
 
           - script: |
+              # Debug environment
+              echo "PATH: $PATH"
+              echo "Which docker: $(which docker)"
+              docker --version
+
               # Use absolute path to OrbStack docker
-              DOCKER=/Users/tvl/.orbstack/bin/docker
+              DOCKER_PATH="/Users/tvl/.orbstack/bin/docker"
+              echo "Using Docker at: $DOCKER_PATH"
+              $DOCKER_PATH --version
 
               # Setup buildx for cross-platform builds
-              $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
-              $DOCKER buildx inspect --bootstrap
+              $DOCKER_PATH buildx create --name mybuilder --use 2>/dev/null || $DOCKER_PATH buildx use mybuilder
+              $DOCKER_PATH buildx inspect --bootstrap
             displayName: 'Setup Docker Buildx'
 
           - script: |
-              DOCKER=/Users/tvl/.orbstack/bin/docker
+              DOCKER_PATH="/Users/tvl/.orbstack/bin/docker"
               cd app
-              $DOCKER buildx build \
+              $DOCKER_PATH buildx build \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
