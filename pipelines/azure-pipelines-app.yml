@@ -139,12 +139,28 @@ stages:
           - script: |
               set -e  # Exit on error
 
-              # Use OrbStack Docker explicitly (buildx-capable)
+              # Use OrbStack Docker explicitly
               DOCKER=/Users/tvl/.orbstack/bin/docker
 
-              # Verify Docker and buildx are available
+              # Set Docker config path so plugins can be found
+              export DOCKER_CONFIG=/Users/tvl/.docker
+              export HOME=/Users/tvl
+
+              # Debug environment
+              echo "HOME: $HOME"
+              echo "DOCKER_CONFIG: $DOCKER_CONFIG"
               echo "Using Docker: $DOCKER"
               $DOCKER --version
+
+              # Check if buildx plugin exists
+              if [ -f "$DOCKER_CONFIG/cli-plugins/docker-buildx" ]; then
+                echo "Buildx plugin found at: $DOCKER_CONFIG/cli-plugins/docker-buildx"
+              else
+                echo "ERROR: Buildx plugin not found!"
+                exit 1
+              fi
+
+              # Verify buildx works
               $DOCKER buildx version
 
               # Navigate to app directory
@@ -159,7 +175,7 @@ stages:
               }
               echo "ACR authentication verified"
 
-              # Build and push using OrbStack Docker
+              # Build and push
               echo "Starting Docker buildx build..."
               $DOCKER buildx build \
                 --platform linux/amd64 \
