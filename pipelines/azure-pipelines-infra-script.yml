@@ -1,0 +1,190 @@
+# Azure DevOps Infrastructure Pipeline (Script-Based)
+# FinRisk Platform - No Extensions Required
+#
+# This pipeline uses bash scripts instead of Terraform tasks
+# No marketplace extensions required
+
+name: FinRisk-IaC-Terraform-Script-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
+
+trigger:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+      - pipelines/azure-pipelines-infra-script.yml
+
+pr:
+  branches:
+    include:
+      - main
+  paths:
+    include:
+      - terraform/**
+
+variables:
+  - group: finrisk-dev
+  - name: azureSubscription
+    value: 'azure-service-connection'
+  - name: environmentName
+    value: 'dev'
+  - name: terraformVersion
+    value: '1.7.0'
+  - name: terraformWorkingDirectory
+    value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+
+stages:
+  - stage: Plan
+    displayName: 'Terraform Plan'
+    jobs:
+      - job: TerraformPlan
+        pool: Default
+        steps:
+          - checkout: self
+            fetchDepth: 1
+            clean: false
+
+          # Install Terraform using bash
+          - bash: |
+              set -e
+              echo "Installing Terraform $(terraformVersion)..."
+
+              # Download Terraform
+              wget -q https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+
+              # Unzip
+              unzip -q terraform_$(terraformVersion)_linux_amd64.zip
+
+              # Make executable and move to PATH
+              chmod +x terraform
+              sudo mv terraform /usr/local/bin/
+
+              # Verify installation
+              terraform version
+            displayName: 'Install Terraform'
+
+          # Azure Login and Terraform Init
+          - task: AzureCLI@2
+            displayName: 'Terraform Init'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                set -e
+                cd $(terraformWorkingDirectory)
+
+                # Initialize Terraform
+                terraform init \
+                  -backend-config="storage_account_name=$(terraformStateStorageAccount)" \
+                  -backend-config="container_name=tfstate" \
+                  -backend-config="key=finrisk-$(environmentName).tfstate" \
+                  -backend-config="resource_group_name=rg-terraform-state"
+              addSpnToEnvironment: true
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Validate'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                set -e
+                cd $(terraformWorkingDirectory)
+                terraform validate
+              addSpnToEnvironment: true
+
+          - task: AzureCLI@2
+            displayName: 'Terraform Plan'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                set -e
+                cd $(terraformWorkingDirectory)
+                terraform plan -out=tfplan
+              addSpnToEnvironment: true
+
+          - publish: '$(terraformWorkingDirectory)/tfplan'
+            artifact: tfplan
+            displayName: 'Publish Plan Artifact'
+
+  - stage: Apply
+    displayName: 'Terraform Apply'
+    dependsOn: Plan
+    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    jobs:
+      - deployment: TerraformApply
+        pool: Default
+        environment: '$(environmentName)-infrastructure'
+        strategy:
+          runOnce:
+            deploy:
+              steps:
+                - checkout: self
+                  fetchDepth: 1
+                  clean: false
+
+                - download: current
+                  artifact: tfplan
+
+                - bash: |
+                    set -e
+                    echo "Installing Terraform $(terraformVersion)..."
+                    wget -q https://releases.hashicorp.com/terraform/$(terraformVersion)/terraform_$(terraformVersion)_linux_amd64.zip
+                    unzip -q terraform_$(terraformVersion)_linux_amd64.zip
+                    chmod +x terraform
+                    sudo mv terraform /usr/local/bin/
+                    terraform version
+                  displayName: 'Install Terraform'
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Init'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      cd $(terraformWorkingDirectory)
+                      terraform init \
+                        -backend-config="storage_account_name=$(terraformStateStorageAccount)" \
+                        -backend-config="container_name=tfstate" \
+                        -backend-config="key=finrisk-$(environmentName).tfstate" \
+                        -backend-config="resource_group_name=rg-terraform-state"
+                    addSpnToEnvironment: true
+
+                - task: AzureCLI@2
+                  displayName: 'Terraform Apply'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      cd $(terraformWorkingDirectory)
+
+                      # Copy plan file from artifact
+                      cp $(Pipeline.Workspace)/tfplan/tfplan ./tfplan
+
+                      # Apply the plan
+                      terraform apply tfplan
+                    addSpnToEnvironment: true
+
+                - task: AzureCLI@2
+                  displayName: 'Save Outputs'
+                  inputs:
+                    azureSubscription: '$(azureSubscription)'
+                    scriptType: 'bash'
+                    scriptLocation: 'inlineScript'
+                    inlineScript: |
+                      set -e
+                      cd $(terraformWorkingDirectory)
+                      terraform output -json > terraform-outputs.json
+                    addSpnToEnvironment: true
+
+                - publish: '$(terraformWorkingDirectory)/terraform-outputs.json'
+                  artifact: terraform-outputs
+                  displayName: 'Publish Outputs'
