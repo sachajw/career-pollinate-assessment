@@ -151,13 +151,12 @@ stages:
               docker --version
               docker buildx version
 
-              # Setup buildx for cross-platform builds
-              echo "Setting up buildx builder..."
-              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
-              docker buildx inspect --bootstrap
+              # List available builders
+              echo "Available builders:"
+              docker buildx ls
 
               echo "Buildx setup complete!"
-            displayName: 'Setup Docker Buildx'
+            displayName: 'Verify Docker Buildx'
 
           - script: |
               set -e  # Exit on error
@@ -202,9 +201,11 @@ stages:
               }
               echo "ACR authentication verified"
 
-              # Build and push
+              # Build and push using default builder (docker driver)
+              # The default builder has access to Docker credentials
               echo "Starting Docker buildx build..."
               $DOCKER buildx build \
+                --builder default \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
