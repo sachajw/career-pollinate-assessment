@@ -151,11 +151,9 @@ stages:
               docker --version
               docker buildx version
 
-              # Remove old builder and recreate with docker driver
-              # docker-container driver runs in isolation and can't access host Docker config
-              echo "Recreating buildx builder with docker driver..."
-              docker buildx rm mybuilder 2>/dev/null || true
-              docker buildx create --name mybuilder --driver docker --use
+              # Setup buildx for cross-platform builds
+              echo "Setting up buildx builder..."
+              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
               docker buildx inspect --bootstrap
 
               echo "Buildx setup complete!"
@@ -163,6 +161,10 @@ stages:
 
           - script: |
               set -e  # Exit on error
+
+              # Fresh ACR login to ensure valid credentials
+              echo "Refreshing ACR authentication..."
+              az acr login --name acrfinriskdev
 
               # Use OrbStack Docker explicitly
               DOCKER=/Users/tvl/.orbstack/bin/docker
