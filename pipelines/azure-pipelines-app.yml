@@ -269,3 +269,54 @@ stages:
               curl -sf $(appUrl)/docs > /dev/null && echo "Docs OK" || exit 1
               curl -sf $(appUrl)/ready > /dev/null && echo "Ready OK" || exit 1
             displayName: 'Endpoint Checks'
+
+          - script: |
+              echo "Testing /api/v1/validate endpoint..."
+
+              # Call the validate API
+              RESPONSE=$(curl -s -w "\n%{http_code}" -X POST $(appUrl)/api/v1/validate \
+                -H "Content-Type: application/json" \
+                -d '{"firstName":"Jane","lastName":"Doe","idNumber":"9001011234088"}')
+
+              # Extract HTTP status code (last line)
+              HTTP_CODE=$(echo "$RESPONSE" | tail -n1)
+              # Extract response body (everything except last line)
+              BODY=$(echo "$RESPONSE" | sed '$d')
+
+              echo "HTTP Status: $HTTP_CODE"
+              echo "Response: $BODY"
+
+              # Verify HTTP 200
+              if [ "$HTTP_CODE" != "200" ]; then
+                echo "ERROR: Expected HTTP 200, got $HTTP_CODE"
+                exit 1
+              fi
+
+              # Verify response contains required fields
+              echo "$BODY" | jq -e '.riskScore' > /dev/null || {
+                echo "ERROR: Response missing 'riskScore' field"
+                exit 1
+              }
+
+              echo "$BODY" | jq -e '.riskLevel' > /dev/null || {
+                echo "ERROR: Response missing 'riskLevel' field"
+                exit 1
+              }
+
+              echo "$BODY" | jq -e '.correlationId' > /dev/null || {
+                echo "ERROR: Response missing 'correlationId' field"
+                exit 1
+              }
+
+              # Verify riskLevel is valid enum value
+              RISK_LEVEL=$(echo "$BODY" | jq -r '.riskLevel')
+              if [[ ! "$RISK_LEVEL" =~ ^(LOW|MEDIUM|HIGH)$ ]]; then
+                echo "ERROR: Invalid riskLevel value: $RISK_LEVEL"
+                exit 1
+              fi
+
+              echo "✓ Validate API test passed"
+              echo "  - riskScore: $(echo "$BODY" | jq -r '.riskScore')"
+              echo "  - riskLevel: $RISK_LEVEL"
+              echo "  - correlationId: $(echo "$BODY" | jq -r '.correlationId')"
+            displayName: 'Test Validate API'
