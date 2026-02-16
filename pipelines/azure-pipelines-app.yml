@@ -220,6 +220,25 @@ stages:
               exitCode: '0'  # Don't fail build on findings
             continueOnError: true
 
+          - task: sbom-tool@1
+            displayName: 'Generate SBOM Manifest'
+            inputs:
+              command: 'generate'
+              buildSourcePath: '$(Build.SourcesDirectory)/app'
+              buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
+              enableManifestSpreadsheetGeneration: true
+              enableManifestGraphGeneration: true
+              enablePackageMetadataParsing: true
+              fetchLicenseInformation: true
+              fetchSecurityAdvisories: true
+              packageSupplier: 'FinSure Capital'
+              packageName: 'applicant-validator'
+              packageVersion: '$(imageTag)'
+
+          - publish: $(Build.ArtifactStagingDirectory)/_manifest
+            artifact: SBOM
+            displayName: 'Publish SBOM Artifact'
+
   # ========================================
   # STAGE 2: DEPLOY
   # ========================================
