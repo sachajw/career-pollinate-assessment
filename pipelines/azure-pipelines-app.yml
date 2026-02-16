@@ -167,6 +167,10 @@ stages:
               inlineScript: |
                 set -e
 
+                # Set environment for Docker to find plugins
+                export DOCKER_CONFIG=/Users/tvl/.docker
+                export HOME=/Users/tvl
+
                 # Use OrbStack Docker explicitly
                 DOCKER=/Users/tvl/.orbstack/bin/docker
 
