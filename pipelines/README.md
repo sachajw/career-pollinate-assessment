@@ -292,8 +292,8 @@ The pipeline **must** set these environment variables for Docker to find the bui
 # Pipelines > New pipeline > Azure Repos Git > Select your repository
 
 # Configure:
-# - Pipeline name: FinRisk-Application
 # - YAML file path: /pipelines/azure-pipelines-app.yml
+# - Pipeline name in YAML: FinRisk-App-CI-CD (set via 'name' property)
 # - Save and run
 ```
 
@@ -716,7 +716,7 @@ For self-hosted agents, optimize checkout speed with:
 
 ### Pipeline Files
 
-| File | Purpose |
-|------|---------|
-| `azure-pipelines-infra.yml` | Terraform infrastructure provisioning |
-| `azure-pipelines-app.yml` | Application build, test, deploy, verify with buildx |
+| File | Azure DevOps Name | Purpose |
+|------|-------------------|---------|
+| `azure-pipelines-infra.yml` | `FinRisk-IaC-Terraform` | Terraform infrastructure provisioning |
+| `azure-pipelines-app.yml` | `FinRisk-App-CI-CD` | Application build, test, deploy, verify with buildx |
