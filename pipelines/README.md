@@ -106,3 +106,4 @@ git push origin v1.0.0  # → v1.0.0
 **Last Updated:** 2026-02-16
 **Agent Type:** Self-hosted macOS (Apple Silicon) with Docker Buildx
 **Deployment Target:** Azure Container Apps (AMD64)
+
