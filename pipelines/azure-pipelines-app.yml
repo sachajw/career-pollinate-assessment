@@ -240,6 +240,7 @@ stages:
               command: 'generate'
               buildSourcePath: '$(Build.SourcesDirectory)/app'
               buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
+              dockerImagesToScan: '$(containerRegistry)/$(imageName):$(imageTag)'
               enableManifestSpreadsheetGeneration: true
               enableManifestGraphGeneration: true
               enablePackageMetadataParsing: true
