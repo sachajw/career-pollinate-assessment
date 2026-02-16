@@ -137,7 +137,41 @@ stages:
             displayName: 'Setup Docker Buildx'
 
           - script: |
+              set -e  # Exit on error
+
+              # Debug current location
+              echo "Current directory: $(pwd)"
+              echo "Listing current directory:"
+              ls -la
+
+              # Verify app directory exists
+              if [ ! -d "app" ]; then
+                echo "ERROR: app directory not found!"
+                exit 1
+              fi
+
+              # Navigate to app directory
               cd app
+              echo "Changed to app directory: $(pwd)"
+              echo "App directory contents:"
+              ls -la
+
+              # Verify Dockerfile exists
+              if [ ! -f "Dockerfile" ]; then
+                echo "ERROR: Dockerfile not found in app directory!"
+                exit 1
+              fi
+
+              # Verify ACR authentication
+              echo "Verifying ACR authentication..."
+              cat ~/.docker/config.json | grep -q "acrfinriskdev.azurecr.io" || {
+                echo "ERROR: ACR authentication not found in Docker config!"
+                exit 1
+              }
+              echo "ACR authentication verified"
+
+              # Build and push
+              echo "Starting Docker buildx build..."
               docker buildx build \
                 --platform linux/amd64 \
                 --target production \
@@ -145,6 +179,8 @@ stages:
                 -t $(containerRegistry)/$(imageName):latest \
                 --push \
                 .
+
+              echo "Build and push completed successfully!"
             displayName: 'Build and Push Docker Image (AMD64)'
 
           - script: |
