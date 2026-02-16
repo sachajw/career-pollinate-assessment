@@ -216,8 +216,7 @@ stages:
             inputs:
               type: 'image'
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
-              severities: 'HIGH,CRITICAL'
-              ignoreUnfixed: true
+              severities: 'CRITICAL,HIGH,MEDIUM'  # Include MEDIUM for visibility
               reports: 'html,junit'
               publish: true
             continueOnError: true  # Non-blocking: vulnerabilities reviewed in Security tab
