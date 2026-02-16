@@ -139,40 +139,29 @@ stages:
           - script: |
               set -e  # Exit on error
 
-              # Debug current location
-              echo "Current directory: $(pwd)"
-              echo "Listing current directory:"
-              ls -la
+              # Use OrbStack Docker explicitly (buildx-capable)
+              DOCKER=/Users/tvl/.orbstack/bin/docker
 
-              # Verify app directory exists
-              if [ ! -d "app" ]; then
-                echo "ERROR: app directory not found!"
-                exit 1
-              fi
+              # Verify Docker and buildx are available
+              echo "Using Docker: $DOCKER"
+              $DOCKER --version
+              $DOCKER buildx version
 
               # Navigate to app directory
               cd app
-              echo "Changed to app directory: $(pwd)"
-              echo "App directory contents:"
-              ls -la
-
-              # Verify Dockerfile exists
-              if [ ! -f "Dockerfile" ]; then
-                echo "ERROR: Dockerfile not found in app directory!"
-                exit 1
-              fi
+              echo "Building in: $(pwd)"
 
               # Verify ACR authentication
               echo "Verifying ACR authentication..."
               cat ~/.docker/config.json | grep -q "acrfinriskdev.azurecr.io" || {
-                echo "ERROR: ACR authentication not found in Docker config!"
+                echo "ERROR: ACR authentication not found!"
                 exit 1
               }
               echo "ACR authentication verified"
 
-              # Build and push
+              # Build and push using OrbStack Docker
               echo "Starting Docker buildx build..."
-              docker buildx build \
+              $DOCKER buildx build \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
