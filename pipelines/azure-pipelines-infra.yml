@@ -6,7 +6,7 @@
 # - Triggered on changes to terraform/ directory
 # - Manual approval for production changes
 
-name: FinRisk-IaC-Terraform$(Rev:.r)
+name: FinRisk-IaC-Terraform-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 
 trigger:
   branches:

@@ -6,7 +6,7 @@
 # - Deploy to Azure Container Apps
 # - Assumes infrastructure already exists (use infra pipeline first)
 
-name: FinRisk-App-CI-CD$(Rev:.r)
+name: FinRisk-App-CI-CD-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 
 trigger:
   branches:
