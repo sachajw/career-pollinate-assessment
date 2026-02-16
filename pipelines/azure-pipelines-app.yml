@@ -239,10 +239,8 @@ stages:
             displayName: 'Generate SBOM Manifest'
             inputs:
               command: 'generate'
-              buildSourcePath: '$(Build.SourcesDirectory)/app'
+              buildSourcePath: '$(Build.SourcesDirectory)'
               buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
-              # Note: Docker image scanning disabled - image is AMD64 only (for Azure)
-              # and cannot be pulled on ARM64 Mac agent. Source scanning covers Python deps.
               enableManifestSpreadsheetGeneration: true
               enableManifestGraphGeneration: true
               enablePackageMetadataParsing: true
@@ -250,7 +248,7 @@ stages:
               fetchSecurityAdvisories: true
               packageSupplier: 'FinSure Capital'
               packageName: 'applicant-validator'
-              packageVersion: '$(imageTag)'
+              packageVersion: '$(Build.BuildNumber)'
 
           - publish: $(Build.ArtifactStagingDirectory)/_manifest
             artifact: SBOM
