@@ -120,8 +120,9 @@ stages:
               # Falls back to v0.0.0-{commits}-g{hash} if no tags exist
               VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")
               echo "Generated version: $VERSION"
-              echo "##vso[task.setvariable variable=imageTag]$VERSION"
-            displayName: 'Set Version from Git'
+              echo "##vso[task.setvariable variable=imageTag;isOutput=true]$VERSION"
+            displayName: 'SetVersion'
+            name: SetVersion  # Required for output variable reference
 
           - script: |
               # Add OrbStack Docker to PATH for all subsequent tasks
@@ -217,6 +218,9 @@ stages:
     displayName: 'Deploy to Container Apps'
     dependsOn: Build
     condition: succeeded()
+    variables:
+      # Get imageTag from Build stage output
+      imageTag: $[dependencies.Build.outputs['BuildImage.SetVersion.imageTag']]
     jobs:
       - deployment: DeployContainerApp
         pool: Default
@@ -232,6 +236,7 @@ stages:
                     scriptType: 'bash'
                     scriptLocation: 'inlineScript'
                     inlineScript: |
+                      echo "Deploying image: $(containerRegistry)/$(imageName):$(imageTag)"
                       az containerapp update \
                         --name $(containerAppName) \
                         --resource-group $(resourceGroupName) \
