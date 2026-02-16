@@ -217,7 +217,8 @@ stages:
               type: 'image'
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
               severity: 'HIGH,CRITICAL'
-              exitCode: '0'  # Don't fail build on findings
+              exit-code: '0'  # Don't fail build on findings (0=success, 1=error, 2=found issues)
+              ignore-unfixed: true  # Only report vulnerabilities with fixes
             continueOnError: true
 
           - task: sbom-tool@1
