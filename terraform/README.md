@@ -296,11 +296,33 @@ Creates Azure Container App with environment.
 
 ## 🛠️ Common Operations
 
-### Update Container Image
+### Container Image Updates (CI/CD Managed)
+
+Container images are managed by the CI/CD pipeline using **semantic versioning from git tags**. Terraform does not update application images.
+
+**Workflow:**
 
 ```bash
-# After building and pushing new image to ACR
-terraform plan -var="container_image=acr<name>.azurecr.io/applicant-validator:v1.2.3"
+# Development: Push code, pipeline auto-versions
+git commit -m "feat: new feature"
+git push  # → applicant-validator:v0.1.0-5-gabc123
+
+# Release: Create git tag
+git tag v1.0.0
+git push origin v1.0.0  # → applicant-validator:v1.0.0
+```
+
+**Why Terraform doesn't manage images:**
+
+1. `ignore_changes` in `container-app/main.tf` prevents drift detection
+2. CI/CD uses `az containerapp update` for zero-downtime deployments
+3. Git is the source of truth for versioning
+
+**Initial deployment only:**
+
+```bash
+# Terraform sets :latest tag for initial infrastructure deployment
+# CI/CD then takes over for application updates
 terraform apply
 ```
 
