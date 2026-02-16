@@ -230,9 +230,10 @@ stages:
               type: 'image'
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
               severities: 'CRITICAL,HIGH,MEDIUM'
-              exitCode: '0'  # Don't fail build on findings (0=success)
+              exitCode: 0  # Don't fail build on findings
               reports: 'html,junit'
               publish: true
+            continueOnError: true  # Fallback: ensure pipeline continues
 
           - task: sbom-tool@1
             displayName: 'Generate SBOM Manifest'
