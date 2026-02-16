@@ -117,19 +117,38 @@ stages:
               containerRegistry: $(dockerRegistryServiceConnection)
 
           - script: |
+              set -x  # Enable debug mode
               # Debug environment
+              echo "=== Environment Debug ==="
               echo "PATH: $PATH"
               echo "Which docker: $(which docker)"
-              docker --version
+              docker --version || echo "ERROR: docker --version failed with exit code $?"
 
               # Use absolute path to OrbStack docker
               DOCKER_PATH="/Users/tvl/.orbstack/bin/docker"
+              echo "=== Testing Docker Path ==="
               echo "Using Docker at: $DOCKER_PATH"
-              $DOCKER_PATH --version
+              if [ ! -f "$DOCKER_PATH" ]; then
+                echo "ERROR: Docker not found at $DOCKER_PATH"
+                exit 1
+              fi
+              $DOCKER_PATH --version || echo "ERROR: docker --version failed with exit code $?"
+              $DOCKER_PATH buildx version || echo "ERROR: buildx version failed with exit code $?"
 
               # Setup buildx for cross-platform builds
-              $DOCKER_PATH buildx create --name mybuilder --use 2>/dev/null || $DOCKER_PATH buildx use mybuilder
-              $DOCKER_PATH buildx inspect --bootstrap
+              echo "=== Creating/Using Buildx Builder ==="
+              $DOCKER_PATH buildx create --name mybuilder --use 2>&1 || {
+                echo "Builder already exists, switching to it..."
+                $DOCKER_PATH buildx use mybuilder || exit 1
+              }
+
+              echo "=== Inspecting Buildx Builder ==="
+              $DOCKER_PATH buildx inspect --bootstrap || {
+                echo "ERROR: buildx inspect failed with exit code $?"
+                exit 1
+              }
+
+              echo "=== Buildx Setup Complete ==="
             displayName: 'Setup Docker Buildx'
 
           - script: |
