@@ -170,6 +170,16 @@ stages:
                 # Use OrbStack Docker explicitly
                 DOCKER=/Users/tvl/.orbstack/bin/docker
 
+                # Verify Docker and buildx
+                echo "Docker version:"
+                $DOCKER --version
+                $DOCKER buildx version
+
+                # Setup buildx
+                echo "Setting up buildx..."
+                $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
+                $DOCKER buildx inspect --bootstrap
+
                 # Navigate to app directory
                 cd app
                 echo "Building in: $(pwd)"
