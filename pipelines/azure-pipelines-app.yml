@@ -158,51 +158,71 @@ stages:
               echo "Buildx setup complete!"
             displayName: 'Verify Docker Buildx'
 
-          - task: AzureCLI@2
+          - script: |
+              # Verify Docker is accessible
+              echo "Docker version:"
+              docker --version
+              docker buildx version
+
+              # Setup buildx for cross-platform builds
+              echo "Setting up buildx builder..."
+              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
+              docker buildx inspect --bootstrap
+
+              echo "Buildx setup complete!"
+            displayName: 'Setup Docker Buildx'
+
+          - script: |
+              set -e  # Exit on error
+
+              # Use OrbStack Docker explicitly
+              DOCKER=/Users/tvl/.orbstack/bin/docker
+
+              # Set Docker config path so plugins can be found
+              export DOCKER_CONFIG=/Users/tvl/.docker
+              export HOME=/Users/tvl
+
+              # Debug environment
+              echo "HOME: $HOME"
+              echo "DOCKER_CONFIG: $DOCKER_CONFIG"
+              echo "Using Docker: $DOCKER"
+              $DOCKER --version
+
+              # Check if buildx plugin exists
+              if [ -f "$DOCKER_CONFIG/cli-plugins/docker-buildx" ]; then
+                echo "Buildx plugin found at: $DOCKER_CONFIG/cli-plugins/docker-buildx"
+              else
+                echo "ERROR: Buildx plugin not found!"
+                exit 1
+              fi
+
+              # Verify buildx works
+              $DOCKER buildx version
+
+              # Navigate to app directory
+              cd app
+              echo "Building in: $(pwd)"
+
+              # Verify ACR authentication
+              echo "Verifying ACR authentication..."
+              cat ~/.docker/config.json | grep -q "acrfinriskdev.azurecr.io" || {
+                echo "ERROR: ACR authentication not found!"
+                exit 1
+              }
+              echo "ACR authentication verified"
+
+              # Build and push
+              echo "Starting Docker buildx build..."
+              $DOCKER buildx build \
+                --platform linux/amd64 \
+                --target production \
+                -t $(containerRegistry)/$(imageName):$(imageTag) \
+                -t $(containerRegistry)/$(imageName):latest \
+                --push \
+                .
+
+              echo "Build and push completed successfully!"
             displayName: 'Build and Push Docker Image (AMD64)'
-            inputs:
-              azureSubscription: '$(azureSubscription)'
-              scriptType: 'bash'
-              scriptLocation: 'inlineScript'
-              inlineScript: |
-                set -e
-
-                # Set environment for Docker to find plugins
-                export DOCKER_CONFIG=/Users/tvl/.docker
-                export HOME=/Users/tvl
-
-                # Use OrbStack Docker explicitly
-                DOCKER=/Users/tvl/.orbstack/bin/docker
-
-                # Verify Docker and buildx
-                echo "Docker version:"
-                $DOCKER --version
-                $DOCKER buildx version
-
-                # Setup buildx
-                echo "Setting up buildx..."
-                $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
-                $DOCKER buildx inspect --bootstrap
-
-                # Navigate to app directory
-                cd app
-                echo "Building in: $(pwd)"
-
-                # Login to ACR using Azure CLI credentials
-                echo "Logging in to ACR..."
-                az acr login --name acrfinriskdev
-
-                # Build and push
-                echo "Starting Docker buildx build..."
-                $DOCKER buildx build \
-                  --platform linux/amd64 \
-                  --target production \
-                  -t $(containerRegistry)/$(imageName):$(imageTag) \
-                  -t $(containerRegistry)/$(imageName):latest \
-                  --push \
-                  .
-
-                echo "Build and push completed successfully!"
 
           - task: trivy@2
             displayName: 'Scan Image (Trivy)'
