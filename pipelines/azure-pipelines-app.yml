@@ -162,11 +162,10 @@ stages:
               set -e  # Exit on error
 
               # Fresh ACR login to ensure valid credentials
-              # Use Docker login explicitly with OrbStack Docker
+              # Use az acr login with token exposure for direct Docker login
               echo "Refreshing ACR authentication..."
-              ACR_NAME=$(echo $(containerRegistry) | cut -d'.' -f1)
-              ACR_PASSWORD=$(az acr credential --name $ACR_NAME --query passwords[0].value -o tsv)
-              echo $ACR_PASSWORD | $DOCKER login $(containerRegistry) --username $ACR_NAME --password-stdin
+              TOKEN=$(az acr login --name acrfinriskdev --expose-token --output tsv --query accessToken)
+              echo "$TOKEN" | $DOCKER login $(containerRegistry) --username 00000000-0000-0000-0000-000000000000 --password-stdin
 
               # Use OrbStack Docker explicitly
               DOCKER=/Users/tvl/.orbstack/bin/docker
