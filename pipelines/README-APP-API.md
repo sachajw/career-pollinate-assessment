@@ -47,13 +47,13 @@
 - **Setup Docker buildx** for cross-platform builds
 - **Build AMD64 image** (cross-compile from ARM64 Mac to x86_64 Azure)
 - **Push to ACR** with semantic version tag (from git describe) + latest
-- **Scan image** with Trivy (security vulnerabilities)
+- **Scan image** with Trivy (results in Azure DevOps Security tab)
 
 ### Quality Gates
 
 - All tests must pass
 - No type checking errors
-- Security issues logged (non-blocking)
+- Security issues logged (non-blocking, review in Trivy tab)
 
 ---
 
@@ -153,6 +153,7 @@ The application must run on **Azure Container Apps (AMD64/x86_64)**, but develop
 2. **OrbStack** (provides Docker with buildx) - `brew install orbstack`
 3. **Azure DevOps Account** with agent pool access
 4. **Azure Subscription** with Container Apps access
+5. **Trivy Extension** - Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=AquaSecurityOfficial.trivy-official)
 
 ### Step 1: Install Azure Pipelines Agent
 
