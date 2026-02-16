@@ -436,12 +436,12 @@ stages:
               echo "Request: $REQUEST_BODY"
               echo ""
 
-              # Call the validate API with timing
-              START_TIME=$(date +%s%3N)
+              # Call the validate API with timing (using Python for cross-platform milliseconds)
+              START_TIME=$(python3 -c "import time; print(int(time.time() * 1000))")
               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$VALIDATE_URL" \
                 -H "Content-Type: application/json" \
                 -d "$REQUEST_BODY")
-              END_TIME=$(date +%s%3N)
+              END_TIME=$(python3 -c "import time; print(int(time.time() * 1000))")
               RESPONSE_TIME=$((END_TIME - START_TIME))
 
               # Extract HTTP status code (last line)
