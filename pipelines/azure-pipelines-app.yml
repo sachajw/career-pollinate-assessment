@@ -201,11 +201,14 @@ stages:
               }
               echo "ACR authentication verified"
 
-              # Build and push using default builder (docker driver)
-              # The default builder has access to Docker credentials
+              # Build and push using default context (docker driver)
+              # Switch to default context to ensure access to Docker credentials
+              echo "Switching to default Docker context..."
+              $DOCKER context use default
+
+              # Build and push
               echo "Starting Docker buildx build..."
               $DOCKER buildx build \
-                --builder default \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
