@@ -158,29 +158,37 @@ stages:
               echo "Buildx setup complete!"
             displayName: 'Verify Docker Buildx'
 
-          - script: |
-              set -e  # Exit on error
-
-              # Navigate to app directory
-              cd app
-              echo "Building in: $(pwd)"
-
-              # Show current docker context for debugging
-              echo "Current Docker context:"
-              docker context show
-
-              # Build and push
-              echo "Starting Docker buildx build..."
-              docker buildx build \
-                --platform linux/amd64 \
-                --target production \
-                -t $(containerRegistry)/$(imageName):$(imageTag) \
-                -t $(containerRegistry)/$(imageName):latest \
-                --push \
-                .
-
-              echo "Build and push completed successfully!"
+          - task: AzureCLI@2
             displayName: 'Build and Push Docker Image (AMD64)'
+            inputs:
+              azureSubscription: '$(azureSubscription)'
+              scriptType: 'bash'
+              scriptLocation: 'inlineScript'
+              inlineScript: |
+                set -e
+
+                # Use OrbStack Docker explicitly
+                DOCKER=/Users/tvl/.orbstack/bin/docker
+
+                # Navigate to app directory
+                cd app
+                echo "Building in: $(pwd)"
+
+                # Login to ACR using Azure CLI credentials
+                echo "Logging in to ACR..."
+                az acr login --name acrfinriskdev
+
+                # Build and push
+                echo "Starting Docker buildx build..."
+                $DOCKER buildx build \
+                  --platform linux/amd64 \
+                  --target production \
+                  -t $(containerRegistry)/$(imageName):$(imageTag) \
+                  -t $(containerRegistry)/$(imageName):latest \
+                  --push \
+                  .
+
+                echo "Build and push completed successfully!"
 
           - task: trivy@2
             displayName: 'Scan Image (Trivy)'
