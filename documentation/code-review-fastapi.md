@@ -16,8 +16,8 @@ Overall, this is a **well-structured, production-ready FastAPI application**. Go
 |------|---------|
 | `app/src/main.py` | FastAPI application entry point |
 | `app/src/api/v1/routes.py` | API v1 route definitions |
-| `app/src/models/schemas.py` | Pydantic models for request/response |
-| `app/src/services/riskshield_client.py` | RiskShield API client service |
+| `app/src/models/validation.py` | Pydantic models for request/response |
+| `app/src/services/riskshield.py` | RiskShield API client service |
 | `app/src/core/config.py` | Application configuration |
 | `app/src/core/logging.py` | Logging configuration |
 | `app/tests/conftest.py` | Pytest fixtures |
@@ -32,7 +32,7 @@ Overall, this is a **well-structured, production-ready FastAPI application**. Go
 
 #### 1. Sync Key Vault Call Blocks Event Loop
 
-**File**: `app/src/services/riskshield_client.py:191-207`
+**File**: `app/src/services/riskshield.py`
 
 ```python
 async def _get_api_key(self) -> str:
@@ -81,7 +81,7 @@ async def _get_api_key(self) -> str:
 
 #### 2. Deprecated asyncio.get_event_loop() in CircuitBreaker
 
-**File**: `app/src/services/riskshield_client.py:125,148`
+**File**: `app/src/services/riskshield.py`
 
 ```python
 elapsed = asyncio.get_event_loop().time() - self._last_failure_time
@@ -175,7 +175,7 @@ Same issue in `app/src/api/v1/routes.py:72`.
 
 #### 5. Literal Import at Bottom of File
 
-**File**: `app/src/models/schemas.py:277-278`
+**File**: `app/src/models/validation.py`
 
 ```python
 # Import Literal for type hints
@@ -376,12 +376,12 @@ async def async_client(test_settings):
 
 ## Dependency Versions
 
-| Package | Current | Latest (Jan 2026) | Recommendation |
+| Package | Current | Latest (Feb 2026) | Recommendation |
 |---------|---------|-------------------|----------------|
-| FastAPI | >=0.109.0 | 0.128.0 | Update - includes security fixes |
-| Pydantic | >=2.5.0 | 2.11.7 | Update |
-| uvicorn | >=0.27.0 | 0.35.0 | Update |
-| httpx | >=0.26.0 | 0.28.0 | OK |
+| FastAPI | >=0.115.0 | 0.115.0+ | OK |
+| Pydantic | >=2.9.0 | 2.9.0+ | OK |
+| uvicorn | >=0.32.0 | 0.32.0+ | OK |
+| httpx | >=0.27.0 | 0.27.0+ | OK |
 
 ---
 
@@ -402,15 +402,15 @@ async def async_client(test_settings):
 
 | # | Priority | Issue | File | Est. Effort |
 |---|----------|-------|------|-------------|
-| 1 | CRITICAL | Sync Key Vault call blocks event loop | `riskshield_client.py:191-207` | 30 min |
-| 2 | CRITICAL | Deprecated `get_event_loop()` | `riskshield_client.py:125,148` | 15 min |
-| 3 | HIGH | CORS default `["*"]` | `config.py:102` | 5 min |
-| 4 | HIGH | Import inside function | `main.py:113,150` | 5 min |
-| 5 | HIGH | Import at bottom of file | `schemas.py:277-278` | 5 min |
-| 6 | MEDIUM | UUID type inconsistency | `routes.py:73` | 10 min |
-| 7 | MEDIUM | Settings cache syntax | `config.py:160` | 5 min |
-| 8 | LOW | Unused imports | `routes.py:3-5` | 2 min |
-| 9 | LOW | Hardcoded retry count | `riskshield_client.py:221` | 20 min |
+| 1 | CRITICAL | Sync Key Vault call blocks event loop | `riskshield.py` | 30 min |
+| 2 | CRITICAL | Deprecated `get_event_loop()` | `riskshield.py` | 15 min |
+| 3 | HIGH | CORS default `["*"]` | `config.py` | 5 min |
+| 4 | HIGH | Import inside function | `main.py` | 5 min |
+| 5 | HIGH | Import at bottom of file | `validation.py` | 5 min |
+| 6 | MEDIUM | UUID type inconsistency | `routes.py` | 10 min |
+| 7 | MEDIUM | Settings cache syntax | `config.py` | 5 min |
+| 8 | LOW | Unused imports | `routes.py` | 2 min |
+| 9 | LOW | Hardcoded retry count | `riskshield.py` | 20 min |
 | 10 | INFO | Update dependencies | `pyproject.toml` | 10 min |
 
 ---

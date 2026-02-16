@@ -478,7 +478,7 @@ stages:
               fi
 
               # Verify riskLevel is valid enum value
-              if [[ ! "$RISK_LEVEL" =~ ^(LOW|MEDIUM|HIGH)$ ]]; then
+              if [[ ! "$RISK_LEVEL" =~ ^(LOW|MEDIUM|HIGH|CRITICAL)$ ]]; then
                 echo "  ERROR: Invalid riskLevel value: $RISK_LEVEL"
                 exit 1
               fi

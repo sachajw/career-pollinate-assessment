@@ -78,22 +78,18 @@ app/
 │   ├── api/              # API routes and endpoints
 │   │   └── v1/
 │   ├── models/           # Pydantic models
-│   │   ├── request.py
-│   │   └── response.py
+│   │   └── validation.py
 │   ├── services/         # Business logic
 │   │   ├── keyvault.py
-│   │   ├── riskshield.py
-│   │   └── retry.py
-│   ├── middleware/       # Auth, logging, correlation
+│   │   └── riskshield.py
 │   ├── core/             # Config, logging, security
 │   └── main.py           # FastAPI app entry point
 ├── tests/
 │   ├── unit/
-│   ├── integration/
-│   └── e2e/
+│   └── integration/
 ├── Dockerfile
 ├── .dockerignore
-├── requirements.txt
+├── README.md
 └── pyproject.toml
 ```
 
@@ -110,28 +106,33 @@ app/
 
 ### 2. Container Strategy
 
-**Base Image: Python 3.12 Slim**
+**Base Image: Python 3.13 Slim**
 
 **Multi-Stage Build:**
 ```dockerfile
-# Stage 1: Build
+# Stage 1: Builder - Install dependencies with uv
 FROM python:3.13-slim AS builder
+RUN pip install --no-cache-dir uv
 WORKDIR /app
-COPY --from=ghcr.io/astral-sh/uv:latest /uv /usr/local/bin/uv
-COPY pyproject.toml uv.lock ./
-RUN uv sync --frozen --no-dev
+COPY pyproject.toml README.md ./
+RUN uv venv /opt/venv && \
+    . /opt/venv/bin/activate && \
+    uv pip install --no-cache -e .
 
-# Stage 2: Runtime
-FROM python:3.13-slim
-RUN groupadd -g 1001 appuser && useradd -r -u 1001 -g appuser appuser
+# Stage 2: Runtime - Minimal production image
+FROM python:3.13-slim AS production
+RUN groupadd -r appuser && useradd -r -g appuser appuser
 WORKDIR /app
-COPY --from=builder /app/.venv /app/.venv
-COPY --chown=appuser:appuser src/ ./src/
-ENV PATH="/app/.venv/bin:$PATH"
+COPY --from=builder /opt/venv /opt/venv
+COPY src/ ./src/
+ENV PATH="/opt/venv/bin:$PATH" \
+    PYTHONUNBUFFERED=1 \
+    PYTHONDONTWRITEBYTECODE=1 \
+    PORT=8080
 USER appuser
 EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=3s --start-period=5s --retries=3 \
-  CMD python -c "import httpx; httpx.get('http://localhost:8080/health')"
+HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
+    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
 CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
 ```
 
@@ -552,7 +553,7 @@ Total:                      ~$480/month
 
 | Layer | Technology | Justification |
 |-------|-----------|---------------|
-| **Runtime** | Python 3.12 | Modern, async support, type hints |
+| **Runtime** | Python 3.13 | Modern, async support, type hints |
 | **Framework** | FastAPI | Auto docs, Pydantic validation, performance |
 | **ASGI Server** | Uvicorn | Fast, production-ready ASGI server |
 | **Container** | Docker (Python Slim) | Small footprint, security, portability |
@@ -583,7 +584,7 @@ Total:                      ~$480/month
 
 ### 2. Python vs. .NET vs. Go vs. Node.js
 
-**Decision:** Python 3.12 (FastAPI)
+**Decision:** Python 3.13 (FastAPI)
 
 **Trade-offs:**
 - ✅ Development Speed: Fastest prototyping, concise syntax

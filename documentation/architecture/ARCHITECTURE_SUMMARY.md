@@ -13,8 +13,8 @@ This document provides a quick reference to the complete solution architecture f
 
 ### Runtime & Framework
 - **Language**: Python 3.13
-- **Framework**: FastAPI 0.109+
-- **ASGI Server**: Uvicorn
+- **Framework**: FastAPI 0.115+
+- **ASGI Server**: Uvicorn 0.32+
 - **Package Manager**: uv (10-100x faster than pip)
 
 ### Cloud Infrastructure
@@ -168,40 +168,36 @@ Total:                      ~$480/month
 │   │   ├── api/v1/              # FastAPI routes
 │   │   ├── models/              # Pydantic models
 │   │   ├── services/            # Business logic
-│   │   ├── middleware/          # ASGI middleware
 │   │   ├── core/                # Config, logging
 │   │   └── main.py              # FastAPI app
 │   ├── tests/                   # pytest tests
 │   ├── Dockerfile               # Multi-stage build
-│   ├── pyproject.toml           # Project metadata
-│   └── uv.lock                  # Dependency lock file
+│   ├── pyproject.toml           # Project metadata (uv)
+│   └── README.md
 │
 ├── terraform/                   # Infrastructure as Code
 │   ├── modules/                 # Reusable modules
 │   │   ├── container-app/
 │   │   ├── key-vault/
 │   │   ├── container-registry/
-│   │   └── observability/
-│   └── environments/            # Dev/staging/prod
-│       ├── dev/
-│       ├── staging/
-│       └── prod/
+│   │   ├── observability/
+│   │   └── azure-devops/
+│   └── environments/            # Dev environment
+│       └── dev/
 │
 ├── pipelines/                   # Azure DevOps
-│   ├── azure-pipelines.yml      # Main pipeline
-│   ├── templates/               # Reusable templates
-│   └── scripts/                 # Helper scripts
+│   ├── azure-pipelines-app.yml  # Application CI/CD
+│   └── azure-pipelines-infra.yml # Infrastructure CI/CD
 │
 └── documentation/               # Architecture docs
     ├── architecture/
     │   ├── solution-architecture.md
-    │   ├── architecture-diagram.md
     │   └── adr/                # Architecture Decision Records
     │       ├── 001-azure-container-apps.md
     │       ├── 002-python-runtime.md
     │       └── 003-managed-identity-security.md
     ├── api/
-    │   └── openapi.yaml        # API specification
+    │   └── API_SPECIFICATION.md
     └── runbooks/               # Operational procedures
 ```
 
@@ -236,7 +232,8 @@ Total:                      ~$480/month
 - ✅ Structured JSON logging
 - ✅ Retry logic with exponential backoff (3 attempts)
 - ✅ 30s timeout protection
-- ✅ Rate limiting (100 req/min per client)
+
+> **Note:** Rate limiting and Bearer token authentication are planned for a future release.
 
 ---
 
@@ -291,8 +288,10 @@ curl http://localhost:8080/health
 az login
 
 # Deploy infrastructure (Terraform)
-cd terraform/environments/prod
-terraform init
+cd terraform/environments/dev
+cp backend.hcl.example backend.hcl
+# Edit backend.hcl with your storage account name
+terraform init -backend-config=backend.hcl
 terraform plan
 terraform apply
 
@@ -305,32 +304,30 @@ git push origin main
 
 ## CI/CD Pipeline
 
-### Stage 1: Build & Test
-- Lint with Ruff
-- Type check with mypy
-- Unit tests with pytest
-- Security scan with Bandit
-- Build Docker image
-- Container scan with Trivy
-- Push to ACR
+The project uses two separate pipelines for infrastructure and application:
 
-### Stage 2: Infrastructure
-- Terraform validate
-- Terraform plan
-- Cost estimation
-- **Manual approval** (prod only)
-- Terraform apply
+### Infrastructure Pipeline (`azure-pipelines-infra.yml`)
+- **Stage 1: Plan** - Terraform validate and plan
+- **Stage 2: Apply** - Terraform apply (manual approval for prod)
 
-### Stage 3: Deploy
-- Update Container App
-- Health check validation
-- Smoke tests
-- Integration tests
+### Application Pipeline (`azure-pipelines-app.yml`)
+- **Stage 1: Build & Test**
+  - Lint with Ruff
+  - Type check with mypy
+  - Unit tests with pytest
+  - Security scan with Bandit
+  - Build Docker image
+  - Container scan with Trivy
+  - Push to ACR
 
-### Stage 4: Verify
-- Performance tests (k6)
-- Security validation
-- **Automated rollback** on failure
+- **Stage 2: Deploy**
+  - Update Container App
+  - Health check validation
+
+- **Stage 3: Verify**
+  - Smoke tests
+  - Endpoint validation
+  - Business logic verification
 
 ---
 
@@ -451,6 +448,6 @@ git push origin main
 
 ---
 
-**Last Updated:** 2026-02-14
-**Next Review:** 2026-05-14 (3 months)
+**Last Updated:** 2026-02-16
+**Next Review:** 2026-05-16 (3 months)
 **Status:** ✅ Design Complete, Ready for Implementation

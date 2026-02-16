@@ -9,13 +9,14 @@ The Applicant Validator provides fraud risk validation for loan applicants. It i
 
 ## Authentication
 
-All API requests require authentication via Bearer token.
+> **Note:** API authentication is planned for a future release. The current implementation does not require authentication.
 
 ```http
+# Future: Bearer token authentication (not yet implemented)
 Authorization: Bearer <your-api-key>
 ```
 
-Contact the Platform Engineering team to obtain API credentials.
+Contact the Platform Engineering team to obtain API credentials when available.
 
 ## Rate Limiting
 
@@ -24,15 +25,9 @@ Contact the Platform Engineering team to obtain API credentials.
 | Default | 100 | 10,000 |
 | Enterprise | 1,000 | 100,000 |
 
-Rate limit headers are included in all responses:
+> **Note:** Rate limiting headers are planned for a future release. The current implementation does not include rate limiting.
 
-```http
-X-RateLimit-Limit: 100
-X-RateLimit-Remaining: 95
-X-RateLimit-Reset: 1705312800
-```
-
-When rate limited, the API returns HTTP 429:
+When rate limited (future implementation), the API returns HTTP 429:
 
 ```json
 {
@@ -78,6 +73,8 @@ Validates a loan applicant and returns their fraud risk score.
 - Digit 12: Previously used for race classification (now 8 or 9)
 - Digit 13: Luhn checksum digit
 
+> **Note:** Luhn checksum validation is planned for a future release. Current implementation validates length and numeric content only.
+
 #### Response
 
 **Success (200 OK)**
@@ -86,11 +83,7 @@ Validates a loan applicant and returns their fraud risk score.
 {
   "riskScore": 72,
   "riskLevel": "MEDIUM",
-  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890",
-  "additionalData": {
-    "factors": ["high_debt_ratio", "recent_inquiries"],
-    "lastChecked": "2024-01-15T10:30:00Z"
-  }
+  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
 }
 ```
 
@@ -101,7 +94,6 @@ Validates a loan applicant and returns their fraud risk score.
 | `riskScore` | integer | Risk score from 0 (lowest) to 100 (highest) |
 | `riskLevel` | string | Categorical risk: LOW, MEDIUM, HIGH, CRITICAL |
 | `correlationId` | string (UUID) | Unique identifier for request tracing |
-| `additionalData` | object | Optional metadata from RiskShield |
 
 #### Risk Level Interpretation
 
@@ -132,6 +124,8 @@ Validates a loan applicant and returns their fraud risk score.
 ```
 
 **401 Unauthorized**
+
+> **Note:** Authentication is planned for a future release.
 
 ```json
 {
@@ -184,13 +178,18 @@ Returns the health status of the API.
 ```json
 {
   "status": "healthy",
-  "version": "1.0.0",
-  "environment": "prod",
-  "checks": {
-    "api": true
-  }
+  "version": "0.1.0",
+  "environment": "dev"
 }
 ```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `status` | string | Service health status ("healthy") |
+| `version` | string | Service version |
+| `environment` | string | Deployment environment (dev/staging/prod) |
 
 ### GET /ready
 
@@ -200,14 +199,20 @@ Returns whether the API is ready to accept requests.
 
 ```json
 {
-  "status": "ready",
+  "ready": true,
   "checks": {
-    "api": true,
-    "key_vault": true,
-    "riskshield": true
+    "riskshield_api": true
   }
 }
 ```
+
+**Response Fields:**
+
+| Field | Type | Description |
+|-------|------|-------------|
+| `ready` | boolean | Overall readiness status |
+| `checks` | object | Individual dependency check results |
+| `checks.riskshield_api` | boolean | RiskShield API connectivity |
 
 ---
 
@@ -235,7 +240,8 @@ async def validate_applicant(first_name: str, last_name: str, id_number: str) ->
     async with httpx.AsyncClient() as client:
         response = await client.post(
             "https://api.finrisk.example.com/api/v1/validate",
-            headers={"Authorization": "Bearer YOUR_API_KEY"},
+            # Note: Authentication header will be required in future release
+            # headers={"Authorization": "Bearer YOUR_API_KEY"},
             json={
                 "firstName": first_name,
                 "lastName": last_name,
@@ -252,7 +258,6 @@ async def validate_applicant(first_name: str, last_name: str, id_number: str) ->
 ```bash
 curl -X POST https://api.finrisk.example.com/api/v1/validate \
   -H "Content-Type: application/json" \
-  -H "Authorization: Bearer YOUR_API_KEY" \
   -d '{
     "firstName": "Jane",
     "lastName": "Doe",
@@ -272,7 +277,8 @@ async function validateApplicant(
     method: 'POST',
     headers: {
       'Content-Type': 'application/json',
-      'Authorization': 'Bearer YOUR_API_KEY',
+      // Note: Authorization header will be required in future release
+      // 'Authorization': 'Bearer YOUR_API_KEY',
     },
     body: JSON.stringify({
       firstName,
@@ -292,7 +298,6 @@ interface ValidationResponse {
   riskScore: number;
   riskLevel: 'LOW' | 'MEDIUM' | 'HIGH' | 'CRITICAL';
   correlationId: string;
-  additionalData?: Record<string, unknown>;
 }
 ```
 
@@ -300,9 +305,13 @@ interface ValidationResponse {
 
 ## Changelog
 
-### v1.0.0 (2024-01-15)
+### v0.1.0 (2026-02-16)
 - Initial release
 - POST /validate endpoint
 - Health and readiness endpoints
-- Rate limiting
 - Correlation ID tracking
+
+### Planned
+- Rate limiting
+- Bearer token authentication
+- Luhn checksum validation for SA ID numbers

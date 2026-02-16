@@ -36,27 +36,27 @@ curl -X POST https://<app-url>/api/v1/validate \
 ```bash
 # View application logs
 az containerapp logs show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --follow
 
 # View recent logs
 az containerapp logs show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --tail 100
 
 # Get application URL
 az containerapp show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query properties.configuration.ingress.fqdn \
   --output tsv
 
 # Restart application
 az containerapp revision restart \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev
 ```
 
 ---
@@ -97,20 +97,20 @@ az containerapp revision restart \
 ```bash
 # Check container app status
 az containerapp show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query "{status:properties.runningStatus, replicas:properties.template.scale.minReplicas}"
 
 # Check recent logs
 az containerapp logs show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --tail 50
 
 # Check revision status
 az containerapp revision list \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query "[].{name:name,status:properties.runningState,trafficWeight:properties.trafficWeight}"
 ```
 
@@ -125,8 +125,8 @@ az containerapp revision list \
 2. Check for crash loops:
    ```bash
    az containerapp revision restart \
-     --name ca-riskscoring-prod \
-     --resource-group rg-riskscoring-prod
+     --name ca-finrisk-dev \
+     --resource-group rg-finrisk-dev
    ```
 
 3. Rollback to previous revision if needed (see Rollback section)
@@ -145,8 +145,8 @@ az containerapp revision list \
 ```bash
 # Search logs for RiskShield errors
 az containerapp logs show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --tail 500 | grep -i "riskshield"
 ```
 
@@ -164,13 +164,13 @@ az containerapp logs show \
    ```bash
    # Verify API key in Key Vault
    az keyvault secret show \
-     --vault-name kv-riskscoring-prod \
+     --vault-name kv-finrisk-dev \
      --name RISKSHIELD-API-KEY \
      --query value -o tsv
 
    # Rotate key if compromised
    az keyvault secret set \
-     --vault-name kv-riskscoring-prod \
+     --vault-name kv-finrisk-dev \
      --name RISKSHIELD-API-KEY \
      --value "new-api-key"
    ```
@@ -189,7 +189,7 @@ az containerapp logs show \
 # Check Application Insights for errors
 az monitor app-insights query \
   --app <app-insights-name> \
-  --resource-group rg-riskscoring-prod \
+  --resource-group rg-finrisk-dev \
   --analytics-query "
     requests
     | where timestamp > ago(1h)
@@ -220,8 +220,8 @@ az monitor app-insights query \
 ```bash
 # Check container metrics
 az containerapp show \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query "properties.template.containers[0].{cpu:resources.cpu,memory:resources.memory}"
 
 # View metrics in Azure Monitor
@@ -235,8 +235,8 @@ az monitor metrics list \
 1. Scale up resources:
    ```bash
    az containerapp update \
-     --name ca-riskscoring-prod \
-     --resource-group rg-riskscoring-prod \
+     --name ca-finrisk-dev \
+     --resource-group rg-finrisk-dev \
      --cpu 1.0 \
      --memory 2.0Gi
    ```
@@ -244,8 +244,8 @@ az monitor metrics list \
 2. Scale out replicas:
    ```bash
    az containerapp update \
-     --name ca-riskscoring-prod \
-     --resource-group rg-riskscoring-prod \
+     --name ca-finrisk-dev \
+     --resource-group rg-finrisk-dev \
      --min-replicas 2 \
      --max-replicas 10
    ```
@@ -261,8 +261,8 @@ Deployments are handled automatically via Azure DevOps pipeline on merge to main
 ```bash
 # Monitor deployment
 az containerapp revision list \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query "[].{name:name,createdTime:properties.createdTime,status:properties.runningState}"
 ```
 
@@ -271,9 +271,9 @@ az containerapp revision list \
 ```bash
 # Update container image
 az containerapp update \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
-  --image acrriskscoring.azurecr.io/risk-scoring-api:v1.2.3
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
+  --image acrfinriskdev.azurecr.io/applicant-validator:v1.2.3
 
 # Verify deployment
 curl https://<app-url>/health
@@ -284,26 +284,26 @@ curl https://<app-url>/health
 ```bash
 # List revisions
 az containerapp revision list \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --query "[].{name:name,createdTime:properties.createdTime,active:properties.active,status:properties.runningState}"
 
 # Rollback to previous revision
 az containerapp revision set-mode \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --mode Single
 
 # Deactivate failing revision
 az containerapp revision deactivate \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --revision <revision-name>
 
 # Or reroute traffic to previous revision
 az containerapp update \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
   --set-traffic <old-revision>=100
 ```
 
@@ -316,11 +316,11 @@ az containerapp update \
 ```bash
 # List secrets
 az keyvault secret list \
-  --vault-name kv-riskscoring-prod
+  --vault-name kv-finrisk-dev
 
 # Get secret value (use with caution)
 az keyvault secret show \
-  --vault-name kv-riskscoring-prod \
+  --vault-name kv-finrisk-dev \
   --name RISKSHIELD-API-KEY \
   --query value -o tsv
 ```
@@ -331,14 +331,14 @@ az keyvault secret show \
 # 1. Generate new key with RiskShield
 # 2. Update in Key Vault
 az keyvault secret set \
-  --vault-name kv-riskscoring-prod \
+  --vault-name kv-finrisk-dev \
   --name RISKSHIELD-API-KEY \
   --value "new-api-key-from-riskshield"
 
 # 3. Restart app to pick up new key (or wait for natural recycle)
 az containerapp revision restart \
-  --name ca-riskscoring-prod \
-  --resource-group rg-riskscoring-prod
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev
 
 # 4. Verify with test request
 curl -X POST https://<app-url>/api/v1/validate \

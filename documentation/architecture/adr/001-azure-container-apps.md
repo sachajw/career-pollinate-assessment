@@ -233,7 +233,7 @@ scale {
 
 ## Related Decisions
 
-- [ADR-002: Node.js Runtime Selection](./002-nodejs-runtime.md)
+- [ADR-002: Python Runtime Selection](./002-python-runtime.md)
 - [ADR-004: Terraform for Infrastructure as Code](./004-terraform-iac.md)
 - [ADR-005: Azure Front Door for Production](./005-azure-front-door.md)
 

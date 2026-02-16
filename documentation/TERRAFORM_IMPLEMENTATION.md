@@ -16,12 +16,13 @@ This document summarizes the comprehensive Terraform infrastructure implementati
 
 ```
 terraform/
-├── modules/                    # Reusable modules (5 total)
+├── modules/                    # Reusable modules (6 total)
 │   ├── resource-group/        # Azure Resource Group
 │   ├── container-registry/    # Azure Container Registry (ACR)
 │   ├── key-vault/             # Azure Key Vault (RBAC-based)
 │   ├── observability/         # Log Analytics + App Insights
-│   └── container-app/         # Container Apps + Environment
+│   ├── container-app/         # Container Apps + Environment
+│   └── azure-devops/          # Azure DevOps service connection
 │
 └── environments/              # Environment configurations
     └── dev/                   # Development environment
@@ -524,7 +525,7 @@ common_tags = {
 
 ### Completed ✅
 
-- [x] 5 reusable Terraform modules created
+- [x] 6 reusable Terraform modules created
 - [x] Dev environment configuration
 - [x] Remote state backend configured
 - [x] Comprehensive documentation
