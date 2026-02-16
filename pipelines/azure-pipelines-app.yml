@@ -110,6 +110,12 @@ stages:
         steps:
           - checkout: self
 
+          - script: |
+              # Add OrbStack Docker to PATH for all subsequent tasks
+              echo "##vso[task.prependpath]/Users/tvl/.orbstack/bin"
+              echo "OrbStack Docker path added to PATH"
+            displayName: 'Setup PATH for Docker'
+
           - task: Docker@2
             displayName: 'Login to ACR'
             inputs:
@@ -117,44 +123,22 @@ stages:
               containerRegistry: $(dockerRegistryServiceConnection)
 
           - script: |
-              set -x  # Enable debug mode
-              # Debug environment
-              echo "=== Environment Debug ==="
-              echo "PATH: $PATH"
-              echo "Which docker: $(which docker)"
-              docker --version || echo "ERROR: docker --version failed with exit code $?"
-
-              # Use absolute path to OrbStack docker
-              DOCKER_PATH="/Users/tvl/.orbstack/bin/docker"
-              echo "=== Testing Docker Path ==="
-              echo "Using Docker at: $DOCKER_PATH"
-              if [ ! -f "$DOCKER_PATH" ]; then
-                echo "ERROR: Docker not found at $DOCKER_PATH"
-                exit 1
-              fi
-              $DOCKER_PATH --version || echo "ERROR: docker --version failed with exit code $?"
-              $DOCKER_PATH buildx version || echo "ERROR: buildx version failed with exit code $?"
+              # Verify Docker is accessible
+              echo "Docker version:"
+              docker --version
+              docker buildx version
 
               # Setup buildx for cross-platform builds
-              echo "=== Creating/Using Buildx Builder ==="
-              $DOCKER_PATH buildx create --name mybuilder --use 2>&1 || {
-                echo "Builder already exists, switching to it..."
-                $DOCKER_PATH buildx use mybuilder || exit 1
-              }
+              echo "Setting up buildx builder..."
+              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
+              docker buildx inspect --bootstrap
 
-              echo "=== Inspecting Buildx Builder ==="
-              $DOCKER_PATH buildx inspect --bootstrap || {
-                echo "ERROR: buildx inspect failed with exit code $?"
-                exit 1
-              }
-
-              echo "=== Buildx Setup Complete ==="
+              echo "Buildx setup complete!"
             displayName: 'Setup Docker Buildx'
 
           - script: |
-              DOCKER_PATH="/Users/tvl/.orbstack/bin/docker"
               cd app
-              $DOCKER_PATH buildx build \
+              docker buildx build \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
