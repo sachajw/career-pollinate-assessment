@@ -292,21 +292,60 @@ stages:
           - script: |
               # Retry loop handles cold start (scale-to-zero) and rollout delays
               # 10 retries * 10s = 100s max wait time
+              HEALTH_URL="$(appUrl)/health"
+              echo "Health check URL: $HEALTH_URL"
+              echo ""
+
               for i in {1..10}; do
-                STATUS=$(curl -s -o /dev/null -w "%{http_code}" $(appUrl)/health)
+                RESPONSE=$(curl -s -w "\n%{http_code}" "$HEALTH_URL" 2>/dev/null)
+                STATUS=$(echo "$RESPONSE" | tail -n1)
+                BODY=$(echo "$RESPONSE" | sed '$d')
+
+                echo "Attempt $i/10: HTTP $STATUS"
+
                 if [ "$STATUS" = "200" ]; then
+                  echo ""
                   echo "Health check passed"
+                  echo "Response: $BODY"
                   exit 0
                 fi
-                echo "Attempt $i: HTTP $STATUS - retrying..."
+
+                echo "Response: $BODY"
+                echo "Retrying in 10s..."
                 sleep 10
               done
+
+              echo ""
+              echo "Health check failed after 10 attempts"
               exit 1
             displayName: 'Health Check'
 
           - script: |
-              curl -sf $(appUrl)/docs > /dev/null && echo "Docs OK" || exit 1
-              curl -sf $(appUrl)/ready > /dev/null && echo "Ready OK" || exit 1
+              echo "Checking additional endpoints..."
+              echo ""
+
+              # Check OpenAPI docs
+              echo "GET $(appUrl)/docs"
+              curl -sf "$(appUrl)/docs" -o /dev/null -w "  HTTP %{http_code}\n" || {
+                echo "  Failed"
+                exit 1
+              }
+
+              # Check readiness probe
+              echo "GET $(appUrl)/ready"
+              READY_RESPONSE=$(curl -s -w "\n%{http_code}" "$(appUrl)/ready")
+              READY_STATUS=$(echo "$READY_RESPONSE" | tail -n1)
+              READY_BODY=$(echo "$READY_RESPONSE" | sed '$d')
+              echo "  HTTP $READY_STATUS"
+              echo "  Response: $READY_BODY"
+
+              if [ "$READY_STATUS" != "200" ]; then
+                echo "  Ready check failed"
+                exit 1
+              fi
+
+              echo ""
+              echo "All endpoint checks passed"
             displayName: 'Endpoint Checks'
 
           - script: |
