@@ -367,12 +367,17 @@ stages:
               fi
 
               # Parse and validate JSON response
-              READY_STATUS_VALUE=$(echo "$READY_BODY" | jq -r '.status' 2>/dev/null)
-              if [ "$READY_STATUS_VALUE" = "ready" ]; then
-                echo "   Status Value: $READY_STATUS_VALUE"
+              READY_VALUE=$(echo "$READY_BODY" | jq -r '.ready' 2>/dev/null)
+              if [ "$READY_VALUE" = "true" ]; then
+                echo "   Ready: $READY_VALUE"
+                # Show individual checks if present
+                CHECKS=$(echo "$READY_BODY" | jq -r '.checks | to_entries | map("\(.key)=\(.value)") | join(", ")' 2>/dev/null)
+                if [ -n "$CHECKS" ]; then
+                  echo "   Checks: $CHECKS"
+                fi
                 echo "   Result: PASSED"
               else
-                echo "   ERROR: Expected status='ready', got '$READY_STATUS_VALUE'"
+                echo "   ERROR: Expected ready=true, got '$READY_VALUE'"
                 echo "   Response: $READY_BODY"
                 exit 1
               fi
