@@ -417,13 +417,15 @@ The pipeline includes two security tools:
 
 ```yaml
 - task: trivy@2
+  displayName: 'Scan Image (Trivy)'
   inputs:
     type: 'image'
     target: '$(containerRegistry)/$(imageName):$(imageTag)'
     severities: 'CRITICAL,HIGH,MEDIUM'
+    'exit-code': 0  # Don't fail build on findings
     reports: 'html,junit'
     publish: true
-  continueOnError: true
+  continueOnError: true  # Fallback: ensure pipeline continues
 ```
 
 **SBOM Generation**
@@ -434,13 +436,19 @@ The pipeline includes two security tools:
 
 ```yaml
 - task: sbom-tool@1
+  displayName: 'Generate SBOM Manifest'
   inputs:
     command: 'generate'
-    buildSourcePath: '$(Build.SourcesDirectory)/app'
+    buildSourcePath: '$(Build.SourcesDirectory)'
     buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
+    enableManifestSpreadsheetGeneration: true
+    enableManifestGraphGeneration: true
+    enablePackageMetadataParsing: true
+    fetchLicenseInformation: true
+    fetchSecurityAdvisories: true
     packageSupplier: 'FinSure Capital'
     packageName: 'applicant-validator'
-    packageVersion: '$(imageTag)'
+    packageVersion: '$(Build.BuildNumber)'
 ```
 
 ---
