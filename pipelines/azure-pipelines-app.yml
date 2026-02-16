@@ -40,8 +40,7 @@ variables:
     value: 'acrfinriskdev.azurecr.io'      # Matches Terraform: acr${project_name}${environment}
   - name: imageName
     value: 'applicant-validator'            # Domain service name (DDD)
-  - name: imageTag
-    value: '$(Build.BuildId)'
+  # imageTag is set dynamically from git describe --tags in BuildImage job
   - name: containerAppName
     value: 'ca-finrisk-dev'                 # Matches Terraform: ca-${project_name}-${environment}
   - name: resourceGroupName
@@ -112,8 +111,17 @@ stages:
         pool: Default
         steps:
           - checkout: self
-            fetchDepth: 1      # Shallow fetch (faster)
+            fetchDepth: 0      # Full history needed for git describe
             clean: false       # Skip cleanup on local agent
+
+          - script: |
+              # Semantic versioning from git tags
+              # Format: v{major}.{minor}.{patch}-{commits}-g{hash} (e.g., v0.1.0-5-gabc123)
+              # Falls back to v0.0.0-{commits}-g{hash} if no tags exist
+              VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")
+              echo "Generated version: $VERSION"
+              echo "##vso[task.setvariable variable=imageTag]$VERSION"
+            displayName: 'Set Version from Git'
 
           - script: |
               # Add OrbStack Docker to PATH for all subsequent tasks

@@ -53,10 +53,11 @@ The CI/CD is split into **two separate pipelines** for better separation of conc
    - **Login to ACR** (Azure Container Registry)
    - **Setup Docker buildx** for cross-platform builds
    - **Build AMD64 image** (cross-compile from ARM64 Mac to x86_64 Azure)
-   - **Push to ACR** with Build.BuildId tag + latest
+   - **Push to ACR** with semantic version tag (from git describe) + latest
    - **Scan image** with Trivy (security vulnerabilities)
 
 **Quality Gates:**
+
 - ✅ All tests must pass
 - ✅ No type checking errors
 - ⚠️ Security issues logged (continueOnError: true)
@@ -64,6 +65,7 @@ The CI/CD is split into **two separate pipelines** for better separation of conc
 ### Stage 2: Deploy
 
 **Steps:**
+
 - Update Container App with new image tag
 - Wait 30 seconds for deployment stabilization
 
@@ -219,7 +221,7 @@ The pipeline **must** set these environment variables for Docker to find the bui
       -t $(containerRegistry)/$(imageName):$(imageTag) \
       --push \
       .
-  displayName: 'Build and Push Docker Image (AMD64)'
+  displayName: "Build and Push Docker Image (AMD64)"
 ```
 
 ### Why This Configuration?
@@ -318,35 +320,71 @@ The pipeline **must** set these environment variables for Docker to find the bui
 variables:
   - group: finrisk-dev
   - name: azureSubscription
-    value: 'azure-service-connection'
+    value: "azure-service-connection"
   - name: environmentName
-    value: 'dev'
+    value: "dev"
   - name: pythonVersion
-    value: '3.13'
+    value: "3.13"
   - name: dockerRegistryServiceConnection
-    value: 'acr-service-connection'
+    value: "acr-service-connection"
   - name: containerRegistry
-    value: 'acrfinriskdev.azurecr.io'      # Matches Terraform output
+    value: "acrfinriskdev.azurecr.io" # Matches Terraform output
   - name: imageName
-    value: 'applicant-validator'            # Domain service name (DDD)
-  - name: imageTag
-    value: '$(Build.BuildId)'               # Unique per build
+    value: "applicant-validator" # Domain service name (DDD)
+  # imageTag: Set dynamically from git describe --tags (see Semantic Versioning section)
   - name: containerAppName
-    value: 'ca-finrisk-dev'                 # Matches Terraform resource name
+    value: "ca-finrisk-dev" # Matches Terraform resource name
   - name: resourceGroupName
-    value: 'rg-finrisk-dev'                 # Matches Terraform resource group
+    value: "rg-finrisk-dev" # Matches Terraform resource group
+```
+
+### Semantic Versioning
+
+Image tags are derived from **git tags** using `git describe --tags`. Git is the source of truth for versions.
+
+**Format:**
+```
+v{major}.{minor}.{patch}-{commits}-g{hash}
+```
+
+**Examples:**
+
+| Scenario | Git Tag | Commits Since | Image Tag |
+|----------|---------|---------------|-----------|
+| Release | `v1.0.0` | 0 | `v1.0.0` |
+| Post-release dev | `v1.0.0` | 5 | `v1.0.0-5-gabc123` |
+| No tags yet | (none) | - | `v0.0.0-abc123` |
+
+**Creating a Release:**
+
+```bash
+# Tag a release
+git tag v1.0.0
+git push origin v1.0.0
+
+# Pipeline will build image: applicant-validator:v1.0.0
+```
+
+**Pipeline Step:**
+
+```yaml
+- script: |
+    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")
+    echo "##vso[task.setvariable variable=imageTag]$VERSION"
+  displayName: 'Set Version from Git'
 ```
 
 ### Naming Convention (DDD-Aligned)
 
-| Resource | Format | Dev Value | Source |
-|----------|--------|-----------|--------|
-| Resource Group | `rg-{project}-{env}` | `rg-finrisk-dev` | Terraform |
-| Container App | `ca-{project}-{env}` | `ca-finrisk-dev` | Terraform |
-| Container Registry | `acr{project}{env}` | `acrfinriskdev` | Terraform |
-| Container Image | Domain service name | `applicant-validator` | Domain model |
+| Resource           | Format               | Dev Value             | Source       |
+| ------------------ | -------------------- | --------------------- | ------------ |
+| Resource Group     | `rg-{project}-{env}` | `rg-finrisk-dev`      | Terraform    |
+| Container App      | `ca-{project}-{env}` | `ca-finrisk-dev`      | Terraform    |
+| Container Registry | `acr{project}{env}`  | `acrfinriskdev`       | Terraform    |
+| Container Image    | Domain service name  | `applicant-validator` | Domain model |
 
 **DDD Naming:**
+
 - `finrisk` = **FinSure** + **Risk** validation bounded context
 - `applicant-validator` = Domain service performing fraud risk validation
 
@@ -682,8 +720,8 @@ For self-hosted agents, optimize checkout speed with:
 
 ```yaml
 - checkout: self
-  fetchDepth: 1      # Shallow fetch - only latest commit
-  clean: false       # Skip post-job cleanup
+  fetchDepth: 1 # Shallow fetch - only latest commit
+  clean: false # Skip post-job cleanup
 ```
 
 1. ✅ **Shallow fetch**: `fetchDepth: 1` avoids fetching full git history
@@ -716,7 +754,7 @@ For self-hosted agents, optimize checkout speed with:
 
 ### Pipeline Files
 
-| File | Azure DevOps Name | Purpose |
-|------|-------------------|---------|
-| `azure-pipelines-infra.yml` | `FinRisk-IaC-Terraform` | Terraform infrastructure provisioning |
-| `azure-pipelines-app.yml` | `FinRisk-App-CI-CD` | Application build, test, deploy, verify with buildx |
+| File                        | Azure DevOps Name       | Purpose                                             |
+| --------------------------- | ----------------------- | --------------------------------------------------- |
+| `azure-pipelines-infra.yml` | `FinRisk-IaC-Terraform` | Terraform infrastructure provisioning               |
+| `azure-pipelines-app.yml`   | `FinRisk-App-CI-CD`     | Application build, test, deploy, verify with buildx |

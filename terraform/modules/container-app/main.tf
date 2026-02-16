@@ -298,9 +298,14 @@ resource "azurerm_container_app" "this" {
     # Uncomment for production environments
     # prevent_destroy = true
 
-    # Ignore changes to revision suffix (managed by CI/CD)
+    # Ignore changes managed by CI/CD pipeline:
+    # - revision_suffix: CI/CD creates new revisions
+    # - container image: CI/CD updates image tags via az containerapp update
+    # - transport: Azure may auto-adjust ingress transport settings
     ignore_changes = [
-      template[0].revision_suffix
+      template[0].revision_suffix,
+      template[0].container[0].image,
+      ingress[0].transport
     ]
 
     # Preconditions: Validate configuration before apply
