@@ -211,13 +211,13 @@ stages:
               echo "Build and push completed successfully!"
             displayName: 'Build and Push Docker Image (AMD64)'
 
-          - script: |
-              # Install trivy on macOS
-              if command -v brew &> /dev/null; then
-                brew install trivy 2>/dev/null || true
-                trivy image --severity HIGH,CRITICAL $(containerRegistry)/$(imageName):$(imageTag)
-              fi
+          - task: trivy@2
             displayName: 'Scan Image (Trivy)'
+            inputs:
+              type: 'image'
+              target: '$(containerRegistry)/$(imageName):$(imageTag)'
+              severity: 'HIGH,CRITICAL'
+              exitCode: '0'  # Don't fail build on findings
             continueOnError: true
 
   # ========================================
