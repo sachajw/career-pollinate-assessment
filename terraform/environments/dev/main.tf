@@ -222,6 +222,12 @@ module "container_app" {
   enable_key_vault_access = true
   key_vault_id            = module.key_vault.id
 
+  # Custom domain and certificate configuration
+  # Certificate must be uploaded manually via: scripts/upload-certificate.sh
+  custom_domain_enabled = var.custom_domain_enabled
+  custom_domain_name    = var.custom_domain_name
+  certificate_name      = var.certificate_name
+
   tags = local.common_tags
 
   # Ensure observability stack is created first

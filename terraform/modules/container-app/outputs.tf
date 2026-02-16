@@ -113,3 +113,21 @@ output "application_url" {
   description = "The full HTTPS URL of the application"
   value       = var.ingress_enabled ? "https://${azurerm_container_app.this.latest_revision_fqdn}" : null
 }
+
+#------------------------------------------------------------------------------
+# Custom Domain Outputs
+#------------------------------------------------------------------------------
+
+# custom_domain_verification_id - Domain verification ID
+# Required for custom domain ownership verification
+output "custom_domain_verification_id" {
+  description = "Domain verification ID for custom domain setup"
+  value       = azurerm_container_app_environment.this.custom_domain_verification_id
+}
+
+# certificate_id - ID of the referenced certificate
+# null if custom domain is not enabled
+output "certificate_id" {
+  description = "ID of the referenced certificate (if enabled)"
+  value       = var.custom_domain_enabled ? data.azurerm_container_app_environment_certificate.this[0].id : null
+}

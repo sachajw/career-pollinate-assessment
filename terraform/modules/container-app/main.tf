@@ -60,6 +60,20 @@ resource "azurerm_container_app_environment" "this" {
 }
 
 #------------------------------------------------------------------------------
+# Container App Environment Certificate Reference (Optional)
+#------------------------------------------------------------------------------
+# References a certificate that was manually uploaded to the Container App Environment.
+# The certificate should be uploaded once via Azure CLI (see scripts/upload-certificate.sh)
+# Terraform will then reference the existing certificate by name.
+#------------------------------------------------------------------------------
+data "azurerm_container_app_environment_certificate" "this" {
+  count = var.custom_domain_enabled ? 1 : 0
+
+  name                         = var.certificate_name
+  container_app_environment_id = azurerm_container_app_environment.this.id
+}
+
+#------------------------------------------------------------------------------
 # Container App
 #------------------------------------------------------------------------------
 # The container app runs your containerized application with:
@@ -251,6 +265,16 @@ resource "azurerm_container_app" "this" {
 
       # NOTE: CORS is not directly supported in azurerm_container_app ingress
       # Handle CORS at the application level (e.g., FastAPI middleware)
+
+      # Custom domain binding (optional)
+      # Requires a certificate uploaded to the Container App Environment
+      dynamic "custom_domain" {
+        for_each = var.custom_domain_enabled ? [1] : []
+        content {
+          name           = var.custom_domain_name
+          certificate_id = data.azurerm_container_app_environment_certificate.this[0].id
+        }
+      }
     }
   }
 

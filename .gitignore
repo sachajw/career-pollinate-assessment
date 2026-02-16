@@ -4,6 +4,18 @@
 .env.*.local
 *.tfvars
 
+# Certificates and private keys (NEVER COMMIT THESE)
+*.pem
+*.key
+*.crt
+*.pfx
+*.p12
+*.cer
+*.der
+*.pfx.b64
+*.p12.b64
+certificate.auto.tfvars
+
 # Terraform
 **/.terraform/*
 **/tfplan

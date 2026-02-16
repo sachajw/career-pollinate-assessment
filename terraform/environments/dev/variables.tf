@@ -74,3 +74,25 @@ variable "tags" {
   type        = map(string)
   default     = {}
 }
+
+#------------------------------------------------------------------------------
+# Custom Domain and Certificate Configuration
+#------------------------------------------------------------------------------
+
+variable "custom_domain_enabled" {
+  description = "Enable custom domain with certificate"
+  type        = bool
+  default     = false
+}
+
+variable "custom_domain_name" {
+  description = "Custom domain name (e.g., finrisk.pangarabbit.com)"
+  type        = string
+  default     = ""
+}
+
+variable "certificate_name" {
+  description = "Name of existing certificate in Container App Environment (uploaded via Azure CLI)"
+  type        = string
+  default     = "finrisk-pangarabbit-cert"
+}
