@@ -161,56 +161,17 @@ stages:
           - script: |
               set -e  # Exit on error
 
-              # Fresh ACR login to ensure valid credentials
-              # Use az acr login with token exposure for direct Docker login
-              echo "Refreshing ACR authentication..."
-              TOKEN=$(az acr login --name acrfinriskdev --expose-token --output tsv --query accessToken)
-              echo "$TOKEN" | $DOCKER login $(containerRegistry) --username 00000000-0000-0000-0000-000000000000 --password-stdin
-
-              # Use OrbStack Docker explicitly
-              DOCKER=/Users/tvl/.orbstack/bin/docker
-
-              # Set Docker config path so plugins can be found
-              export DOCKER_CONFIG=/Users/tvl/.docker
-              export HOME=/Users/tvl
-
-              # Debug environment
-              echo "HOME: $HOME"
-              echo "DOCKER_CONFIG: $DOCKER_CONFIG"
-              echo "Using Docker: $DOCKER"
-              $DOCKER --version
-
-              # Check if buildx plugin exists
-              if [ -f "$DOCKER_CONFIG/cli-plugins/docker-buildx" ]; then
-                echo "Buildx plugin found at: $DOCKER_CONFIG/cli-plugins/docker-buildx"
-              else
-                echo "ERROR: Buildx plugin not found!"
-                exit 1
-              fi
-
-              # Verify buildx works
-              $DOCKER buildx version
-
               # Navigate to app directory
               cd app
               echo "Building in: $(pwd)"
 
-              # Verify ACR authentication
-              echo "Verifying ACR authentication..."
-              cat ~/.docker/config.json | grep -q "acrfinriskdev.azurecr.io" || {
-                echo "ERROR: ACR authentication not found!"
-                exit 1
-              }
-              echo "ACR authentication verified"
-
-              # Build and push using default context (docker driver)
-              # Switch to default context to ensure access to Docker credentials
-              echo "Switching to default Docker context..."
-              $DOCKER context use default
+              # Show current docker context for debugging
+              echo "Current Docker context:"
+              docker context show
 
               # Build and push
               echo "Starting Docker buildx build..."
-              $DOCKER buildx build \
+              docker buildx build \
                 --platform linux/amd64 \
                 --target production \
                 -t $(containerRegistry)/$(imageName):$(imageTag) \
