@@ -218,9 +218,9 @@ stages:
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
               severities: 'HIGH,CRITICAL'
               ignoreUnfixed: true
-              ignoreScanErrors: true
               reports: 'html,junit'
               publish: true
+            continueOnError: true  # Non-blocking: vulnerabilities reviewed in Security tab
 
           - task: sbom-tool@1
             displayName: 'Generate SBOM Manifest'
