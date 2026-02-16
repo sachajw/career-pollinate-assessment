@@ -216,10 +216,11 @@ stages:
             inputs:
               type: 'image'
               target: '$(containerRegistry)/$(imageName):$(imageTag)'
-              severity: 'HIGH,CRITICAL'
-              exit-code: '0'  # Don't fail build on findings (0=success, 1=error, 2=found issues)
-              ignore-unfixed: true  # Only report vulnerabilities with fixes
-            continueOnError: true
+              severities: 'HIGH,CRITICAL'
+              ignoreUnfixed: true
+              ignoreScanErrors: true
+              reports: 'html,junit'
+              publish: true
 
           - task: sbom-tool@1
             displayName: 'Generate SBOM Manifest'
