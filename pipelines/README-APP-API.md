@@ -47,7 +47,8 @@
 - **Setup Docker buildx** for cross-platform builds
 - **Build AMD64 image** (cross-compile from ARM64 Mac to x86_64 Azure)
 - **Push to ACR** with semantic version tag (from git describe) + latest
-- **Scan image** with Trivy (results in Azure DevOps Security tab)
+- **Scan image** with Trivy (CRITICAL/HIGH/MEDIUM severities, non-blocking)
+- **Generate SBOM** manifest for supply chain security
 
 ### Quality Gates
 
@@ -154,6 +155,7 @@ The application must run on **Azure Container Apps (AMD64/x86_64)**, but develop
 3. **Azure DevOps Account** with agent pool access
 4. **Azure Subscription** with Container Apps access
 5. **Trivy Extension** - Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=AquaSecurityOfficial.trivy-official)
+6. **SBOM Tool Extension** - Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?displayName=Microsoft%20Security%20Risk%20Detection)
 
 ### Step 1: Install Azure Pipelines Agent
 
@@ -402,6 +404,44 @@ az containerapp update \
 2. Use production target - `--target production`
 3. Push directly - `--push` (don't use `--load` for cross-platform)
 4. Verify architecture - Check `docker inspect` shows correct arch
+
+### Security Scanning
+
+The pipeline includes two security tools:
+
+**Trivy Vulnerability Scanner**
+- Scans container image for known CVEs
+- Reports CRITICAL, HIGH, and MEDIUM severities
+- Non-blocking (`continueOnError: true`) - provides visibility without blocking builds
+- Results published to Azure DevOps Security tab
+
+```yaml
+- task: trivy@2
+  inputs:
+    type: 'image'
+    target: '$(containerRegistry)/$(imageName):$(imageTag)'
+    severities: 'CRITICAL,HIGH,MEDIUM'
+    reports: 'html,junit'
+    publish: true
+  continueOnError: true
+```
+
+**SBOM Generation**
+- Creates Software Bill of Materials for supply chain security
+- Generates manifest spreadsheet and dependency graph
+- Fetches license information and security advisories
+- Published as pipeline artifact for compliance audits
+
+```yaml
+- task: sbom-tool@1
+  inputs:
+    command: 'generate'
+    buildSourcePath: '$(Build.SourcesDirectory)/app'
+    buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
+    packageSupplier: 'FinSure Capital'
+    packageName: 'applicant-validator'
+    packageVersion: '$(imageTag)'
+```
 
 ---
 
