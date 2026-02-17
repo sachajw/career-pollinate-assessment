@@ -1,4 +1,10 @@
-"""FastAPI application entry point."""
+"""FastAPI application entry point.
+
+Implements the Applicant Validator API as defined in the technical assessment:
+- POST /api/v1/validate endpoint for risk validation
+- Structured logging with correlation IDs
+- Health and readiness probes for Kubernetes/Container Apps
+"""
 
 import structlog
 from fastapi import FastAPI
@@ -7,6 +13,7 @@ from fastapi.middleware.cors import CORSMiddleware
 from .api.v1 import router as v1_router
 from .core.config import get_settings
 from .core.logging import configure_logging
+from .core.middleware import CorrelationIDMiddleware
 
 
 def create_app() -> FastAPI:
@@ -25,6 +32,9 @@ def create_app() -> FastAPI:
         openapi_url="/openapi.json",
     )
 
+    # Add correlation ID middleware for distributed tracing (ADR-002)
+    application.add_middleware(CorrelationIDMiddleware)
+
     # Configure CORS
     application.add_middleware(
         CORSMiddleware,
@@ -40,6 +50,33 @@ def create_app() -> FastAPI:
     # Root health endpoints (no /api/v1 prefix for Container Apps health probes)
     application.include_router(v1_router, tags=["Health"])
 
+    # Root endpoint - defined here to work with dependency injection in tests
+    @application.get("/", include_in_schema=False)
+    async def root() -> dict[str, str]:
+        """Root endpoint."""
+        return {
+            "service": "Applicant Validator API",
+            "version": "0.1.0",
+            "docs": "/docs",
+        }
+
+    # Startup event
+    @application.on_event("startup")
+    async def startup_event() -> None:
+        """Application startup event."""
+        logger.info(
+            "Starting Applicant Validator API",
+            version="0.1.0",
+            environment=settings.ENVIRONMENT,
+            port=settings.PORT,
+        )
+
+    # Shutdown event
+    @application.on_event("shutdown")
+    async def shutdown_event() -> None:
+        """Application shutdown event."""
+        logger.info("Shutting down Applicant Validator API")
+
     return application
 
 
@@ -47,33 +84,6 @@ def create_app() -> FastAPI:
 app = create_app()
 settings = get_settings()
 logger = structlog.get_logger()
-
-
-@app.on_event("startup")
-async def startup_event() -> None:
-    """Application startup event."""
-    logger.info(
-        "Starting Applicant Validator API",
-        version="0.1.0",
-        environment=settings.ENVIRONMENT,
-        port=settings.PORT,
-    )
-
-
-@app.on_event("shutdown")
-async def shutdown_event() -> None:
-    """Application shutdown event."""
-    logger.info("Shutting down Applicant Validator API")
-
-
-@app.get("/", include_in_schema=False)
-async def root() -> dict[str, str]:
-    """Root endpoint."""
-    return {
-        "service": "Applicant Validator API",
-        "version": "0.1.0",
-        "docs": "/docs",
-    }
 
 
 if __name__ == "__main__":

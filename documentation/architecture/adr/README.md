@@ -19,28 +19,27 @@ Each ADR follows this structure:
 
 ## Active ADRs
 
-| ADR                                       | Title                                         | Status      | Date       | Impact      |
-| ----------------------------------------- | --------------------------------------------- | ----------- | ---------- | ----------- |
-| [001](./001-azure-container-apps.md)      | Use Azure Container Apps for Compute Platform | ✅ Accepted | 2026-02-14 | 🔴 Critical |
-| [002](./002-python-runtime.md)            | Python 3.13 (FastAPI) Runtime Selection       | ✅ Accepted | 2026-02-14 | 🔴 Critical |
-| [003](./003-managed-identity-security.md) | Managed Identity for Azure Authentication     | ✅ Accepted | 2026-02-14 | 🟠 High     |
+| ADR | Title | Status | Date | Impact |
+|-----|-------|--------|------|--------|
+| [001](./001-azure-container-apps.md) | Azure Container Apps for Compute Platform | ✅ Accepted | 2026-02-14 | 🔴 Critical |
+| [002](./002-python-runtime.md) | Python Runtime, Resilience & Observability | ✅ Accepted | 2026-02-14 | 🔴 Critical |
+| [003](./003-managed-identity-security.md) | Managed Identity, Network Security & Threat Model | ✅ Accepted | 2026-02-14 | 🔴 Critical |
+| [005](./005-docker-container-strategy.md) | Docker Container Strategy | ✅ Accepted | 2026-02-14 | 🟠 High |
+| [006](./006-terraform-module-architecture.md) | Terraform Module Architecture | ✅ Accepted | 2026-02-14 | 🔴 Critical |
+| [007](./007-cicd-pipeline-strategy.md) | CI/CD Pipeline Strategy (Azure DevOps) | ✅ Accepted | 2026-02-14 | 🔴 Critical |
 
-## Supplementary Analysis
+## Technical Assessment Coverage
 
-| Document                                                | Related ADR | Purpose                                            |
-| ------------------------------------------------------- | ----------- | -------------------------------------------------- |
-| [Python Version Analysis](./python-version-analysis.md) | ADR-002     | Detailed comparison of Python 3.12 vs 3.13 vs 3.14 |
+These ADRs comprehensively address all technical assessment requirements:
 
-## Upcoming Decisions
-
-These decisions are pending or in draft status:
-
-| ADR | Title                                         | Target Date | Owner         |
-| --- | --------------------------------------------- | ----------- | ------------- |
-| 004 | Terraform vs. Bicep for IaC                   | TBD         | Platform Team |
-| 005 | Azure Front Door for Production Edge          | TBD         | Infra Team    |
-| 006 | Application Insights vs. Custom Observability | TBD         | DevOps Team   |
-| 007 | Blue/Green vs. Canary Deployment Strategy     | TBD         | Platform Team |
+| Assessment Requirement | ADR Coverage |
+|------------------------|--------------|
+| **1. Application Layer** (language, error handling, logging, timeouts, retries, correlation IDs) | [ADR-002](./002-python-runtime.md) |
+| **2. Containerisation** (multi-stage, non-root, small image, healthcheck) | [ADR-005](./005-docker-container-strategy.md) |
+| **3. Infrastructure** (Terraform modules, remote state, environments, naming) | [ADR-006](./006-terraform-module-architecture.md) |
+| **4. Security** (Key Vault, Managed Identity, HTTPS, diagnostics, threat model) | [ADR-003](./003-managed-identity-security.md) |
+| **5. CI/CD Pipeline** (3-stage, service connections, variable groups, environments) | [ADR-007](./007-cicd-pipeline-strategy.md) |
+| **Compute Platform** | [ADR-001](./001-azure-container-apps.md) |
 
 ## Decision Impact Levels
 
@@ -74,29 +73,10 @@ Proposed → Under Review → Accepted → Implemented
 5. Present in architecture review meeting
 6. After approval, update status to "Accepted"
 
-## ADR Ownership
-
-| Category               | Owner                         |
-| ---------------------- | ----------------------------- |
-| Infrastructure & Cloud | Platform Engineering Team     |
-| Security & Compliance  | Security Architecture Team    |
-| Application Runtime    | Application Architecture Team |
-| Data & Integration     | Data Engineering Team         |
-| DevOps & Deployment    | DevOps Team                   |
-
 ## Related Documentation
 
 - [Solution Architecture Document](../solution-architecture.md)
-- [Architecture Diagrams](../architecture-diagram.md)
 - [API Specification](../../api/API_SPECIFICATION.md)
-
-## Questions?
-
-For questions about ADRs or to propose a new architectural decision:
-
-- Open an issue in the repository
-- Contact the Solution Architect
-- Raise in the weekly architecture review meeting
 
 ---
 

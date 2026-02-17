@@ -1,4 +1,4 @@
-# ADR-002: Python (FastAPI) Runtime Selection
+# ADR-002: Python Runtime, Resilience & Observability
 
 **Status:** Accepted
 **Date:** 2026-02-14
@@ -7,412 +7,492 @@
 
 ## Context
 
-The RiskShield integration service requires a runtime platform for building the REST API. The service must:
+The RiskShield integration service requires:
+- A runtime platform for the REST API
+- Resilience patterns (timeouts, retries, correlation IDs)
+- Observability (logging, metrics, tracing)
 
-- Handle HTTP requests efficiently
-- Make outbound API calls to RiskShield
-- Implement retry logic and timeouts
-- Support structured logging with correlation IDs
-- Integrate with Azure services (Key Vault, Application Insights)
-- Be containerizable with small image sizes
-- Enable rapid development and testing
-
-We need to choose between:
-
-1. Python (FastAPI)
-2. .NET 8 (C#)
-3. Go
-4. Node.js (TypeScript)
-5. Java (Spring Boot)
+The technical assessment explicitly requires:
+- Proper error handling
+- Logging
+- Timeout handling
+- Retry logic
+- Correlation IDs
 
 ## Decision
 
-We will use **Python 3.13 with FastAPI** as the runtime platform for the RiskShield integration service.
+We will use **Python 3.13 with FastAPI** as the runtime, with **tenacity for retries**, **httpx with timeouts**, and **structured logging with correlation IDs**.
 
-## Decision Drivers
+---
 
-| Criterion                 | Weight | Python/FastAPI | .NET 8     | Go         | Node.js    | Java       |
-| ------------------------- | ------ | -------------- | ---------- | ---------- | ---------- | ---------- |
-| **Development Speed**     | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐     |
-| **Type Safety**           | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ |
-| **Async I/O Performance** | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐     |
-| **Container Image Size**  | High   | ⭐⭐⭐         | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐       |
-| **Azure SDK Quality**     | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   |
-| **Team Familiarity**      | Medium | ⭐⭐⭐⭐⭐     | ⭐⭐⭐     | ⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐     |
-| **REST API Ecosystem**    | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   |
-| **Data Validation**       | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   |
-| **Documentation**         | Medium | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   |
-| **FinTech Adoption**      | Low    | ⭐⭐⭐⭐       | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   |
+## Part 1: Runtime Selection
 
-### Detailed Analysis
+### Decision: Python 3.13 + FastAPI
 
-#### Python 3.13 + FastAPI (Selected)
-
-**Pros:**
-
-- **Fastest Development**: Most concise syntax, rapid prototyping
-- **Excellent Type Hints**: Python 3.12+ has robust type system via Pydantic
-- **FastAPI Framework**: Modern, fast, automatic API documentation (OpenAPI/Swagger)
-- **Pydantic Validation**: Industry-leading data validation and serialization
-- **Azure SDK**: Comprehensive, well-maintained Azure libraries
-- **Async Support**: Native async/await since Python 3.5, mature in 3.12
-- **Auto Documentation**: FastAPI generates interactive API docs automatically
-- **Dependency Injection**: Built-in DI system in FastAPI
-- **Testing**: pytest ecosystem is excellent
-- **FinTech Standard**: Used by Bloomberg, JP Morgan, Goldman Sachs for data processing
-
-**Cons:**
-
-- **Performance**: Slower than Go/Node.js for raw throughput (still adequate for 1000 req/min)
-- **Container Size**: Larger than Node.js (~180MB vs ~120MB)
-- **GIL**: Global Interpreter Lock limits CPU-bound parallelism (not an issue for I/O-bound work)
-- **Cold Start**: 2-3s cold start (similar to .NET)
-
-**Container Image Size:**
-
-- Base: `python:3.13-slim` = 130MB
-- Dependencies: ~40MB
-- Application: ~10MB
-- **Total: ~180MB**
-
-**Performance Metrics:**
-
-- **Throughput**: 2,000+ req/s (single instance, using uvicorn)
-- **Latency**: P95 < 80ms (excluding external API calls)
-- **Memory**: 80-100MB resident set size
-- **Cold Start**: 2-3s average
-
-**FastAPI Advantages:**
-
-```python
-# Automatic validation with Pydantic
-from pydantic import BaseModel, Field
-
-class ValidateRequest(BaseModel):
-    firstName: str = Field(..., min_length=1, max_length=100)
-    lastName: str = Field(..., min_length=1, max_length=100)
-    idNumber: str = Field(..., pattern=r'^\d{13}$')
-
-# Type-safe endpoint with auto-documentation
-@app.post("/validate", response_model=RiskScoreResponse)
-async def validate_applicant(request: ValidateRequest):
-    # FastAPI automatically validates, serializes, and documents
-    return await risk_service.validate(request)
-```
-
-#### Node.js + TypeScript (Considered)
-
-**Pros:**
-
-- **Async I/O**: Excellent event loop architecture
-- **Container Size**: Smaller images (~120MB)
-- **Fast Cold Start**: 1-2s
-- **Rich Ecosystem**: Large npm library collection
-
-**Cons:**
-
-- **Type Discipline**: Requires strict TypeScript enforcement
-- **Validation**: Manual setup (Joi, Zod) vs. built-in Pydantic
-- **Data Processing**: Less suitable than Python for complex transformations
-
-**Decision:** Good alternative, but Python's Pydantic validation is superior
-
-#### .NET 8 (Considered)
-
-**Pros:**
-
-- **Performance**: Excellent (close to Go)
-- **Type Safety**: Strong C# type system
-- **Azure Native**: First-class Azure support
-
-**Cons:**
-
-- **Development Speed**: More verbose than Python/FastAPI
-- **Cold Start**: 3-4s (slowest option)
-- **Learning Curve**: Steeper for rapid prototyping
-
-**Decision:** Good for large enterprise apps, overkill for this use case
-
-#### Go (Considered)
-
-**Pros:**
-
-- **Performance**: Best raw performance
-- **Container Size**: Smallest images (~20MB)
-- **Fast Cold Start**: Sub-second
-
-**Cons:**
-
-- **Development Speed**: Most verbose for REST APIs
-- **Validation**: Manual struct validation vs. Pydantic
-- **Azure SDK**: Less mature than Python/Node.js
-
-**Decision:** Excellent for high-performance services, unnecessary complexity here
-
-#### Java (Spring Boot) (Rejected)
-
-**Pros:**
-
-- **Enterprise Maturity**: Very mature ecosystem
-
-**Cons:**
-
-- **Container Size**: 250MB+
-- **Cold Start**: 5-10s (worst option)
-- **Complexity**: Over-engineered for simple integration
-
-**Decision:** Rejected due to resource overhead
-
-## Decision Rationale
-
-### Why FastAPI + Python Wins
-
-**1. Developer Productivity**
-FastAPI provides the fastest path to production-ready API:
-
-```python
-# Complete endpoint with validation, docs, and error handling
-from fastapi import FastAPI, HTTPException
-from pydantic import BaseModel, validator
-
-app = FastAPI(
-    title="Risk Scoring API",
-    description="Loan applicant risk validation service",
-    version="1.0.0"
-)
-
-class ValidateRequest(BaseModel):
-    firstName: str
-    lastName: str
-    idNumber: str
-
-    @validator('idNumber')
-    def validate_id(cls, v):
-        if not v.isdigit() or len(v) != 13:
-            raise ValueError('Invalid ID number format')
-        return v
-
-@app.post("/validate")
-async def validate_applicant(request: ValidateRequest):
-    # Automatic request validation
-    # Automatic OpenAPI documentation
-    # Automatic error serialization
-    result = await risk_shield_client.score(request)
-    return result
-```
-
-**2. Pydantic Data Validation**
-Industry-leading validation with zero boilerplate:
-
-- Automatic type coercion
-- Complex validation rules
-- Nested model support
-- JSON schema generation
-- Clear error messages
-
-**3. Automatic API Documentation**
-FastAPI generates interactive docs at `/docs` (Swagger UI) and `/redoc`:
-
-- No manual OpenAPI spec writing
-- Always in sync with code
-- Try-it-out interface for testing
-- Schema validation included
-
-**4. Azure SDK Excellence**
-
-```python
-# Azure SDK is Pythonic and well-documented
-from azure.identity import DefaultAzureCredential
-from azure.keyvault.secrets import SecretClient
-
-# Automatically uses Managed Identity in Azure
-credential = DefaultAzureCredential()
-
-secret_client = SecretClient(
-    vault_url=os.getenv('KEY_VAULT_URL'),
-    credential=credential
-)
-
-secret = secret_client.get_secret('RISKSHIELD_API_KEY')
-api_key = secret.value
-```
-
-**5. FinTech Industry Adoption**
-Python is the de facto standard for FinTech:
-
-- **Risk Analytics**: All major banks use Python for risk modeling
-- **Data Processing**: Pandas, NumPy for financial data
-- **APIs**: FastAPI adoption growing rapidly (Instagram, Netflix, Uber)
-- **ML/AI**: If FinSure wants to add ML-based risk scoring later, Python is ready
-
-**6. Testing Excellence**
-
-```python
-# pytest with excellent async support
-import pytest
-from httpx import AsyncClient
-
-@pytest.mark.asyncio
-async def test_validate_endpoint():
-    async with AsyncClient(app=app, base_url="http://test") as client:
-        response = await client.post("/validate", json={
-            "firstName": "Jane",
-            "lastName": "Doe",
-            "idNumber": "9001011234088"
-        })
-        assert response.status_code == 200
-        assert response.json()['riskScore'] > 0
-```
-
-## Consequences
-
-### Positive
-
-- **Rapid Development**: 1-2 week implementation timeline
-- **Type Safety**: Pydantic provides runtime type validation
-- **Auto Documentation**: OpenAPI/Swagger generated automatically
-- **Azure Integration**: Excellent SDK support
-- **Team Productivity**: Python's readability accelerates onboarding
-- **Future ML**: Ready for machine learning integration if needed
-
-### Negative
-
-- **Performance**: 20-30% slower than Node.js (still meets 1000 req/min target)
-- **Container Size**: 180MB vs. 120MB for Node.js
-- **Cold Start**: 2-3s vs. 1.5s for Node.js
-- **GIL Limitations**: Not suitable for CPU-intensive tasks (not needed here)
-
-### Neutral
-
-- **Memory Usage**: Similar to Node.js (80-100MB)
-- **Monitoring**: Application Insights SDK equally good
-
-## Implementation Standards
+| Criterion                 | Weight | Python/FastAPI | .NET 8     | Go         | Node.js    |
+| ------------------------- | ------ | -------------- | ---------- | ---------- | ---------- |
+| **Development Speed**     | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ |
+| **Type Safety**           | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   |
+| **Async I/O Performance** | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ |
+| **Azure SDK Quality**     | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ |
+| **Team Familiarity**      | Medium | ⭐⭐⭐⭐⭐     | ⭐⭐⭐     | ⭐⭐⭐     | ⭐⭐⭐⭐   |
+| **REST API Ecosystem**    | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐   | ⭐⭐⭐⭐   | ⭐⭐⭐⭐⭐ |
 
 ### Python Version: 3.13
 
 **Why 3.13 over 3.12 or 3.14:**
 
-**Python 3.13 (Selected):**
+| Version | Release | Status | Decision |
+| ------- | ------- | ------ | -------- |
+| 3.12    | Oct 2023| Stable | ⚠️ Missing JIT, older error messages |
+| **3.13**| **Oct 2024** | **Recommended** | ✅ Best balance of stability + features |
+| 3.14    | Oct 2025| Too new | ❌ Only 4 months old, library risk |
 
-- **JIT Compiler**: Experimental JIT provides 10-30% performance boost (opt-in)
-- **Enhanced Error Messages**: Superior tracebacks and debugging
-- **Free-threaded Mode**: Experimental GIL removal for better concurrency
-- **Type System**: Improved type hints and runtime type checking
-- **Production Ready**: Released Oct 2024, 16 months of production hardening
-- **Azure SDK**: Fully tested and supported by all Azure Python SDKs
-- **FastAPI Compatible**: Full compatibility with FastAPI 0.109+
+**Python 3.13 Benefits:**
+- 16 months production hardening
+- Experimental JIT compiler (10-30% faster)
+- Enhanced error messages
+- Full Azure SDK support
+- FastAPI 0.109+ compatible
 
-**Python 3.14 (Considered but Rejected):**
-
-- ❌ Too new (Oct 2025 release, only 4 months old)
-- ❌ Azure SDK support may lag
-- ❌ Third-party library compatibility risk
-- ❌ Limited production battle-testing
-- Decision: Too bleeding edge for enterprise deployment
-
-**Python 3.12 (Considered but Superseded):**
-
-- ✅ Most stable (Oct 2023 release)
-- ❌ Missing JIT compiler
-- ❌ Missing free-threaded mode
-- Decision: Stable but missing performance benefits of 3.13
-
-### Framework: FastAPI 0.109+
-
-**Key Features:**
-
-- ASGI-based (async by default)
-- Pydantic v2 integration
-- Automatic OpenAPI generation
-- Dependency injection
-- Background tasks support
-
-### Package Management: uv
+### Package Manager: uv
 
 **Why uv over pip:**
+- 10-100x faster dependency resolution
+- Rust-based, highly optimized
+- Lock file support (`uv.lock`)
+- Drop-in replacement for pip
 
-- **10-100x faster** than pip for dependency resolution and installation
-- **Rust-based**: Compiled, highly optimized performance
-- **Better dependency resolution**: Faster conflict detection
-- **Lock file support**: `uv.lock` ensures reproducible builds
-- **Drop-in replacement**: Compatible with existing pip workflows
-- **Single tool**: Replaces pip, pip-tools, virtualenv
+---
 
-**Installation:**
+## Part 2: Resilience Patterns
 
-```bash
-# Install uv
-curl -LsSf https://astral.sh/uv/install.sh | sh
+### 2.1 Timeout Handling
 
-# Or via pip
-pip install uv
+**Decision:** Use `httpx` with configurable timeouts
+
+```python
+# src/services/riskshield_client.py
+import httpx
+from src.core.config import settings
+
+# Timeout configuration
+HTTP_TIMEOUT = httpx.Timeout(
+    connect=5.0,      # Connection timeout
+    read=10.0,        # Read timeout (RiskShield API response)
+    write=5.0,        # Write timeout
+    pool=5.0          # Pool timeout
+)
+
+class RiskShieldClient:
+    def __init__(self):
+        self.client = httpx.AsyncClient(
+            base_url=settings.RISKSHIELD_API_URL,
+            timeout=HTTP_TIMEOUT,
+            headers={"X-API-Key": self._get_api_key()}
+        )
+
+    async def score(self, request: ValidateRequest) -> RiskScoreResponse:
+        try:
+            response = await self.client.post(
+                "/v1/score",
+                json=request.model_dump()
+            )
+            response.raise_for_status()
+            return RiskScoreResponse(**response.json())
+        except httpx.TimeoutException as e:
+            raise RiskShieldTimeoutError(f"RiskShield API timeout: {e}")
 ```
 
-## Security Considerations
+**Timeout Values Rationale:**
 
-### Dependency Security
+| Operation | Timeout | Rationale |
+|-----------|---------|-----------|
+| Connect   | 5s      | Network connection should be fast |
+| Read      | 10s     | External API processing time |
+| Write     | 5s      | Small payload, should be quick |
+| Pool      | 5s      | Connection pool acquisition |
 
-- **pip-audit**: Run on every build for CVE scanning
-- **Dependabot**: Auto-update security patches
-- **Bandit**: Static security analysis for Python code
-- **Safety**: Check dependencies against vulnerability database
+### 2.2 Retry Logic
 
-### Runtime Security
+**Decision:** Use `tenacity` library with exponential backoff
 
-- **No eval()**: Banned by linting rules
-- **Input Validation**: Pydantic enforces schemas strictly
-- **SQL Injection**: Using ORMs (SQLAlchemy) with parameterized queries
-- **Security Headers**: Middleware adds secure headers
+```python
+# src/services/riskshield_client.py
+from tenacity import (
+    retry,
+    stop_after_attempt,
+    wait_exponential,
+    retry_if_exception_type,
+    before_sleep_log
+)
+import structlog
 
-## Performance Benchmarks
+logger = structlog.get_logger()
 
-### Load Test Results (Simulated)
+# Retry configuration
+@retry(
+    stop=stop_after_attempt(3),
+    wait=wait_exponential(multiplier=1, min=1, max=10),
+    retry=retry_if_exception_type(httpx.HTTPStatusError),
+    before_sleep=before_sleep_log(logger, log_level="WARNING"),
+    reraise=True
+)
+async def score_with_retry(self, request: ValidateRequest) -> RiskScoreResponse:
+    """
+    Retry RiskShield API calls with exponential backoff.
+
+    Retries on:
+    - 5xx server errors (temporary issues)
+    - 429 rate limiting (with backoff)
+
+    Does NOT retry on:
+    - 4xx client errors (bad request, unauthorized)
+    - Timeout errors (separate handling)
+    """
+    response = await self.client.post("/v1/score", json=request.model_dump())
+
+    # Only retry on retryable status codes
+    if response.status_code >= 500 or response.status_code == 429:
+        raise httpx.HTTPStatusError(
+            f"Retryable error: {response.status_code}",
+            request=response.request,
+            response=response
+        )
+
+    response.raise_for_status()
+    return RiskScoreResponse(**response.json())
+```
+
+**Retry Strategy:**
+
+| Retry # | Wait Time | Cumulative |
+|---------|-----------|------------|
+| 1st     | 1s        | 1s         |
+| 2nd     | 2s        | 3s         |
+| 3rd     | 4s        | 7s         |
+
+**Max wait with retries:** 7s + original request time
+
+### 2.3 Correlation IDs
+
+**Decision:** Use `structlog` with correlation ID middleware
+
+```python
+# src/middleware/correlation.py
+import uuid
+from starlette.middleware.base import BaseHTTPMiddleware
+from starlette.requests import Request
+from starlette.responses import Response
+import structlog
+
+class CorrelationIDMiddleware(BaseHTTPMiddleware):
+    """
+    Add correlation ID to all requests for distributed tracing.
+    """
+    CORRELATION_ID_HEADER = "X-Correlation-ID"
+
+    async def dispatch(self, request: Request, call_next) -> Response:
+        # Use existing correlation ID from header or generate new one
+        correlation_id = request.headers.get(
+            self.CORRELATION_ID_HEADER,
+            str(uuid.uuid4())
+        )
+
+        # Bind to structlog context
+        structlog.contextvars.bind_contextvars(correlation_id=correlation_id)
+
+        response = await call_next(request)
+
+        # Add correlation ID to response header
+        response.headers[self.CORRELATION_ID_HEADER] = correlation_id
+
+        return response
+
+# src/main.py
+from fastapi import FastAPI
+from src.middleware.correlation import CorrelationIDMiddleware
+
+app = FastAPI()
+app.add_middleware(CorrelationIDMiddleware)
+```
+
+**Correlation ID Flow:**
 
 ```
-Tool: Locust
-Scenario: 100 concurrent users, 5 min duration
-Endpoint: POST /validate (mock RiskShield)
-
-Results:
-- Throughput: 2,100 req/s
-- Latency P50: 35ms
-- Latency P95: 68ms
-- Latency P99: 120ms
-- Error Rate: 0.01%
-- Memory: 95MB RSS
-- CPU: 45% (0.5 vCPU)
+Client Request
+     │
+     ▼ X-Correlation-ID: abc-123 (or generated)
+┌─────────────┐
+│  API Layer  │ ──── Log: "Request received" [correlation_id=abc-123]
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│  Service    │ ──── Log: "Calling RiskShield" [correlation_id=abc-123]
+└─────────────┘
+     │
+     ▼ X-Correlation-ID: abc-123 (propagated to external API)
+┌─────────────┐
+│ RiskShield  │
+└─────────────┘
+     │
+     ▼
+┌─────────────┐
+│  Response   │ ──── Log: "Response sent" [correlation_id=abc-123]
+└─────────────┘
+     │
+     ▼ X-Correlation-ID: abc-123 (returned to client)
 ```
 
-**Conclusion:** Exceeds 1000 req/min target by 2x ✅
+---
 
-## Migration Path
+## Part 3: Observability
 
-If performance becomes critical:
+### 3.1 Structured Logging
 
-1. **Optimize Python**: Use uvloop, httptools, add workers
-2. **Profile & Tune**: Find bottlenecks, optimize hot paths
-3. **Consider FastAPI Alternatives**: Litestar, BlackSheep (Rust-based)
-4. **Rewrite in Go**: If extreme performance needed (3-4 weeks effort)
+**Decision:** Use `structlog` with JSON output
+
+```python
+# src/core/logging.py
+import logging
+import sys
+import structlog
+from src.core.config import settings
+
+def setup_logging():
+    """Configure structured logging for the application."""
+
+    # Configure structlog
+    structlog.configure(
+        processors=[
+            structlog.contextvars.merge_contextvars,
+            structlog.processors.add_log_level,
+            structlog.processors.StackInfoRenderer(),
+            structlog.dev.set_exc_info,
+            structlog.processors.TimeStamper(fmt="iso"),
+            # JSON output for production, console for dev
+            structlog.processors.JSONRenderer()
+            if settings.ENVIRONMENT == "production"
+            else structlog.dev.ConsoleRenderer(),
+        ],
+        wrapper_class=structlog.make_filtering_bound_logger(
+            logging.INFO if settings.ENVIRONMENT == "production" else logging.DEBUG
+        ),
+        logger_factory=structlog.PrintLoggerFactory(),
+    )
+
+# Usage in services
+logger = structlog.get_logger()
+
+async def validate_applicant(request: ValidateRequest):
+    logger.info(
+        "validation_started",
+        first_name=request.firstName,
+        id_number_masked=request.idNumber[:6] + "*******"
+    )
+
+    try:
+        result = await riskshield_client.score(request)
+        logger.info("validation_completed", risk_score=result.riskScore)
+        return result
+    except Exception as e:
+        logger.error("validation_failed", error=str(e))
+        raise
+```
+
+**Log Output Example:**
+
+```json
+{
+  "event": "validation_started",
+  "level": "info",
+  "timestamp": "2026-02-14T10:30:45.123456Z",
+  "correlation_id": "abc-123-def-456",
+  "first_name": "Jane",
+  "id_number_masked": "900101*******"
+}
+```
+
+### 3.2 Metrics
+
+**Decision:** Use Application Insights via OpenCensus
+
+```python
+# src/core/telemetry.py
+from opencensus.ext.azure import metrics_exporter
+from src.core.config import settings
+
+# Application Insights metrics exporter
+exporter = metrics_exporter.new_metrics_exporter(
+    connection_string=settings.APPLICATIONINSIGHTS_CONNECTION_STRING
+)
+
+# Custom metrics are automatically collected:
+# - Request rate
+# - Response time
+# - Error rate
+# - Dependency calls (RiskShield API)
+```
+
+**Key Metrics Collected:**
+
+| Metric | Type | Purpose |
+|--------|------|---------|
+| Request count | Counter | Traffic volume |
+| Request duration | Histogram | Performance |
+| Error rate | Counter | Health monitoring |
+| RiskShield latency | Histogram | External API performance |
+| Retry count | Counter | Resilience monitoring |
+
+### 3.3 Distributed Tracing
+
+**Decision:** Application Insights auto-instrumentation
+
+```python
+# src/core/telemetry.py
+from opencensus.ext.azure.trace_exporter import AzureExporter
+from opencensus.trace.samplers import ProbabilitySampler
+from opencensus.trace.tracer import Tracer
+from src.core.config import settings
+
+tracer = Tracer(
+    exporter=AzureExporter(
+        connection_string=settings.APPLICATIONINSIGHTS_CONNECTION_STRING
+    ),
+    sampler=ProbabilitySampler(1.0)  # 100% sampling for now
+)
+
+# Tracing is automatic for:
+# - HTTP requests
+# - Database calls
+# - External API calls (httpx)
+```
+
+**Trace Flow:**
+
+```
+┌─────────────────────────────────────────────────────────────────────┐
+│                     Application Insights Trace                        │
+├─────────────────────────────────────────────────────────────────────┤
+│                                                                      │
+│  POST /validate (250ms total)                                       │
+│  ├── Validation middleware (5ms)                                    │
+│  ├── Request parsing (2ms)                                          │
+│  ├── RiskShield API call (230ms)                                    │
+│  │   ├── Connection (10ms)                                          │
+│  │   ├── Request sent (5ms)                                         │
+│  │   ├── Processing (200ms)                                         │
+│  │   └── Response received (15ms)                                   │
+│  └── Response serialization (8ms)                                   │
+│                                                                      │
+└─────────────────────────────────────────────────────────────────────┘
+```
+
+---
+
+## Part 4: Error Handling
+
+### Error Handling Strategy
+
+```python
+# src/api/v1/exceptions.py
+from fastapi import HTTPException, Request
+from fastapi.responses import JSONResponse
+import structlog
+
+logger = structlog.get_logger()
+
+class RiskShieldError(Exception):
+    """Base exception for RiskShield errors."""
+    pass
+
+class RiskShieldTimeoutError(RiskShieldError):
+    """RiskShield API timeout."""
+    pass
+
+class RiskShieldUnavailableError(RiskShieldError):
+    """RiskShield API unavailable after retries."""
+    pass
+
+# Exception handlers
+@app.exception_handler(RiskShieldTimeoutError)
+async def timeout_handler(request: Request, exc: RiskShieldTimeoutError):
+    logger.error("riskshield_timeout", error=str(exc))
+    return JSONResponse(
+        status_code=504,
+        content={
+            "error": "gateway_timeout",
+            "message": "Risk validation service timed out. Please try again.",
+            "correlation_id": structlog.contextvars.get_contextvars().get("correlation_id")
+        }
+    )
+
+@app.exception_handler(RiskShieldUnavailableError)
+async def unavailable_handler(request: Request, exc: RiskShieldUnavailableError):
+    logger.error("riskshield_unavailable", error=str(exc))
+    return JSONResponse(
+        status_code=503,
+        content={
+            "error": "service_unavailable",
+            "message": "Risk validation service is temporarily unavailable. Please try again later.",
+            "correlation_id": structlog.contextvars.get_contextvars().get("correlation_id")
+        }
+    )
+```
+
+**Error Response Format:**
+
+```json
+{
+  "error": "service_unavailable",
+  "message": "Risk validation service is temporarily unavailable.",
+  "correlation_id": "abc-123-def-456"
+}
+```
+
+---
+
+## Summary: Technical Assessment Compliance
+
+| Assessment Requirement | Implementation | Location |
+|------------------------|----------------|----------|
+| **Language** (Python, etc.) | Python 3.13 + FastAPI | Part 1 |
+| **Error handling** | Exception handlers with structured responses | Part 4 |
+| **Logging** | structlog with JSON output | Part 3.1 |
+| **Timeout handling** | httpx with 10s read timeout | Part 2.1 |
+| **Retry logic** | tenacity with exponential backoff | Part 2.2 |
+| **Correlation IDs** | Middleware + structlog context | Part 2.3 |
+
+---
+
+## Consequences
+
+### Positive
+- ✅ **Fast Development**: FastAPI + Pydantic = rapid API development
+- ✅ **Resilience**: Timeouts + retries handle transient failures
+- ✅ **Observability**: Full visibility into requests and errors
+- ✅ **Tracing**: Correlation IDs link all logs for a request
+- ✅ **Type Safety**: Pydantic validation + mypy
+
+### Negative
+- ⚠️ **Performance**: Python slower than Go (adequate for 1000 req/min)
+- ⚠️ **Cold Start**: 2-3s (mitigated by min replicas in prod)
+
+---
 
 ## Related Decisions
 
 - [ADR-001: Azure Container Apps](./001-azure-container-apps.md)
-- [ADR-003: Managed Identity for Security](./003-managed-identity-security.md)
-
-## Supplementary Analysis
-
-- [Python Version Analysis (3.12 vs 3.13 vs 3.14)](./python-version-analysis.md) - Detailed version comparison and risk assessment
+- [ADR-003: Managed Identity & Security](./003-managed-identity-security.md)
 
 ## References
 
 - [FastAPI Documentation](https://fastapi.tiangolo.com/)
-- [Pydantic Documentation](https://docs.pydantic.dev/)
-- [Azure SDK for Python](https://github.com/Azure/azure-sdk-for-python)
-- [Python 3.13 Release Notes](https://docs.python.org/3.13/whatsnew/3.13.html)
-- [PEP 744 - JIT Compiler](https://peps.python.org/pep-0744/)
-- [Python Type Hints Guide](https://docs.python.org/3/library/typing.html)
-- [Uvicorn Production Deployment](https://www.uvicorn.org/deployment/)
+- [Tenacity Retry Library](https://tenacity.readthedocs.io/)
+- [Structlog Documentation](https://www.structlog.org/)
+- [httpx Timeout Documentation](https://www.python-httpx.org/advanced/#timeout-configuration)
+- [Application Insights Python](https://docs.microsoft.com/en-us/azure/azure-monitor/app/opencensus-python)
 
 ## Review & Approval
 
@@ -420,8 +500,6 @@ If performance becomes critical:
 | ------------------------- | ------ | ---------- | ----------- |
 | Solution Architect        | [Name] | 2026-02-14 | ✅ Approved |
 | Platform Engineering Lead | [Name] | 2026-02-14 | ✅ Approved |
-| Security Architect        | [Name] | 2026-02-14 | ✅ Approved |
-| Application Architect     | [Name] | 2026-02-14 | ✅ Approved |
 
 ---
 
