@@ -146,7 +146,7 @@ documentation/         # Architecture documentation
 
 ## API Specification
 
-See `documentation/api/API_SPECIFICATION.md` for full API reference.
+FastAPI auto-generates API docs at `/docs` (Swagger) and `/redoc`.
 
 ## CI/CD Pipeline Stages
 
