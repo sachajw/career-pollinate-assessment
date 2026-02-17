@@ -142,8 +142,8 @@ Terraform manages these RBAC assignments (in code):
 | Principal | Role | Scope | Purpose | File |
 |-----------|------|-------|---------|------|
 | Deployer Identity | Key Vault Administrator | Key Vault | Manage secrets during deployment | `modules/key-vault/main.tf:158` |
-| Container App Identity | AcrPull | Container Registry | Pull Docker images | `modules/container-app/main.tf:336` |
-| Container App Identity | Key Vault Secrets User | Key Vault | Read application secrets | `modules/container-app/main.tf:357` |
+| Container App Identity | AcrPull | Container Registry | Pull Docker images | `modules/container-app/main.tf:360` |
+| Container App Identity | Key Vault Secrets User | Key Vault | Read application secrets | `modules/container-app/main.tf:381` |
 
 ### ❌ What Terraform Does NOT Manage
 
@@ -199,11 +199,55 @@ terraform plan
 
 ## Common Issues
 
-### Issue: "Failed to get existing workspaces"
+### Issue: "Failed to get existing workspaces" (403 AuthorizationFailed)
 
-**Cause:** Service principal lacks permissions on state storage account
+**Error:**
+```
+Error: Failed to get existing workspaces
+Status=403 Code="AuthorizationFailed"
+Message="The client '***' with object id 'dc47ab6c-...' does not have authorization
+to perform action 'Microsoft.Storage/storageAccounts/listKeys/action'"
+```
 
-**Fix:** Run bootstrap step 2.A (grant Contributor role)
+**Cause:** Service principal lacks permissions on the Terraform state storage account.
+
+**Fix Option A — Storage Blob Data Contributor (recommended, least privilege):**
+
+```bash
+# Replace with your service principal object ID (from pipeline logs)
+SP_OBJECT_ID="dc47ab6c-7fe8-44f3-b019-a9f4ee36981f"
+
+az role assignment create \
+  --assignee "$SP_OBJECT_ID" \
+  --role "Storage Blob Data Contributor" \
+  --scope "/subscriptions/94b0c11e-3389-4ca0-b998-a3894e174f3c/resourceGroups/rg-terraform-state/providers/Microsoft.Storage/storageAccounts/stfinrisktf4d9e8d"
+
+# Verify
+az role assignment list --assignee "$SP_OBJECT_ID" --output table
+```
+
+**Fix Option B — via Azure Portal:**
+1. Portal → Storage accounts → `stfinrisktf4d9e8d` → Access Control (IAM)
+2. Add → Add role assignment → **Storage Blob Data Contributor**
+3. Assign to the service principal (search by object ID)
+
+**Fix Option C — Storage Account Key (quick fallback, less secure):**
+```bash
+# Get storage account key
+az storage account keys list \
+  --account-name stfinrisktf4d9e8d \
+  --resource-group rg-terraform-state \
+  --query '[0].value' --output tsv
+# Add as secret variable ARM_ACCESS_KEY in Azure DevOps variable group
+```
+
+**After granting:** RBAC takes 5–10 minutes to propagate. Verify access:
+```bash
+az storage blob list \
+  --account-name stfinrisktf4d9e8d \
+  --container-name tfstate \
+  --auth-mode login
+```
 
 ### Issue: "Unauthorized to perform action"
 
@@ -216,6 +260,194 @@ terraform plan
 **Cause:** Backend config mismatch between local and CI/CD
 
 **Fix:** Ensure `backend.hcl` and pipeline variables match
+
+### Issue: "Role assignment already exists"
+
+This is not an error — permissions are already granted. Wait 5–10 minutes for propagation.
+
+### Issue: "Cannot find principal"
+
+The service principal may be in a different tenant. Verify:
+```bash
+az ad sp show --id <object-id>
+```
+
+---
+
+## Known Issues & Solutions
+
+Three recurring deployment issues and their recommended fixes.
+
+---
+
+### Issue 1: RBAC Propagation Delay (403 errors after role assignment)
+
+Azure RBAC role assignments take 2–5 minutes to propagate. Resources that depend on fresh RBAC may fail with 403 immediately after assignment.
+
+**Recommended fix — add `time_sleep` after role assignments:**
+
+```hcl
+# In modules/container-app/main.tf or environments/dev/main.tf
+
+resource "time_sleep" "wait_for_rbac_propagation" {
+  depends_on = [
+    azurerm_role_assignment.deployer,
+    azurerm_role_assignment.acr_pull,
+    azurerm_role_assignment.keyvault_secrets_user,
+  ]
+  create_duration = "120s"
+}
+
+resource "azurerm_container_app" "this" {
+  # ... existing config ...
+  depends_on = [time_sleep.wait_for_rbac_propagation]
+}
+```
+
+Add to `environments/dev/versions.tf`:
+```hcl
+time = {
+  source  = "hashicorp/time"
+  version = "~> 0.9"
+}
+```
+
+**Alternative — retry logic via `local-exec`:**
+```hcl
+resource "null_resource" "wait_for_storage_rbac" {
+  depends_on = [azurerm_role_assignment.storage_contributor]
+
+  provisioner "local-exec" {
+    command = <<-EOT
+      for i in {1..5}; do
+        if az storage container list --account-name ${var.storage_account_name} --auth-mode login &>/dev/null; then
+          echo "RBAC propagated"; exit 0
+        fi
+        echo "Retry $i/5: waiting 30s..."; sleep 30
+      done
+    EOT
+  }
+}
+```
+
+---
+
+### Issue 2: Missing Provider Registration (MissingSubscriptionRegistration)
+
+Azure resource providers must be registered for a subscription before use.
+
+**Recommended fix — auto-register via Terraform:**
+
+```hcl
+# Create: terraform/environments/dev/providers-setup.tf
+
+resource "azurerm_resource_provider_registration" "container_apps" {
+  name = "Microsoft.App"
+}
+resource "azurerm_resource_provider_registration" "container_registry" {
+  name = "Microsoft.ContainerRegistry"
+}
+resource "azurerm_resource_provider_registration" "key_vault" {
+  name = "Microsoft.KeyVault"
+}
+resource "azurerm_resource_provider_registration" "operational_insights" {
+  name = "Microsoft.OperationalInsights"
+}
+resource "azurerm_resource_provider_registration" "insights" {
+  name = "Microsoft.Insights"
+}
+resource "azurerm_resource_provider_registration" "storage" {
+  name = "Microsoft.Storage"
+}
+
+resource "time_sleep" "wait_for_providers" {
+  depends_on = [
+    azurerm_resource_provider_registration.container_apps,
+    azurerm_resource_provider_registration.container_registry,
+    azurerm_resource_provider_registration.key_vault,
+    azurerm_resource_provider_registration.operational_insights,
+    azurerm_resource_provider_registration.insights,
+    azurerm_resource_provider_registration.storage,
+  ]
+  create_duration = "60s"
+}
+```
+
+**Alternative — pre-flight check script (`terraform/scripts/preflight-check.sh`):**
+
+```bash
+#!/bin/bash
+set -e
+
+PROVIDERS=(
+  "Microsoft.App"
+  "Microsoft.ContainerRegistry"
+  "Microsoft.KeyVault"
+  "Microsoft.OperationalInsights"
+  "Microsoft.Insights"
+  "Microsoft.Storage"
+)
+
+for PROVIDER in "${PROVIDERS[@]}"; do
+  STATE=$(az provider show --namespace "$PROVIDER" --query registrationState -o tsv)
+  if [ "$STATE" != "Registered" ]; then
+    az provider register --namespace "$PROVIDER" --wait
+  fi
+done
+```
+
+---
+
+### Issue 3: Container Registry Circular Dependency
+
+System-assigned identity for a Container App requires the app to exist before you can grant it ACR pull access — but the app can't pull images without that access. Break this cycle with a **user-assigned managed identity**.
+
+**Recommended fix — user-assigned identity module:**
+
+```hcl
+# Step 1: Create identity first
+resource "azurerm_user_assigned_identity" "app" {
+  name                = "id-${local.naming_prefix}"
+  resource_group_name = var.resource_group_name
+  location            = var.location
+}
+
+# Step 2: Grant ACR pull to identity (before Container App exists)
+resource "azurerm_role_assignment" "acr_pull" {
+  scope                = var.container_registry_id
+  role_definition_name = "AcrPull"
+  principal_id         = azurerm_user_assigned_identity.app.principal_id
+}
+
+resource "time_sleep" "wait_for_rbac" {
+  depends_on      = [azurerm_role_assignment.acr_pull]
+  create_duration = "120s"
+}
+
+# Step 3: Container App uses user-assigned identity
+resource "azurerm_container_app" "this" {
+  identity {
+    type         = "UserAssigned"
+    identity_ids = [azurerm_user_assigned_identity.app.id]
+  }
+  registry {
+    server   = var.registry_server
+    identity = azurerm_user_assigned_identity.app.id
+  }
+  depends_on = [time_sleep.wait_for_rbac]
+}
+```
+
+**Correct deployment order:**
+```
+1. Provider Registration
+2. Resource Group
+3. Container Registry
+4. User-Assigned Managed Identity
+5. RBAC Assignments (ACR + Key Vault)
+6. Wait for RBAC Propagation (120s)
+7. Container App
+```
 
 ---
 

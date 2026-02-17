@@ -146,26 +146,7 @@ documentation/         # Architecture documentation
 
 ## API Specification
 
-### POST /validate
-Validates loan applicant for fraud risk.
-
-**Request:**
-```json
-{
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "idNumber": "9001011234088"
-}
-```
-
-**Response:**
-```json
-{
-  "riskScore": 72,
-  "riskLevel": "MEDIUM",
-  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-}
-```
+See `documentation/api/API_SPECIFICATION.md` for full API reference.
 
 ## CI/CD Pipeline Stages
 

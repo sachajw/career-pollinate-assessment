@@ -7,7 +7,7 @@ A Terraform module for creating Azure Container Apps with managed identity, auto
 - System-assigned managed identity for Azure service authentication
 - HTTP-based and custom autoscaling rules
 - Startup, liveness, and readiness health probes
-- HTTPS-only ingress with CORS support
+- HTTPS-only ingress (CORS handled at application level, not infra)
 - Blue/green deployment support via traffic weighting
 - IP security restrictions
 - Dapr sidecar support (optional)
@@ -251,6 +251,13 @@ module "container_app" {
 | --------------- | ------------------------------------- |
 | ingress_fqdn    | The FQDN of the ingress               |
 | application_url | The full HTTPS URL of the application |
+
+### Custom Domain Outputs
+
+| Name                          | Description                                              |
+| ----------------------------- | -------------------------------------------------------- |
+| custom_domain_verification_id | Domain verification ID for custom domain ownership proof |
+| certificate_id                | ID of the referenced certificate (null if not enabled)   |
 
 ## Resource Sizing
 

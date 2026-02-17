@@ -177,5 +177,4 @@ The upload script will prompt to delete and re-upload.
 
 ## See Also
 
-- [CERTIFICATE_SETUP.md](../CERTIFICATE_SETUP.md) - Quick reference
-- [Custom Domain Guide](../documentation/guides/custom-domain-certificate-setup.md) - Full guide
+- [Custom Domain Guide](../documentation/guides/custom-domain.md) - Full guide (cert setup, DNS, Terraform, troubleshooting)

@@ -52,7 +52,7 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
 | [Architecture Decisions](./documentation/architecture/adr/README.md) | ADRs for key decisions |
 | [Decision Log](./documentation/architecture/DECISION_LOG.md) | Chronological decision history |
-| [**Deployment Log**](./documentation/DEPLOYMENT_LOG.md) | **Complete infrastructure deployment record** |
+| [**Deployment Log**](./documentation/archive/DEPLOYMENT_LOG.md) | **Complete infrastructure deployment record** |
 | [**Quick Reference**](./documentation/INFRASTRUCTURE_QUICK_REFERENCE.md) | **Daily operations and troubleshooting** |
 | [API Specification](./documentation/api/API_SPECIFICATION.md) | REST API documentation |
 | [Developer Guide](./documentation/api/DEVELOPER_GUIDE.md) | Development practices and guidelines |
@@ -151,55 +151,15 @@ docker run -p 8080:8080 applicant-validator:local
 
 ### Deploy to Azure
 
-```bash
-# Login to Azure
-az login
-az account set --subscription "<subscription-id>"
-
-# Initialize Terraform
-cd terraform/environments/dev
-terraform init
-
-# Plan infrastructure
-terraform plan -out=tfplan
-
-# Apply infrastructure
-terraform apply tfplan
-
-# Deploy application (via Azure DevOps pipeline)
-# Push to main branch to trigger deployment
-```
+See [terraform/README.md](./terraform/README.md) for the full infrastructure setup and deployment guide.
 
 ## 📊 Architecture Highlights
 
-### Security
+- **Security**: Managed Identity (zero secrets), Key Vault, HTTPS enforced, SOC 2 compliant
+- **Scalability**: Scale-to-zero in dev (50–70% cost savings), KEDA event-driven autoscaling, stateless design
+- **Observability**: Distributed tracing, structured JSON logs with correlation IDs, Application Insights
 
-- **Zero-Trust Model**: Managed Identity for all authentication
-- **No Secrets in Code**: All credentials stored in Key Vault
-- **Private Networking**: VNet integration and private endpoints (prod)
-- **WAF Protection**: OWASP Top 10 protection via Front Door
-- **Audit Logging**: Comprehensive access logs
-
-### Scalability
-
-- **Auto-scaling**: 2-10 replicas based on load
-- **Scale-to-Zero**: Development environment saves costs
-- **KEDA Integration**: Event-driven scaling
-- **Stateless Design**: Horizontal scaling with no session affinity
-
-### Observability
-
-- **Distributed Tracing**: End-to-end request tracking
-- **Structured Logging**: JSON logs with correlation IDs
-- **Custom Metrics**: Business and technical KPIs
-- **Alerting**: Proactive notifications on SLA violations
-
-### Cost Optimization
-
-- **Dev Environment**: ~$54/month (scale-to-zero)
-- **Prod Environment**: ~$480/month (always-on, highly available)
-- **Consumption Pricing**: Pay-per-use for Container Apps
-- **Resource Tagging**: Cost allocation by environment
+See [Solution Architecture](./documentation/architecture/solution-architecture.md) for the full design.
 
 ## 🔍 Key Design Decisions
 
@@ -316,40 +276,12 @@ git push origin feature/your-feature
 - ✅ **GDPR**: Data minimization, no PII storage
 - ⚠️ **PCI DSS**: Not applicable (no payment data)
 
-## 📞 API Specification
+## 📞 API Reference
 
-### Endpoint: POST /validate
-
-**Request:**
-```json
-{
-  "firstName": "Jane",
-  "lastName": "Doe",
-  "idNumber": "9001011234088"
-}
-```
-
-**Response:**
-```json
-{
-  "riskScore": 72,
-  "riskLevel": "MEDIUM",
-  "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-}
-```
-
-**Error Response:**
-```json
-{
-  "error": {
-    "code": "VALIDATION_ERROR",
-    "message": "Invalid input: firstName is required",
-    "correlationId": "a1b2c3d4-e5f6-7890-abcd-ef1234567890"
-  }
-}
-```
-
-[Full API specification](./documentation/api/openapi.yaml)
+| Document | Description |
+|----------|-------------|
+| [API Specification](./documentation/api/API_SPECIFICATION.md) | Endpoint reference, request/response schemas, error codes |
+| [Developer Guide](./documentation/api/DEVELOPER_GUIDE.md) | Integration guide, auth, examples |
 
 ## 🧪 Testing
 

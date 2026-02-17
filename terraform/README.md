@@ -13,7 +13,8 @@ terraform/
 │   ├── container-registry/    # Azure Container Registry (ACR)
 │   ├── key-vault/             # Azure Key Vault for secrets
 │   ├── observability/         # Log Analytics + Application Insights
-│   └── container-app/         # Azure Container Apps + Environment
+│   ├── container-app/         # Azure Container Apps + Environment
+│   └── azure-devops/          # Azure DevOps CI/CD configuration
 │
 ├── environments/              # Environment-specific configurations
 │   └── dev/                   # Development environment
@@ -24,8 +25,13 @@ terraform/
 │       ├── backend.hcl.example      # Backend config template
 │       └── terraform.tfvars.example # Variables template
 │
+├── devops/                    # Azure DevOps Terraform configuration
+├── tests/                     # Terratest infrastructure tests (Go)
+├── scripts/                   # Helper scripts (e.g. certificate upload)
 ├── versions.tf                # Terraform and provider versions
 ├── providers.tf               # Provider configuration
+├── BOOTSTRAP.md               # One-time prerequisites setup guide
+├── TESTING.md                 # Infrastructure testing guide
 └── README.md                  # This file
 ```
 
@@ -202,6 +208,30 @@ az storage blob service-properties delete-policy update \
   --days-retained 30
 ```
 
+## Resource Dependency Graph
+
+```
+Resource Group
+    ↓
+    ├─> Log Analytics Workspace
+    │       ↓
+    │       └─> Application Insights
+    │
+    ├─> Container Registry (ACR)
+    │       └─> Diagnostic Settings → Log Analytics
+    │
+    ├─> Key Vault
+    │       ├─> Diagnostic Settings → Log Analytics
+    │       └─> RBAC: Deployer (Key Vault Administrator)
+    │
+    └─> Container App Environment → Log Analytics
+            ↓
+            └─> Container App
+                    ├─> RBAC → ACR (AcrPull)
+                    ├─> RBAC → Key Vault (Key Vault Secrets User)
+                    └─> Managed Identity (System-Assigned)
+```
+
 ## 📦 Module Documentation
 
 ### resource-group
@@ -360,13 +390,13 @@ az keyvault secret show \
 ### View Application Logs
 
 ```bash
-# Get container app name
-APP_NAME=$(terraform output -json | jq -r '.container_app_name.value')
-RG_NAME=$(terraform output -raw resource_group_name)
+# The quick_start_commands output includes a pre-built logs command:
+terraform output -raw quick_start_commands
 
-# Stream logs
+# Or run the logs command directly (naming follows convention ca-{project}-{env}):
+RG_NAME=$(terraform output -raw resource_group_name)
 az containerapp logs show \
-  --name $APP_NAME \
+  --name ca-finrisk-dev \
   --resource-group $RG_NAME \
   --follow
 ```
@@ -549,6 +579,6 @@ docs(readme): add troubleshooting section
 
 ---
 
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-17
 **Terraform Version:** >= 1.5.0
 **Azure Provider Version:** ~> 3.100

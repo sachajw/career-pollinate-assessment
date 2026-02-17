@@ -77,20 +77,21 @@ cd terraform/tests
 ### Directory Structure
 
 ```
-terraform/tests/
-├── go.mod                      # Go module definition
-├── go.sum                      # Dependencies lock file
-├── README.md                   # Detailed testing documentation
+terraform/
 ├── TESTING.md                  # This file
-├── run-tests.sh                # Test runner script
-├── logs/                       # Test output logs
-├── helpers/
-│   └── azure.go                # Azure-specific test utilities
-├── resource_group_test.go      # Resource group tests
-├── container_registry_test.go  # ACR tests
-├── key_vault_test.go           # Key Vault tests
-├── observability_test.go       # Observability stack tests
-└── container_app_test.go       # Container Apps tests
+└── tests/
+    ├── go.mod                      # Go module definition
+    ├── go.sum                      # Dependencies lock file
+    ├── README.md                   # Detailed testing documentation
+    ├── run-tests.sh                # Test runner script
+    ├── logs/                       # Test output logs
+    ├── helpers/
+    │   └── azure.go                # Azure-specific test utilities
+    ├── resource_group_test.go      # Resource group tests
+    ├── container_registry_test.go  # ACR tests
+    ├── key_vault_test.go           # Key Vault tests
+    ├── observability_test.go       # Observability stack tests
+    └── container_app_test.go       # Container Apps tests
 ```
 
 ### Example Test: Resource Group
