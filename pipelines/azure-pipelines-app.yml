@@ -31,15 +31,11 @@ pr:
       - app/**
 
 variables:
-  # Environment detection based on branch
-  - name: isMainBranch
-    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
-
-  # Environment name: prod for main, dev for everything else
+  # Dev environment only for assessment (prod not deployed due to quota limits)
   - name: environmentName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
+    value: 'dev'
 
-  # Variable group - using finrisk-dev for assessment (prod not deployed)
+  # Variable group
   - group: finrisk-dev
 
   # Common variables
@@ -48,19 +44,17 @@ variables:
   - name: pythonVersion
     value: '3.13'
   - name: imageName
-    value: 'applicant-validator'            # Domain service name (DDD)
+    value: 'applicant-validator'
 
-  # Environment-specific resource names
-  # Dev:  ca-finrisk-dev, rg-finrisk-dev, acrfinriskdev
-  # Prod: ca-finrisk-prod, rg-finrisk-prod, acrfinriskprod
+  # Dev environment resource names
   - name: containerAppName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'ca-finrisk-prod', 'ca-finrisk-dev']
+    value: 'ca-finrisk-dev'
   - name: resourceGroupName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'rg-finrisk-prod', 'rg-finrisk-dev']
+    value: 'rg-finrisk-dev'
   - name: containerRegistry
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acrfinriskprod.azurecr.io', 'acrfinriskdev.azurecr.io']
+    value: 'acrfinriskdev.azurecr.io'
   - name: dockerRegistryServiceConnection
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acr-prod-service-connection', 'acr-service-connection']
+    value: 'acr-service-connection'
 
 stages:
   # ========================================

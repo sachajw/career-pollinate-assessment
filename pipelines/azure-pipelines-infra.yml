@@ -30,19 +30,14 @@ pr:
       - terraform/**
 
 variables:
-  # Environment detection based on branch
-  - name: isMainBranch
-    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
-
-  # Environment name: prod for main, dev for everything else
+  # Dev environment only for assessment (prod not deployed due to quota limits)
   - name: environmentName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
+    value: 'dev'
 
-  # Terraform working directory based on environment
   - name: terraformWorkingDirectory
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), '$(System.DefaultWorkingDirectory)/terraform/environments/prod', '$(System.DefaultWorkingDirectory)/terraform/environments/dev']
+    value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
 
-  # Variable group - using finrisk-dev for assessment (prod not deployed)
+  # Variable group
   - group: finrisk-dev
 
   - name: azureSubscription
@@ -111,9 +106,8 @@ stages:
     jobs:
       - deployment: TerraformApply
         pool: Default
-        # Environment name enables approvals in Azure DevOps
-        # Create 'prod-infrastructure' environment with approvers for production
-        environment: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod-infrastructure', 'dev-infrastructure']
+        # Environment enables approvals in Azure DevOps
+        environment: dev-infrastructure
         strategy:
           runOnce:
             deploy:
