@@ -1,14 +1,17 @@
-# Azure DevOps Terraform Configuration
+# Azure DevOps Terraform Module
 
 This module configures Azure DevOps to connect with GitHub and deploy the FinRisk Platform.
 
 ## What It Creates
 
-- **GitHub Service Connection** - Authenticates Azure DevOps with GitHub
-- **Azure RM Service Connection** - Authenticates Azure DevOps with Azure
-- **ACR Service Connection** - For container registry deployments
-- **Variable Groups** - Infrastructure configs and secrets
-- **Build Pipeline** - CI/CD pipeline from GitHub
+| Resource | Description |
+|----------|-------------|
+| GitHub Service Connection | OAuth connection to GitHub repository |
+| Azure RM Service Connection | Service Principal auth for Azure deployments |
+| ACR Service Connection | Container Registry authentication |
+| Variable Group (Infrastructure) | Non-secret config variables |
+| Variable Group (Secrets) | Secret credentials including RISKSHIELD_API_KEY |
+| Build Pipeline | CI/CD pipeline from GitHub YAML |
 
 ## Prerequisites
 
@@ -33,7 +36,6 @@ This module configures Azure DevOps to connect with GitHub and deploy the FinRis
 ### 3. Get Your Project ID
 
 ```bash
-# Via Azure DevOps CLI
 az devops project show --project finrisk --query id -o tsv
 ```
 
@@ -43,13 +45,12 @@ az devops project show --project finrisk --query id -o tsv
 az ad sp create-for-rbac \
   --name "azure-devops-finrisk" \
   --role Contributor \
-  --scopes /subscriptions/$(az account show --query id -o tsv) \
-  --sdk-auth
+  --scopes /subscriptions/$(az account show --query id -o tsv)
 ```
 
 ## Usage
 
-### 1. Create terraform.tfvars
+### 1. Navigate to devops directory
 
 ```bash
 cd terraform/devops
@@ -67,22 +68,48 @@ terraform apply
 
 ## Variables
 
-| Variable | Description | Required |
-|----------|-------------|----------|
-| `azuredevops_org_service_url` | Azure DevOps org URL (https://dev.azure.com/your-org) | Yes |
-| `azuredevops_pat` | Azure DevOps PAT | Yes |
-| `project_id` | Azure DevOps project ID | Yes |
-| `repository` | GitHub repo (owner/repo) | Yes |
-| `subscription_id` | Azure subscription ID | Yes |
-| `azure_client_id` | Azure SP client ID | Yes |
-| `azure_client_secret` | Azure SP client secret | Yes |
-| `azure_tenant_id` | Azure tenant ID | Yes |
+### Required
+
+| Variable | Description |
+|----------|-------------|
+| `project_id` | Azure DevOps project ID |
+| `repository` | GitHub repository (owner/repo) |
+| `subscription_id` | Azure subscription ID |
+| `subscription_name` | Azure subscription name |
+| `resource_group_name` | Azure resource group name |
+| `location` | Azure region |
+| `container_registry_name` | ACR name |
+| `container_app_name` | Container App name |
+| `key_vault_name` | Key Vault name |
+| `azure_client_id` | Azure SP client ID |
+| `azure_client_secret` | Azure SP client secret |
+| `azure_tenant_id` | Azure tenant ID |
+
+### Optional (with defaults)
+
+| Variable | Default | Description |
+|----------|---------|-------------|
+| `project_name` | `finrisk` | Project name prefix |
+| `environment` | `dev` | Environment name |
+| `service_connection_name` | `finrisk` | Service connection prefix |
+| `branch` | `main` | Default branch |
+| `pipeline_yaml_path` | `/pipelines/azure-pipelines.yml` | Path to pipeline YAML |
+| `riskshield_api_key` | `""` | RiskShield API key (secret) |
+
+## Outputs
+
+| Output | Description |
+|--------|-------------|
+| `pipeline_id` | ID of the created build pipeline |
+| `github_service_connection_id` | GitHub service connection ID |
+| `azure_rm_service_connection_id` | Azure RM service connection ID |
 
 ## After Apply
 
 1. Go to Azure DevOps → Pipelines
 2. Find the `finrisk-ci-cd` pipeline
-3. Run the pipeline to deploy
+3. Authorize the GitHub connection if prompted
+4. Run the pipeline to deploy
 
 ## Manual Alternative
 
