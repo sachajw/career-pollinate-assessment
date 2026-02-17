@@ -1,13 +1,27 @@
-# Terraform Backend Configuration for Production
-# Copy this file to backend.hcl and fill in the values
+# Backend Configuration File - Production Environment
+# Copy this file to backend.hcl and update with your values
+# DO NOT commit backend.hcl with real values to version control
 #
-# cp backend.hcl.example backend.hcl
+# Run scripts/bootstrap-terraform-state.sh first to create the storage account
 
-# Azure Storage Account for Terraform state
-# Use the same storage account as dev, but different key
-resource_group_name  = "rg-terraform-state"
-storage_account_name = "sttfstatefinrisk001"  # Change to your storage account
-container_name       = "tfstate"
+# Resource group containing the storage account
+resource_group_name = "rg-terraform-state"
 
-# Unique state file key for production environment
+# Storage account name (from bootstrap script output)
+storage_account_name = "sttfstatefinrisk001"
+
+# Container name for state files
+container_name = "tfstate"
+
+# State file key (unique per environment - prod uses different key than dev)
 key = "finrisk-prod.tfstate"
+
+# Authentication method
+# Option 1: Use Azure AD authentication (recommended)
+use_azuread_auth = true
+
+# Option 2: Use Managed Identity (for CI/CD)
+# use_msi = true
+
+# Option 3: Use storage account access key (less secure)
+# access_key will be read from ARM_ACCESS_KEY environment variable
