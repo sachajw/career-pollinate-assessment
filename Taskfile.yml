@@ -42,6 +42,9 @@ vars:
   TERRAFORM_ENV_DIR: './terraform/environments/dev'
   APP_DIR: './app'
   SCRIPTS_DIR: './terraform/scripts'
+  # Deployment URLs
+  DEV_URL: 'https://finrisk-dev.pangarabbit.com'
+  DEV_URL_DEFAULT: 'https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io'
 
 tasks:
   default:
@@ -385,6 +388,8 @@ tasks:
     desc: View Container App logs (live)
     cmds:
       - |
+        echo "Viewing logs for: ca-finrisk-dev ({{.DEV_URL}})"
+        echo ""
         az containerapp logs show \
           --name ca-finrisk-dev \
           --resource-group rg-finrisk-dev \
@@ -394,21 +399,86 @@ tasks:
     desc: Test deployed Container App endpoint
     cmds:
       - |
-        cd terraform/environments/dev
-        URL=$(terraform output -raw container_app_url 2>/dev/null || echo "")
-        if [ -z "$URL" ]; then
-          echo "❌ Container App not deployed yet"
-          exit 1
-        fi
+        URL="{{.DEV_URL}}"
 
         echo "Testing endpoint: $URL"
         echo ""
 
         echo "Health check:"
         curl -s "$URL/health" || echo "❌ Health check failed"
-
         echo ""
+
+        echo "Ready check:"
+        curl -s "$URL/ready" || echo "❌ Ready check failed"
+        echo ""
+
         echo "✅ Endpoint is responding"
+
+  urls:
+    desc: Show deployed URLs
+    cmds:
+      - |
+        echo ""
+        echo "FinRisk Platform - Deployed URLs"
+        echo "================================="
+        echo ""
+        echo "Development Environment:"
+        echo "  Custom Domain:  {{.DEV_URL}}"
+        echo "  Default URL:    {{.DEV_URL_DEFAULT}}"
+        echo ""
+        echo "Health Endpoints:"
+        echo "  Health:         {{.DEV_URL}}/health"
+        echo "  Ready:          {{.DEV_URL}}/ready"
+        echo "  API Docs:       {{.DEV_URL}}/docs"
+        echo ""
+
+  cert:upload:
+    desc: Upload SSL certificate to Container App Environment
+    cmds:
+      - |
+        if [ -z "$CERT_FILE" ]; then
+          echo "❌ CERT_FILE environment variable not set"
+          echo "   Usage: CERT_FILE=/path/to/cert.pfx task cert:upload"
+          exit 1
+        fi
+
+        echo "Uploading certificate from: $CERT_FILE"
+        az containerapp env certificate upload \
+          --name cae-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --certificate-file "$CERT_FILE" \
+          --certificate-name finrisk-pangarabbit-cert
+
+        echo "✅ Certificate uploaded"
+
+  cert:bind:
+    desc: Bind custom domain to Container App
+    cmds:
+      - |
+        echo "Binding custom domain: finrisk-dev.pangarabbit.com"
+        az containerapp hostname bind \
+          --name ca-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --hostname finrisk-dev.pangarabbit.com \
+          --certificate finrisk-pangarabbit-cert \
+          --environment cae-finrisk-dev
+
+        echo "✅ Custom domain bound"
+
+  cert:setup:
+    desc: Full certificate setup (upload + bind)
+    cmds:
+      - task: cert:upload
+      - task: cert:bind
+      - |
+        echo ""
+        echo "✅ Custom domain configured!"
+        echo ""
+        echo "DNS Configuration (Cloudflare):"
+        echo "  CNAME: finrisk-dev → ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io"
+        echo "  TXT:   asuid.finrisk-dev → <verification-id>"
+        echo "  SSL:   Full (strict)"
+        echo ""
 
   cost-estimate:
     desc: Show estimated monthly cost
@@ -418,18 +488,25 @@ tasks:
         echo "FinRisk Platform - Cost Estimate"
         echo "================================="
         echo ""
-        echo "Development Environment:"
+        echo "Development Environment (scale-to-zero):"
         echo ""
-        echo "Container App:          $0-15   (scale-to-zero enabled)"
-        echo "Container Registry:     $5      (Basic SKU)"
-        echo "Log Analytics:          $0-25   (5GB daily quota)"
-        echo "Application Insights:   $0-20   (2GB daily cap)"
-        echo "Key Vault:             ~$0.03   (per 10K operations)"
-        echo "Storage (state):       ~$0.50   (minimal usage)"
+        echo "  Container App:        ~$0     (free grant: 180K vCPU-s, 360K GiB-s)"
+        echo "  Container Registry:   ~$5     (Basic SKU)"
+        echo "  Log Analytics:        ~$3     (~0.2 GB/day after 5GB free)"
+        echo "  Application Insights: ~$0     (workspace-based, in Log Analytics)"
+        echo "  Key Vault:           ~$0      ($0.03/10K ops, low usage)"
+        echo "  Storage (state):     ~$0      (< 1 MB state file)"
         echo ""
-        echo "Total:                  $5.53 - $65.53 USD/month"
+        echo "  Total Dev:           ~\$8/month"
         echo ""
-        echo "Production environment would be ~$480/month (always-on, HA)"
+        echo "Production Environment (2 replicas always-on):"
+        echo ""
+        echo "  Container App:        ~\$72    (consumption plan)"
+        echo "  Container Registry:   ~\$20    (Standard SKU)"
+        echo "  Log Analytics:        ~\$28    (~15 GB/month)"
+        echo "  Key Vault:           ~\$1      (higher usage)"
+        echo ""
+        echo "  Total Prod:          ~\$122/month (without Front Door)"
         echo ""
 
   update-container-app:
@@ -475,5 +552,7 @@ tasks:
     desc: Show overall platform status
     cmds:
       - task: infra:status
+      - echo ""
+      - task: urls
       - echo ""
       - task: cost-estimate
