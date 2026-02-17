@@ -73,7 +73,33 @@ terraform apply tfplan
 ## Custom Domain
 
 - **Domain**: `finrisk.pangarabbit.com`
-- **Certificate**: `finrisk-pangarabbit-cert` (wildcard)
+- **Certificate**: `finrisk-pangarabbit-cert` (wildcard *.pangarabbit.com)
+
+### Custom Domain Setup (When Deployed)
+
+Same process as dev environment, but with production resource names:
+
+```bash
+# Upload certificate
+az containerapp env certificate upload \
+  --name cae-finrisk-prod \
+  --resource-group rg-finrisk-prod \
+  --certificate-file /path/to/cloudflare-cert.pfx \
+  --certificate-name finrisk-pangarabbit-cert
+
+# Bind custom domain
+az containerapp hostname bind \
+  --name ca-finrisk-prod \
+  --resource-group rg-finrisk-prod \
+  --hostname finrisk.pangarabbit.com \
+  --certificate finrisk-pangarabbit-cert \
+  --environment cae-finrisk-prod
+```
+
+**DNS Configuration (Cloudflare):**
+- **CNAME:** `finrisk` → `<container-app-fqdn>`
+- **TXT:** `asuid.finrisk` → `<customDomainVerificationId>`
+- SSL/TLS: Full (strict) mode
 
 ## CI/CD Integration
 

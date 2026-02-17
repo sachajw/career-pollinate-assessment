@@ -42,6 +42,10 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 - **IaC**: Terraform
 - **CI/CD**: Azure DevOps
 
+**Deployed Environments:**
+- **Dev**: `https://finrisk-dev.pangarabbit.com` (custom domain)
+- **Prod**: Documented but not deployed (Azure quota limits)
+
 ### Documentation
 
 | Document | Description |
@@ -331,16 +335,18 @@ az load test run --test-id finrisk-load-test
 - ✅ Technology selection
 - ✅ Infrastructure as Code
 
-### Phase 2: Implementation (In Progress)
+### Phase 2: Implementation (Completed)
 - ✅ Infrastructure deployment (Azure)
 - ✅ Terraform backend configuration
-- ✅ Resource provisioning (12 resources)
-- ⬜ Application development
-- ⬜ Container image creation
-- ⬜ CI/CD pipeline setup
-- ⬜ Security hardening
+- ✅ Resource provisioning (12+ resources)
+- ✅ Custom domain configuration
+- ✅ Application development
+- ✅ Container image creation
+- ✅ CI/CD pipeline setup
+- ✅ Dev environment fully operational
 
 ### Phase 3: Production Readiness
+- 📋 Production environment (documented, pending quota increase)
 - ⬜ Load testing
 - ⬜ Security audit
 - ⬜ DR testing
@@ -399,5 +405,5 @@ A: ~$54/month (dev), ~$480/month (prod). See [Cost Optimization](./documentation
 
 ---
 
-**Assessment Submission Date:** TBD
+**Assessment Submission Date:** February 2026
 **For Questions:** Contact assessment coordinator
