@@ -233,4 +233,3 @@ The upload script will prompt to delete and re-upload.
 ## See Also
 
 - [Terraform README](../README.md)
-- [Operations Runbook](../../documentation/runbooks/OPERATIONS_RUNBOOK.md)

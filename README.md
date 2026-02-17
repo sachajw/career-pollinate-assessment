@@ -52,7 +52,6 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | [Architecture Decisions](./documentation/adr/README.md) | ADRs for key decisions |
 | [API Specification](./documentation/api/API_SPECIFICATION.md) | REST API documentation |
 | [Developer Guide](./documentation/api/DEVELOPER_GUIDE.md) | Development practices and guidelines |
-| [Operations Runbook](./documentation/runbooks/OPERATIONS_RUNBOOK.md) | Operational procedures |
 | [App README](./app/README.md) | Application-specific documentation |
 
 ## 📁 Repository Structure
