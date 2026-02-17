@@ -42,8 +42,8 @@ variables:
   - name: terraformWorkingDirectory
     value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), '$(System.DefaultWorkingDirectory)/terraform/environments/prod', '$(System.DefaultWorkingDirectory)/terraform/environments/dev']
 
-  # Variable group based on environment
-  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
+  # Variable group - using finrisk-dev for assessment (prod not deployed)
+  - group: finrisk-dev
 
   - name: azureSubscription
     value: 'azure-service-connection'

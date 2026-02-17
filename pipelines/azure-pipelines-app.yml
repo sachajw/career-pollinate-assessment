@@ -39,8 +39,8 @@ variables:
   - name: environmentName
     value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
 
-  # Variable group based on environment
-  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
+  # Variable group - using finrisk-dev for assessment (prod not deployed)
+  - group: finrisk-dev
 
   # Common variables
   - name: azureSubscription
