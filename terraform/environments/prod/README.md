@@ -86,5 +86,4 @@ Production environment estimated monthly cost:
 ## Related Documentation
 
 - [ADR-006: Terraform Module Architecture](../../../documentation/adr/006-terraform-module-architecture.md)
-- [Operations Runbook](../../../documentation/runbooks/OPERATIONS_RUNBOOK.md)
-- [Infrastructure Quick Reference](../../../documentation/INFRASTRUCTURE_QUICK_REFERENCE.md)
+- [Main Terraform README](../../README.md)
