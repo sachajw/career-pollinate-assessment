@@ -381,6 +381,101 @@ tasks:
       - task: update-container-app
 
   # ============================================================================
+  # Azure DevOps Tasks
+  # ============================================================================
+
+  ado:status:
+    desc: Show Azure DevOps pipeline status
+    cmds:
+      - |
+        echo ""
+        echo "Azure DevOps - Pipeline Status"
+        echo "==============================="
+        echo ""
+
+        # Check if Azure DevOps extension is installed
+        if ! az extension show --name azure-devops &>/dev/null; then
+          echo "Installing Azure DevOps extension..."
+          az extension add --name azure-devops
+        fi
+
+        echo "Recent Pipeline Runs:"
+        echo ""
+        az pipelines list --output table 2>/dev/null || echo "  Run 'az login' and configure project first"
+        echo ""
+
+  ado:runs:
+    desc: Show recent pipeline runs
+    cmds:
+      - |
+        echo ""
+        echo "Recent Pipeline Runs"
+        echo "===================="
+        echo ""
+
+        az pipelines runs list --top 10 --output table 2>/dev/null || {
+          echo "❌ Failed to list pipeline runs"
+          echo ""
+          echo "Setup required:"
+          echo "  1. az login"
+          echo "  2. az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+          echo ""
+        }
+
+  ado:run-infra:
+    desc: Trigger infrastructure pipeline
+    cmds:
+      - |
+        echo "Triggering infrastructure pipeline..."
+        az pipelines run --name "finrisk-infrastructure" --branch dev 2>/dev/null || {
+          echo "❌ Failed to trigger pipeline"
+          echo "   Ensure Azure DevOps is configured:"
+          echo "   az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        }
+
+  ado:run-app:
+    desc: Trigger application pipeline
+    cmds:
+      - |
+        echo "Triggering application pipeline..."
+        az pipelines run --name "finrisk-app" --branch dev 2>/dev/null || {
+          echo "❌ Failed to trigger pipeline"
+          echo "   Ensure Azure DevOps is configured:"
+          echo "   az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        }
+
+  ado:logs:
+    desc: View logs for latest pipeline run
+    cmds:
+      - |
+        BUILD_ID=$(az pipelines runs list --top 1 --query "[0].id" -o tsv 2>/dev/null)
+
+        if [ -z "$BUILD_ID" ]; then
+          echo "❌ No pipeline runs found"
+          exit 1
+        fi
+
+        echo "Viewing logs for build #$BUILD_ID..."
+        az pipelines runs log --build-id "$BUILD_ID" 2>/dev/null || {
+          echo "❌ Failed to get logs"
+        }
+
+  ado:open:
+    desc: Open Azure DevOps in browser
+    cmds:
+      - |
+        ORG=$(az devops configure --list | grep organization | awk '{print $3}' 2>/dev/null)
+        PROJ=$(az devops configure --list | grep project | awk '{print $3}' 2>/dev/null)
+
+        if [ -n "$ORG" ] && [ -n "$PROJ" ]; then
+          echo "Opening: $ORG/$PROJ/_build"
+          open "$ORG/$PROJ/_build" 2>/dev/null || xdg-open "$ORG/$PROJ/_build" 2>/dev/null
+        else
+          echo "❌ Azure DevOps not configured"
+          echo "   Run: az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        fi
+
+  # ============================================================================
   # Monitoring & Operations Tasks
   # ============================================================================
 
