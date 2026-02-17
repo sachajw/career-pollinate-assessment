@@ -17,43 +17,54 @@ Terratest is a Go library that provides patterns and helper functions for testin
 
 ```
 tests/
-├── go.mod              # Go module definition
-├── go.sum              # Go dependencies checksum
-├── README.md           # This file
-├── resource_group_test.go    # Tests for resource-group module
-├── container_registry_test.go # Tests for container-registry module
-├── key_vault_test.go         # Tests for key-vault module
-├── observability_test.go     # Tests for observability module
-├── container_app_test.go     # Tests for container-app module
+├── go.mod                        # Go module definition
+├── README.md                     # This file
+├── run-tests.sh                  # Test runner script (recommended)
+├── resource_group_test.go        # Tests for resource-group module
+├── container_registry_test.go    # Tests for container-registry module
+├── key_vault_test.go             # Tests for key-vault module
+├── observability_test.go         # Tests for observability module
+├── container_app_test.go         # Tests for container-app module
 └── helpers/
-    └── azure.go        # Azure-specific test helpers
+    └── azure.go                  # Azure-specific test helpers
 ```
 
 ## Running Tests
 
-### Run All Tests
+### Using the Test Runner (Recommended)
 
 ```bash
 cd terraform/tests
+
+# Run all tests
+./run-tests.sh
+
+# Run only validation tests (fast, no Azure resources created)
+./run-tests.sh --short
+
+# Run tests for specific module
+./run-tests.sh --module resource-group
+
+# Run with verbose output and custom timeout
+./run-tests.sh --verbose --timeout 90
+
+# Run in parallel with 8 workers
+./run-tests.sh --parallel 8
+```
+
+### Using Go Directly
+
+```bash
+cd terraform/tests
+
+# Run all tests
 go test -v -timeout 60m
-```
 
-### Run Specific Test
-
-```bash
+# Run specific test
 go test -v -run TestResourceGroup -timeout 30m
-```
 
-### Run with Short Tests Only
-
-```bash
+# Run with short tests only
 go test -v -short -timeout 10m
-```
-
-### Run with Verbose Output
-
-```bash
-go test -v -timeout 60m 2>&1 | tee test-output.log
 ```
 
 ## Environment Variables
