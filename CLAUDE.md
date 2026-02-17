@@ -109,7 +109,7 @@ terraform destroy
 - **Managed Identity**: Zero secrets management, automatic token rotation, SOC 2 compliant
 - **uv package manager**: 10-100x faster dependency resolution than pip
 
-See `documentation/architecture/adr/` for detailed Architecture Decision Records.
+See `documentation/adr/` for detailed Architecture Decision Records.
 
 ## Repository Structure
 
@@ -141,7 +141,7 @@ pipelines/             # CI/CD
 documentation/         # Architecture documentation
   architecture/
     solution-architecture.md
-    adr/               # Architecture Decision Records
+  adr/                 # Architecture Decision Records
 ```
 
 ## API Specification
@@ -160,7 +160,7 @@ See `documentation/api/API_SPECIFICATION.md` for full API reference.
 | File | Purpose |
 |------|---------|
 | `documentation/architecture/solution-architecture.md` | Complete architecture design |
-| `documentation/architecture/adr/` | Architecture Decision Records |
+| `documentation/adr/` | Architecture Decision Records |
 | `terraform/README.md` | Terraform usage guide |
 | `pipelines/README.md` | CI/CD pipeline documentation |
 
