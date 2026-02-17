@@ -152,82 +152,38 @@ stages:
             displayName: 'Publish Image Tag'
 
           - script: |
-              # Add OrbStack Docker to PATH for all subsequent tasks
-              echo "##vso[task.prependpath]/Users/tvl/.orbstack/bin"
-              echo "OrbStack Docker path added to PATH"
-            displayName: 'Setup PATH for Docker'
-
-          - task: Docker@2
-            displayName: 'Login to ACR'
-            inputs:
-              command: login
-              containerRegistry: $(dockerRegistryServiceConnection)
-
-          - script: |
-              # Verify Docker is accessible
-              echo "Docker version:"
-              docker --version
-              docker buildx version
-
-              # List available builders
-              echo "Available builders:"
-              docker buildx ls
-
-              echo "Buildx setup complete!"
-            displayName: 'Verify Docker Buildx'
-
-          - script: |
-              # Verify Docker is accessible
-              echo "Docker version:"
-              docker --version
-              docker buildx version
-
-              # Setup buildx for cross-platform builds
-              echo "Setting up buildx builder..."
-              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
-              docker buildx inspect --bootstrap
-
-              echo "Buildx setup complete!"
-            displayName: 'Setup Docker Buildx'
-
-          - script: |
-              set -e  # Exit on error
-
-              # Use OrbStack Docker explicitly
-              DOCKER=/Users/tvl/.orbstack/bin/docker
-
-              # Set Docker config path so plugins can be found
+              # Use OrbStack Docker explicitly - set environment for all steps
+              export DOCKER=/Users/tvl/.orbstack/bin/docker
               export DOCKER_CONFIG=/Users/tvl/.docker
               export HOME=/Users/tvl
 
-              # Debug environment
-              echo "HOME: $HOME"
-              echo "DOCKER_CONFIG: $DOCKER_CONFIG"
               echo "Using Docker: $DOCKER"
               $DOCKER --version
-
-              # Check if buildx plugin exists
-              if [ -f "$DOCKER_CONFIG/cli-plugins/docker-buildx" ]; then
-                echo "Buildx plugin found at: $DOCKER_CONFIG/cli-plugins/docker-buildx"
-              else
-                echo "ERROR: Buildx plugin not found!"
-                exit 1
-              fi
-
-              # Verify buildx works
               $DOCKER buildx version
+
+              # Login to ACR using Azure CLI (works with OrbStack)
+              echo "Logging in to ACR..."
+              az acr login --name acrfinriskdev
+
+              # Setup buildx builder
+              echo "Setting up buildx builder..."
+              $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
+              $DOCKER buildx inspect --bootstrap
+
+              echo "Buildx setup complete!"
+            displayName: 'Setup Docker Buildx and Login'
+
+          - script: |
+              set -e
+
+              # Use OrbStack Docker explicitly
+              DOCKER=/Users/tvl/.orbstack/bin/docker
+              export DOCKER_CONFIG=/Users/tvl/.docker
+              export HOME=/Users/tvl
 
               # Navigate to app directory
               cd app
               echo "Building in: $(pwd)"
-
-              # Verify ACR authentication
-              echo "Verifying ACR authentication..."
-              cat ~/.docker/config.json | grep -q "$(containerRegistry)" || {
-                echo "ERROR: ACR authentication not found for $(containerRegistry)!"
-                exit 1
-              }
-              echo "ACR authentication verified"
 
               # Build and push
               echo "Starting Docker buildx build..."
