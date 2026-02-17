@@ -68,35 +68,52 @@ terraform/
 
 ### Initial Setup
 
-#### Step 1: Create Backend Storage Account
+#### Step 1: Bootstrap Terraform State (One-Time)
 
-Terraform state must be stored remotely for team collaboration and state locking.
+Run the bootstrap script to create the Azure resources needed for Terraform remote state:
 
 ```bash
-# Create resource group for Terraform state
-az group create \
-  --name rg-terraform-state \
-  --location eastus2
+# Prerequisites check
+az login                    # Login to Azure
+az account show             # Verify correct subscription
 
-# Create storage account (name must be globally unique)
-az storage account create \
-  --name stterraformstate<your-initials><random> \
-  --resource-group rg-terraform-state \
-  --location eastus2 \
-  --sku Standard_LRS \
-  --encryption-services blob
+# Run bootstrap script
+./scripts/bootstrap-terraform-state.sh eastus2
+```
 
-# Create container for state files
-az storage container create \
-  --name tfstate \
-  --account-name stterraformstate<your-unique-name>
+**What it creates:**
+- Resource Group: `rg-terraform-state`
+- Storage Account: `sttfstatefinrisk<random>`
+- Blob Container: `tfstate`
 
-# Grant yourself Storage Blob Data Contributor role (for Azure AD auth)
-ACCOUNT_ID=$(az storage account show --name stterraformstate<your-unique-name> --resource-group rg-terraform-state --query id --output tsv)
-az role assignment create \
-  --role "Storage Blob Data Contributor" \
-  --assignee $(az ad signed-in-user show --query id --output tsv) \
-  --scope $ACCOUNT_ID
+**Output:** The script outputs the `backend.hcl` configuration for both dev and prod environments.
+
+#### Step 2: Configure Backend for Each Environment
+
+```bash
+# Copy the output from bootstrap script to backend.hcl files
+
+# For Dev
+cp terraform/environments/dev/backend.hcl.example terraform/environments/dev/backend.hcl
+# Edit with values from bootstrap script output
+
+# For Prod
+cp terraform/environments/prod/backend.hcl.example terraform/environments/prod/backend.hcl
+# Edit with values from bootstrap script output
+```
+
+#### Step 3: Initialize Terraform
+
+```bash
+# Dev environment
+cd terraform/environments/dev
+terraform init -backend-config=backend.hcl
+terraform validate
+
+# Prod environment
+cd ../prod
+terraform init -backend-config=backend.hcl
+terraform validate
 ```
 
 #### Step 2: Configure Backend

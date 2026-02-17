@@ -2,6 +2,29 @@
 
 This directory contains the Terraform configuration for the **FinRisk Platform Production Environment**.
 
+## Prerequisites
+
+Before deploying, ensure you have:
+
+1. **Azure CLI installed and authenticated**
+   ```bash
+   brew install azure-cli     # macOS
+   az login                    # Authenticate
+   az account show             # Verify subscription
+   ```
+
+2. **Terraform installed (>= 1.5.0)**
+   ```bash
+   brew install terraform
+   terraform version
+   ```
+
+3. **Terraform state storage bootstrapped**
+   ```bash
+   # Run once to create storage account for Terraform state
+   ./scripts/bootstrap-terraform-state.sh eastus2
+   ```
+
 ## Quick Start
 
 ```bash

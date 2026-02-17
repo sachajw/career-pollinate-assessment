@@ -2,6 +2,33 @@
 
 Automation scripts for FinRisk Platform deployment and certificate management.
 
+## Bootstrap
+
+### bootstrap-terraform-state.sh
+
+**Purpose**: One-time setup of Azure resources for Terraform remote state backend
+
+**Usage**:
+```bash
+./scripts/bootstrap-terraform-state.sh [LOCATION]
+```
+
+**Prerequisites**:
+- Azure CLI installed: `brew install azure-cli`
+- Azure CLI authenticated: `az login`
+- Correct subscription selected: `az account set --subscription <id>`
+
+**What it creates**:
+- Resource Group: `rg-terraform-state`
+- Storage Account: `sttfstatefinrisk<random>`
+- Blob Container: `tfstate`
+
+**Output**: Configuration for `backend.hcl` files (dev and prod)
+
+**When to run**: Once, before first Terraform deployment
+
+---
+
 ## Certificate Management
 
 ### upload-certificate.sh
