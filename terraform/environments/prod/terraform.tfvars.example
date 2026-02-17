@@ -1,0 +1,57 @@
+# Production Environment Variables
+# Copy this file to terraform.tfvars and fill in the values
+#
+# cp terraform.tfvars.example terraform.tfvars
+
+#------------------------------------------------------------------------------
+# Required Configuration
+#------------------------------------------------------------------------------
+
+# Azure subscription ID (or set ARM_SUBSCRIPTION_ID environment variable)
+# subscription_id = "00000000-0000-0000-0000-000000000000"
+
+#------------------------------------------------------------------------------
+# Environment Configuration
+#------------------------------------------------------------------------------
+
+location    = "eastus2"
+project_name = "finrisk"
+environment  = "prod"
+
+#------------------------------------------------------------------------------
+# Container App Configuration
+#------------------------------------------------------------------------------
+
+# Production: Always on for high availability
+# min_replicas = 2 ensures no cold starts and HA across zones
+container_app_min_replicas = 2
+container_app_max_replicas = 10
+
+#------------------------------------------------------------------------------
+# Observability Configuration
+#------------------------------------------------------------------------------
+
+# Production: Longer retention for compliance
+log_analytics_retention_days = 90
+
+# Enable availability test in production
+enable_availability_test = true
+
+#------------------------------------------------------------------------------
+# Custom Domain Configuration
+#------------------------------------------------------------------------------
+
+# Enable custom domain in production
+custom_domain_enabled = true
+custom_domain_name    = "finrisk.yourdomain.com"  # Change to your domain
+certificate_name      = "finrisk-prod-cert"
+
+#------------------------------------------------------------------------------
+# Tags
+#------------------------------------------------------------------------------
+
+tags = {
+  CostCenter  = "Production"
+  Criticality = "High"
+  Backup      = "Enabled"
+}

@@ -1,0 +1,13 @@
+# Terraform Backend Configuration for Production
+# Copy this file to backend.hcl and fill in the values
+#
+# cp backend.hcl.example backend.hcl
+
+# Azure Storage Account for Terraform state
+# Use the same storage account as dev, but different key
+resource_group_name  = "rg-terraform-state"
+storage_account_name = "sttfstatefinrisk001"  # Change to your storage account
+container_name       = "tfstate"
+
+# Unique state file key for production environment
+key = "finrisk-prod.tfstate"
