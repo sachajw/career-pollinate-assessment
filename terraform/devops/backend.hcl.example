@@ -1,7 +1,0 @@
-# Terraform Backend Configuration
-# Copy to backend.hcl and configure
-
-storage_account_name = "stfinrisktf4d9e8d"
-container_name       = "tfstate"
-key                  = "finrisk-devops.tfstate"
-resource_group_name  = "rg-terraform-state"

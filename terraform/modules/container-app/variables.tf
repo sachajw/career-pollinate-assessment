@@ -470,52 +470,6 @@ variable "ip_security_restrictions" {
 }
 
 #------------------------------------------------------------------------------
-# CORS Configuration (Note: Handled at application level)
-#------------------------------------------------------------------------------
-
-variable "cors_enabled" {
-  description = "Enable CORS configuration"
-  type        = bool
-  default     = false
-}
-
-variable "cors_allowed_origins" {
-  description = "List of allowed CORS origins"
-  type        = list(string)
-  default     = ["*"]
-}
-
-variable "cors_allowed_methods" {
-  description = "List of allowed CORS methods"
-  type        = list(string)
-  default     = ["GET", "POST", "PUT", "DELETE", "OPTIONS"]
-}
-
-variable "cors_allowed_headers" {
-  description = "List of allowed CORS headers"
-  type        = list(string)
-  default     = ["*"]
-}
-
-variable "cors_expose_headers" {
-  description = "List of exposed CORS headers"
-  type        = list(string)
-  default     = []
-}
-
-variable "cors_max_age" {
-  description = "CORS max age in seconds"
-  type        = number
-  default     = 3600
-}
-
-variable "cors_allow_credentials" {
-  description = "Allow CORS credentials"
-  type        = bool
-  default     = false
-}
-
-#------------------------------------------------------------------------------
 # Registry Configuration
 #------------------------------------------------------------------------------
 
@@ -551,34 +505,6 @@ variable "key_vault_id" {
   description = "ID of the Key Vault for RBAC assignment (required if enable_key_vault_access = true)"
   type        = string
   default     = ""
-}
-
-#------------------------------------------------------------------------------
-# Dapr Configuration (Optional - for microservices)
-#------------------------------------------------------------------------------
-
-variable "dapr_enabled" {
-  description = "Enable Dapr sidecar"
-  type        = bool
-  default     = false
-}
-
-variable "dapr_app_id" {
-  description = "Dapr application ID"
-  type        = string
-  default     = null
-}
-
-variable "dapr_app_protocol" {
-  description = "Dapr application protocol (http, grpc)"
-  type        = string
-  default     = "http"
-}
-
-variable "dapr_app_port" {
-  description = "Dapr application port"
-  type        = number
-  default     = null
 }
 
 #------------------------------------------------------------------------------

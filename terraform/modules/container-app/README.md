@@ -10,7 +10,6 @@ A Terraform module for creating Azure Container Apps with managed identity, auto
 - HTTPS-only ingress with optional custom domain
 - Blue/green deployment support via traffic weighting
 - IP security restrictions
-- Dapr sidecar support (optional)
 - Automatic RBAC assignments for ACR and Key Vault
 - VNet integration and private ingress support
 - Custom domain with certificate support
@@ -226,18 +225,6 @@ module "container_app" {
 | traffic_label              | Label for traffic split          | `string` | `null`   |
 | ip_security_restrictions   | IP security restrictions         | `list(object)` | `[]` |
 
-### CORS Configuration
-
-| Name                    | Description              | Type           | Default                              |
-| ----------------------- | ------------------------ | -------------- | ------------------------------------ |
-| cors_enabled            | Enable CORS              | `bool`         | `false`                              |
-| cors_allowed_origins    | Allowed origins          | `list(string)` | `["*"]`                              |
-| cors_allowed_methods    | Allowed methods          | `list(string)` | `["GET", "POST", "PUT", "DELETE", "OPTIONS"]` |
-| cors_allowed_headers    | Allowed headers          | `list(string)` | `["*"]`                              |
-| cors_expose_headers     | Exposed headers          | `list(string)` | `[]`                                 |
-| cors_max_age            | Max age in seconds       | `number`       | `3600`                               |
-| cors_allow_credentials  | Allow credentials        | `bool`         | `false`                              |
-
 ### Registry and Key Vault
 
 | Name                    | Description                            | Type     | Default |
@@ -247,15 +234,6 @@ module "container_app" {
 | container_registry_id   | ACR ID for RBAC                        | `string` | `""`    |
 | enable_key_vault_access | Enable Key Vault secrets user role     | `bool`   | `false` |
 | key_vault_id            | Key Vault ID for RBAC                  | `string` | `""`    |
-
-### Dapr Configuration
-
-| Name              | Description           | Type     | Default  |
-| ----------------- | --------------------- | -------- | -------- |
-| dapr_enabled      | Enable Dapr sidecar   | `bool`   | `false`  |
-| dapr_app_id       | Dapr application ID   | `string` | `null`   |
-| dapr_app_protocol | Dapr protocol         | `string` | `"http"` |
-| dapr_app_port     | Dapr application port | `number` | `null`   |
 
 ### Custom Domain Configuration
 

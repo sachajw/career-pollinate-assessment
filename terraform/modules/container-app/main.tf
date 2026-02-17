@@ -302,17 +302,6 @@ resource "azurerm_container_app" "this" {
     }
   }
 
-  # Dapr sidecar configuration (optional)
-  # Enables distributed application runtime features
-  dynamic "dapr" {
-    for_each = var.dapr_enabled ? [1] : []
-    content {
-      app_id       = var.dapr_app_id
-      app_protocol = var.dapr_app_protocol
-      app_port     = var.dapr_app_port
-    }
-  }
-
   # Resource tags for organization and cost management
   tags = var.tags
 
