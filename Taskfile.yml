@@ -41,10 +41,12 @@ version: '3'
 vars:
   TERRAFORM_ENV_DIR: './terraform/environments/dev'
   APP_DIR: './app'
-  SCRIPTS_DIR: './terraform/scripts'
   # Deployment URLs
   DEV_URL: 'https://finrisk-dev.pangarabbit.com'
   DEV_URL_DEFAULT: 'https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io'
+  # Bootstrap config
+  STATE_RG: 'rg-terraform-state'
+  STATE_STORAGE_PREFIX: 'sttfstatefinrisk'
 
 tasks:
   default:
@@ -58,7 +60,6 @@ tasks:
 
   infra:bootstrap:
     desc: Bootstrap Terraform state storage (one-time setup)
-    dir: '{{.SCRIPTS_DIR}}'
     cmds:
       - |
         echo ""
@@ -66,8 +67,8 @@ tasks:
         echo "======================================"
         echo ""
         echo "This will create:"
-        echo "  - Resource Group: rg-terraform-state"
-        echo "  - Storage Account: sttfstatefinrisk<random>"
+        echo "  - Resource Group: {{.STATE_RG}}"
+        echo "  - Storage Account: {{.STATE_STORAGE_PREFIX}}<random>"
         echo "  - Container: tfstate"
         echo ""
         read -p "Continue? (y/N) " -n 1 -r
@@ -76,7 +77,43 @@ tasks:
           echo "Cancelled"
           exit 1
         fi
-        ./bootstrap-terraform-state.sh eastus2
+
+        LOCATION="${LOCATION:-eastus2}"
+        RANDOM_SUFFIX=$(openssl rand -hex 4)
+        STORAGE_NAME="{{.STATE_STORAGE_PREFIX}}${RANDOM_SUFFIX}"
+
+        echo ""
+        echo "Creating resource group: {{.STATE_RG}}"
+        az group create --name {{.STATE_RG}} --location "$LOCATION" -o none
+
+        echo "Creating storage account: $STORAGE_NAME"
+        az storage account create \
+          --name "$STORAGE_NAME" \
+          --resource-group {{.STATE_RG}} \
+          --location "$LOCATION" \
+          --sku Standard_LRS \
+          --encryption-services blob \
+          --https-only true \
+          --min-tls-version TLS1_2 \
+          -o none
+
+        echo "Creating container: tfstate"
+        az storage container create \
+          --name tfstate \
+          --account-name "$STORAGE_NAME" \
+          --auth-mode login \
+          -o none
+
+        echo ""
+        echo "✅ Bootstrap complete!"
+        echo ""
+        echo "Add this to your backend.hcl:"
+        echo ""
+        echo "  resource_group_name  = \"{{.STATE_RG}}\""
+        echo "  storage_account_name = \"$STORAGE_NAME\""
+        echo "  container_name       = \"tfstate\""
+        echo "  key                  = \"finrisk-dev.tfstate\""
+        echo ""
 
   infra:preflight:
     desc: Run infrastructure pre-flight checks
