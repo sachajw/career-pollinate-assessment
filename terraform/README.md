@@ -13,8 +13,7 @@ terraform/
 │   ├── container-registry/    # Azure Container Registry (ACR)
 │   ├── key-vault/             # Azure Key Vault for secrets
 │   ├── observability/         # Log Analytics + Application Insights
-│   ├── container-app/         # Azure Container Apps + Environment
-│   └── azure-devops/          # Azure DevOps CI/CD configuration
+│   └── container-app/         # Azure Container Apps + Environment
 │
 ├── environments/              # Environment-specific configurations
 │   ├── dev/                   # Development environment
@@ -27,7 +26,6 @@ terraform/
 │   └── prod/                  # Production environment
 │       └── (same structure as dev)
 │
-├── devops/                    # Azure DevOps Terraform configuration
 ├── tests/                     # Terratest infrastructure tests (Go)
 ├── scripts/                   # Helper scripts (e.g. certificate upload)
 ├── versions.tf                # Terraform and provider versions
