@@ -32,8 +32,8 @@ variable "location" {
   # Validation: Restrict to approved Azure regions
   # Add more regions here as needed for your organization
   validation {
-    condition     = contains(["eastus2", "westus2", "centralus"], var.location)
-    error_message = "Location must be one of the approved regions: eastus2, westus2, centralus"
+    condition     = contains(["eastus", "eastus2", "westus2", "centralus"], var.location)
+    error_message = "Location must be one of the approved regions: eastus, eastus2, westus2, centralus"
   }
 }
 

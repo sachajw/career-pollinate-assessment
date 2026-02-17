@@ -71,6 +71,11 @@ Development environment estimated monthly cost:
 
 With scale-to-zero enabled, costs can be as low as $12/month when idle.
 
+## Custom Domain
+
+- **Domain:** `finrisk-dev.pangarabbit.com`
+- **Certificate:** `finrisk-pangarabbit-cert` (wildcard)
+
 ## Common Operations
 
 ### View Application Logs
