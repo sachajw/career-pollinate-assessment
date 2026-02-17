@@ -2,6 +2,14 @@
 
 This directory contains the Terraform configuration for the **FinRisk Platform Production Environment**.
 
+## Assessment Note
+
+For this technical assessment, only the **dev environment** is deployed due to Azure subscription quota limits:
+- **Container App Environments**: Limited to 1 per subscription
+- **Current deployment**: `rg-finrisk-dev` in `eastus2`
+
+In a production scenario, this configuration would deploy to a separate subscription or with increased quotas.
+
 ## Prerequisites
 
 Before deploying, ensure you have:
@@ -21,8 +29,13 @@ Before deploying, ensure you have:
 
 3. **Terraform state storage bootstrapped**
    ```bash
-   # Run once to create storage account for Terraform state
-   ./scripts/bootstrap-terraform-state.sh eastus2
+   ./scripts/bootstrap-terraform-state.sh <region>
+   ```
+
+4. **Azure quota verification**
+   ```bash
+   # Check Container App Environment quota
+   az quota show --scope /subscriptions/<sub-id> --resource-name ContainerAppsManagedEnvironments --namespace Microsoft.App
    ```
 
 ## Quick Start
@@ -57,6 +70,32 @@ terraform apply tfplan
 | ip_masking | false | true | Privacy/compliance |
 | availability_test | false | true | Proactive monitoring |
 
+## Custom Domain
+
+- **Domain**: `finrisk.pangarabbit.com`
+- **Certificate**: `finrisk-pangarabbit-cert` (wildcard)
+
+## CI/CD Integration
+
+The production environment is deployed via the `main` branch:
+
+```
+dev branch  → dev environment  (rg-finrisk-dev)
+main branch → prod environment (rg-finrisk-prod)
+```
+
+### Azure DevOps Setup Required
+
+1. **Variable Group**: `finrisk-prod`
+   - `terraformStateStorageAccount` - storage account for state
+
+2. **Environments** (with approvals):
+   - `prod-infrastructure` - for terraform apply
+   - `prod` - for container app deployment
+
+3. **Service Connections**:
+   - `acr-prod-service-connection` - for prod container registry
+
 ## Security Considerations
 
 1. **Managed Identity**: All Azure service authentication uses Managed Identity
@@ -86,5 +125,4 @@ Production environment estimated monthly cost:
 ## Related Documentation
 
 - [ADR-006: Terraform Module Architecture](../../../documentation/adr/006-terraform-module-architecture.md)
-- [Operations Runbook](../../../documentation/runbooks/OPERATIONS_RUNBOOK.md)
-- [Infrastructure Quick Reference](../../../documentation/INFRASTRUCTURE_QUICK_REFERENCE.md)
+- [Main Terraform README](../../README.md)
