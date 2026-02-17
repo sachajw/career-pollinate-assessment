@@ -50,6 +50,7 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 
 | Document | Description |
 |----------|-------------|
+| [Taskfile Guide](./taskfile-guide.md) | Task runner commands and workflows |
 | [Technical Assessment](./documentation/technical-assessment.md) | Original assessment requirements |
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
