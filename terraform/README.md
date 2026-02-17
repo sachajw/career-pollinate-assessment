@@ -17,13 +17,15 @@ terraform/
 │   └── azure-devops/          # Azure DevOps CI/CD configuration
 │
 ├── environments/              # Environment-specific configurations
-│   └── dev/                   # Development environment
-│       ├── main.tf            # Main configuration
-│       ├── variables.tf       # Variable definitions
-│       ├── outputs.tf         # Output values
-│       ├── backend.tf         # Remote state configuration
-│       ├── backend.hcl.example      # Backend config template
-│       └── terraform.tfvars.example # Variables template
+│   ├── dev/                   # Development environment
+│   │   ├── main.tf            # Main configuration
+│   │   ├── variables.tf       # Variable definitions
+│   │   ├── outputs.tf         # Output values
+│   │   ├── backend.tf         # Remote state configuration
+│   │   ├── backend.hcl.example      # Backend config template
+│   │   └── terraform.tfvars.example # Variables template
+│   └── prod/                  # Production environment
+│       └── (same structure as dev)
 │
 ├── devops/                    # Azure DevOps Terraform configuration
 ├── tests/                     # Terratest infrastructure tests (Go)
@@ -77,8 +79,8 @@ Run the bootstrap script to create the Azure resources needed for Terraform remo
 az login                    # Login to Azure
 az account show             # Verify correct subscription
 
-# Run bootstrap script
-./scripts/bootstrap-terraform-state.sh eastus2
+# Run bootstrap script (from repo root)
+./terraform/scripts/bootstrap-terraform-state.sh eastus2
 ```
 
 **What it creates:**

@@ -2,28 +2,41 @@
 set -euo pipefail
 
 #------------------------------------------------------------------------------
-# Deploy FinRisk Platform with Custom Domain
+# Deploy with Custom Domain - Production Environment
 #------------------------------------------------------------------------------
-# This script deploys the Container App with custom domain finrisk.pangarabbit.com
+# Deploys the Container App with custom domain enabled.
+#
+# Usage: ./deploy-with-certificate.sh
 #
 # Prerequisites:
-#   - Certificate already uploaded (run scripts/upload-certificate.sh first)
+#   - Certificate already uploaded (run upload-certificate.sh first)
 #   - Terraform initialized
 #------------------------------------------------------------------------------
 
 SCRIPT_DIR="$(cd "$(dirname "${BASH_SOURCE[0]}")" && pwd)"
-PROJECT_ROOT="$(dirname "$SCRIPT_DIR")"
-TERRAFORM_DIR="$PROJECT_ROOT/terraform/environments/dev"
+TERRAFORM_ROOT="$(dirname "$SCRIPT_DIR")"
+TERRAFORM_DIR="$TERRAFORM_ROOT/../environments/prod"
 
 # Colors
 GREEN='\033[0;32m'
 BLUE='\033[0;34m'
 YELLOW='\033[1;33m'
+RED='\033[0;31m'
 NC='\033[0m'
 
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
-echo -e "${BLUE}        FinRisk Platform - Deployment with Custom Domain        ${NC}"
+echo -e "${BLUE}        FinRisk Platform - Production Deployment               ${NC}"
 echo -e "${BLUE}════════════════════════════════════════════════════════════════${NC}"
+echo ""
+
+# Production confirmation
+echo -e "${RED}⚠️  PRODUCTION ENVIRONMENT ⚠️${NC}"
+echo ""
+read -p "Confirm deployment to PRODUCTION? (yes/no): " confirm
+if [[ "$confirm" != "yes" ]]; then
+    echo -e "${YELLOW}Deployment cancelled${NC}"
+    exit 0
+fi
 echo ""
 
 # Change to Terraform directory
@@ -79,19 +92,19 @@ echo -e "${BLUE}Record 1 - CNAME for finrisk subdomain:${NC}"
 echo "  Type:   CNAME"
 echo "  Name:   finrisk"
 echo "  Target: ${APPLICATION_URL#https://}"
-echo "  Proxy:  ✅ Enabled (orange cloud)"
+echo "  Proxy:  Enabled (orange cloud)"
 echo ""
 echo -e "${BLUE}Record 2 - TXT for domain verification:${NC}"
 echo "  Type:    TXT"
 echo "  Name:    asuid.finrisk"
 echo "  Content: $VERIFICATION_ID"
-echo "  Proxy:   ⬜ DNS only (gray cloud)"
+echo "  Proxy:   DNS only (gray cloud)"
 echo ""
 echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
 echo -e "${YELLOW}            Cloudflare SSL Configuration                        ${NC}"
 echo -e "${YELLOW}════════════════════════════════════════════════════════════════${NC}"
 echo ""
-echo "1. Go to SSL/TLS → Overview"
+echo "1. Go to SSL/TLS -> Overview"
 echo "2. Set mode to: ${BLUE}Full (strict)${NC}"
 echo "3. Verify Origin Server certificate is active"
 echo ""

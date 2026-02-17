@@ -116,7 +116,7 @@ terraform apply tfplan
 
 ```bash
 # Automated script (recommended)
-./scripts/upload-certificate.sh
+./terraform/scripts/upload-certificate.sh
 
 # Manual upload
 az containerapp env certificate upload \
