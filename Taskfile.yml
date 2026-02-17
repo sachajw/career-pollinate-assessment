@@ -56,6 +56,28 @@ tasks:
   # Infrastructure Tasks
   # ============================================================================
 
+  infra:bootstrap:
+    desc: Bootstrap Terraform state storage (one-time setup)
+    dir: '{{.SCRIPTS_DIR}}'
+    cmds:
+      - |
+        echo ""
+        echo "Bootstrapping Terraform State Storage"
+        echo "======================================"
+        echo ""
+        echo "This will create:"
+        echo "  - Resource Group: rg-terraform-state"
+        echo "  - Storage Account: sttfstatefinrisk<random>"
+        echo "  - Container: tfstate"
+        echo ""
+        read -p "Continue? (y/N) " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+          echo "Cancelled"
+          exit 1
+        fi
+        ./bootstrap-terraform-state.sh eastus2
+
   infra:preflight:
     desc: Run infrastructure pre-flight checks
     dir: '{{.TERRAFORM_ENV_DIR}}'
@@ -380,6 +402,91 @@ tasks:
       - task: app:push
       - task: update-container-app
 
+  app:test-api:
+    desc: Test the /validate API endpoint locally
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - |
+        echo "Testing /validate endpoint..."
+        echo ""
+        curl -X POST http://localhost:8080/validate \
+          -H "Content-Type: application/json" \
+          -d '{
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "idNumber": "9001011234088"
+          }'
+        echo ""
+
+  app:test-validate:
+    desc: Test the /validate API endpoint on deployed app
+    cmds:
+      - |
+        echo "Testing /validate endpoint on {{.DEV_URL}}..."
+        echo ""
+        curl -X POST "{{.DEV_URL}}/validate" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "idNumber": "9001011234088"
+          }'
+        echo ""
+
+  # ============================================================================
+  # Security Tasks
+  # ============================================================================
+
+  kv:set-secret:
+    desc: Set a secret in Azure Key Vault (SECRET_NAME=name SECRET_VALUE=value)
+    cmds:
+      - |
+        if [ -z "$SECRET_NAME" ] || [ -z "$SECRET_VALUE" ]; then
+          echo "❌ SECRET_NAME and SECRET_VALUE must be set"
+          echo ""
+          echo "Usage:"
+          echo "  SECRET_NAME=RISKSHIELD-API-KEY SECRET_VALUE=your-key task kv:set-secret"
+          echo ""
+          exit 1
+        fi
+
+        echo "Setting secret: $SECRET_NAME"
+        az keyvault secret set \
+          --vault-name kv-finrisk-dev \
+          --name "$SECRET_NAME" \
+          --value "$SECRET_VALUE"
+
+        echo "✅ Secret set successfully"
+
+  kv:get-secret:
+    desc: Get a secret from Azure Key Vault (SECRET_NAME=name)
+    cmds:
+      - |
+        if [ -z "$SECRET_NAME" ]; then
+          echo "❌ SECRET_NAME must be set"
+          echo ""
+          echo "Usage:"
+          echo "  SECRET_NAME=RISKSHIELD-API-KEY task kv:get-secret"
+          echo ""
+          exit 1
+        fi
+
+        az keyvault secret show \
+          --vault-name kv-finrisk-dev \
+          --name "$SECRET_NAME" \
+          --query value \
+          --output tsv
+
+  kv:list-secrets:
+    desc: List all secrets in Key Vault
+    cmds:
+      - |
+        echo "Secrets in kv-finrisk-dev:"
+        az keyvault secret list \
+          --vault-name kv-finrisk-dev \
+          --query "[].name" \
+          --output tsv
+
   # ============================================================================
   # Azure DevOps Tasks
   # ============================================================================
@@ -508,6 +615,62 @@ tasks:
         echo ""
 
         echo "✅ Endpoint is responding"
+
+  smoke-test:
+    desc: Run smoke tests against deployed application
+    cmds:
+      - |
+        URL="{{.DEV_URL}}"
+        FAILED=0
+
+        echo ""
+        echo "Smoke Tests - $URL"
+        echo "===================="
+        echo ""
+
+        # Test 1: Health endpoint
+        echo "1. Health check..."
+        if curl -sf "$URL/health" > /dev/null; then
+          echo "   ✅ Health check passed"
+        else
+          echo "   ❌ Health check failed"
+          FAILED=1
+        fi
+
+        # Test 2: Ready endpoint
+        echo "2. Ready check..."
+        if curl -sf "$URL/ready" > /dev/null; then
+          echo "   ✅ Ready check passed"
+        else
+          echo "   ❌ Ready check failed"
+          FAILED=1
+        fi
+
+        # Test 3: API docs available
+        echo "3. API docs..."
+        if curl -sf "$URL/docs" > /dev/null; then
+          echo "   ✅ API docs accessible"
+        else
+          echo "   ❌ API docs failed"
+          FAILED=1
+        fi
+
+        # Test 4: OpenAPI spec
+        echo "4. OpenAPI spec..."
+        if curl -sf "$URL/openapi.json" > /dev/null; then
+          echo "   ✅ OpenAPI spec accessible"
+        else
+          echo "   ❌ OpenAPI spec failed"
+          FAILED=1
+        fi
+
+        echo ""
+        if [ $FAILED -eq 0 ]; then
+          echo "✅ All smoke tests passed!"
+        else
+          echo "❌ Some smoke tests failed"
+          exit 1
+        fi
 
   urls:
     desc: Show deployed URLs
