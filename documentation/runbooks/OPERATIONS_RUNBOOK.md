@@ -4,14 +4,14 @@ This runbook provides operational procedures for the Risk Scoring API.
 
 ## Service Overview
 
-| Property | Value |
-|----------|-------|
-| Service Name | Risk Scoring API |
-| Technology | FastAPI (Python 3.13) |
-| Platform | Azure Container Apps |
-| Port | 8080 |
-| Health Endpoint | `/health` |
-| Readiness Endpoint | `/ready` |
+| Property           | Value                 |
+| ------------------ | --------------------- |
+| Service Name       | Risk Scoring API      |
+| Technology         | FastAPI (Python 3.13) |
+| Platform           | Azure Container Apps  |
+| Port               | 8080                  |
+| Health Endpoint    | `/health`             |
+| Readiness Endpoint | `/ready`              |
 
 ## Quick Reference
 
@@ -65,12 +65,12 @@ az containerapp revision restart \
 
 ### Severity Levels
 
-| Level | Description | Response Time |
-|-------|-------------|---------------|
-| P1 - Critical | Service down, data loss | 15 minutes |
-| P2 - High | Degraded performance, partial outage | 1 hour |
-| P3 - Medium | Feature not working | 4 hours |
-| P4 - Low | Minor issue, workaround available | 24 hours |
+| Level         | Description                          | Response Time |
+| ------------- | ------------------------------------ | ------------- |
+| P1 - Critical | Service down, data loss              | 15 minutes    |
+| P2 - High     | Degraded performance, partial outage | 1 hour        |
+| P3 - Medium   | Feature not working                  | 4 hours       |
+| P4 - Low      | Minor issue, workaround available    | 24 hours      |
 
 ### Incident Response Steps
 
@@ -88,6 +88,7 @@ az containerapp revision restart \
 ### Issue: Application Not Responding
 
 **Symptoms:**
+
 - Health checks failing
 - 503 Service Unavailable
 - Connection timeouts
@@ -117,12 +118,14 @@ az containerapp revision list \
 **Resolution:**
 
 1. Check if scale-to-zero (cold start issue):
+
    ```bash
    # Wait 10 seconds and retry health check
    sleep 10 && curl https://<app-url>/health
    ```
 
 2. Check for crash loops:
+
    ```bash
    az containerapp revision restart \
      --name ca-finrisk-dev \
@@ -136,6 +139,7 @@ az containerapp revision list \
 ### Issue: RiskShield API Errors
 
 **Symptoms:**
+
 - 502/503 errors on validation
 - Timeout errors
 - Intermittent failures
@@ -161,6 +165,7 @@ az containerapp logs show \
    - Contact RiskShield support if persistent
 
 3. **Auth failure:**
+
    ```bash
    # Verify API key in Key Vault
    az keyvault secret show \
@@ -180,6 +185,7 @@ az containerapp logs show \
 ### Issue: High Error Rate
 
 **Symptoms:**
+
 - Elevated 4xx/5xx responses
 - Application Insights alerts
 
@@ -211,6 +217,7 @@ az monitor app-insights query \
 ### Issue: Memory/CPU Alerts
 
 **Symptoms:**
+
 - Container restart
 - Slow response times
 - OOMKilled events
@@ -233,6 +240,7 @@ az monitor metrics list \
 **Resolution:**
 
 1. Scale up resources:
+
    ```bash
    az containerapp update \
      --name ca-finrisk-dev \
@@ -353,19 +361,20 @@ curl -X POST https://<app-url>/api/v1/validate \
 
 ### Key Metrics to Monitor
 
-| Metric | Threshold | Alert |
-|--------|-----------|-------|
-| Error Rate | > 1% | Warning |
-| Error Rate | > 5% | Critical |
-| P95 Latency | > 2s | Warning |
-| P95 Latency | > 5s | Critical |
-| Availability | < 99% | Critical |
-| CPU Usage | > 80% | Warning |
-| Memory Usage | > 85% | Warning |
+| Metric       | Threshold | Alert    |
+| ------------ | --------- | -------- |
+| Error Rate   | > 1%      | Warning  |
+| Error Rate   | > 5%      | Critical |
+| P95 Latency  | > 2s      | Warning  |
+| P95 Latency  | > 5s      | Critical |
+| Availability | < 99%     | Critical |
+| CPU Usage    | > 80%     | Warning  |
+| Memory Usage | > 85%     | Warning  |
 
 ### Log Queries
 
 **Recent errors:**
+
 ```kusto
 traces
 | where timestamp > ago(1h)
@@ -375,6 +384,7 @@ traces
 ```
 
 **Request latency by endpoint:**
+
 ```kusto
 requests
 | where timestamp > ago(1h)
@@ -383,6 +393,7 @@ requests
 ```
 
 **Requests by error code:**
+
 ```kusto
 requests
 | where timestamp > ago(1h)
@@ -397,19 +408,19 @@ requests
 
 ### On-Call Contacts
 
-| Role | Contact | Escalation Order |
-|------|---------|------------------|
-| Primary On-Call | #platform-oncall | 1 |
-| Secondary On-Call | #platform-secondary | 2 |
-| Platform Lead | #platform-lead | 3 |
-| Engineering Manager | #eng-manager | 4 |
+| Role                | Contact             | Escalation Order |
+| ------------------- | ------------------- | ---------------- |
+| Primary On-Call     | #platform-oncall    | 1                |
+| Secondary On-Call   | #platform-secondary | 2                |
+| Platform Lead       | #platform-lead      | 3                |
+| Engineering Manager | #eng-manager        | 4                |
 
 ### External Contacts
 
-| Service | Contact | SLA |
-|---------|---------|-----|
-| RiskShield Support | support@riskshield.com | 4 hours |
-| Azure Support | Azure Portal | Per plan |
+| Service            | Contact                | SLA      |
+| ------------------ | ---------------------- | -------- |
+| RiskShield Support | support@riskshield.com | 4 hours  |
+| Azure Support      | Azure Portal           | Per plan |
 
 ---
 

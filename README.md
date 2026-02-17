@@ -47,12 +47,9 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | Document | Description |
 |----------|-------------|
 | [Technical Assessment](./documentation/technical-assessment.md) | Original assessment requirements |
-| [Assessment Compliance Report](./documentation/ASSESSMENT_COMPLIANCE_REPORT.md) | Requirement verification matrix |
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
-| [Architecture Decisions](./documentation/architecture/adr/README.md) | ADRs for key decisions |
-| [**Deployment Log**](./documentation/archive/DEPLOYMENT_LOG.md) | **Complete infrastructure deployment record** |
-| [**Quick Reference**](./documentation/INFRASTRUCTURE_QUICK_REFERENCE.md) | **Daily operations and troubleshooting** |
+| [Architecture Decisions](./documentation/adr/README.md) | ADRs for key decisions |
 | [API Specification](./documentation/api/API_SPECIFICATION.md) | REST API documentation |
 | [Developer Guide](./documentation/api/DEVELOPER_GUIDE.md) | Development practices and guidelines |
 | [Operations Runbook](./documentation/runbooks/OPERATIONS_RUNBOOK.md) | Operational procedures |
