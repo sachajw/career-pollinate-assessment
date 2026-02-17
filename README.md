@@ -76,22 +76,18 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 │   │   ├── container-registry/
 │   │   └── observability/
 │   ├── environments/           # Environment-specific configs
-│   │   └── dev/
+│   │   ├── dev/
+│   │   └── prod/
 │   └── README.md               # Terraform documentation
 ├── pipelines/                  # CI/CD definitions
 │   ├── azure-pipelines.yml     # Main pipeline
 │   └── README.md               # Pipeline documentation
 ├── documentation/              # Architecture documentation
-│   ├── architecture/           # Solution architecture
-│   │   ├── solution-architecture.md
-│   │   ├── architecture-diagram.md
-│   │   └── adr/               # Architecture Decision Records
-│   ├── api/                   # API specifications
-│   │   ├── API_SPECIFICATION.md
-│   │   └── DEVELOPER_GUIDE.md
-│   └── runbooks/              # Operational procedures
-│       └── OPERATIONS_RUNBOOK.md
-└── README.md                  # This file
+│   ├── adr/                    # Architecture Decision Records
+│   └── architecture/           # Solution architecture
+│       ├── solution-architecture.md
+│       └── architecture-diagram.md
+└── README.md                   # This file
 ```
 
 ## 🚀 Quick Start
@@ -166,7 +162,7 @@ See [Solution Architecture](./documentation/architecture/solution-architecture.m
 - KEDA event-driven autoscaling
 - Future-ready with Dapr support
 
-[Full analysis in ADR-001](./documentation/architecture/adr/001-azure-container-apps.md)
+[Full analysis in ADR-001](./documentation/adr/001-azure-container-apps.md)
 
 ### Why Python + FastAPI?
 
@@ -177,7 +173,7 @@ See [Solution Architecture](./documentation/architecture/solution-architecture.m
 - Strong Azure SDK support
 - FinTech industry standard
 
-[Full analysis in ADR-002](./documentation/architecture/adr/002-python-runtime.md)
+[Full analysis in ADR-002](./documentation/adr/002-python-runtime.md)
 
 ### Why Managed Identity?
 
@@ -187,7 +183,7 @@ See [Solution Architecture](./documentation/architecture/solution-architecture.m
 - SOC 2 compliance (password-less)
 - Comprehensive audit trail
 
-[Full analysis in ADR-003](./documentation/architecture/adr/003-managed-identity-security.md)
+[Full analysis in ADR-003](./documentation/adr/003-managed-identity-security.md)
 
 ## 📈 Performance Targets
 
@@ -313,14 +309,6 @@ az load test run --test-id finrisk-load-test
 
 **Test Scenario:** 1000 concurrent users, 10 min duration
 
-## 📋 Operational Runbooks
-
-- [Deployment Procedure](./documentation/runbooks/deployment.md)
-- [Incident Response](./documentation/runbooks/incident-response.md)
-- [Rollback Procedure](./documentation/runbooks/rollback.md)
-- [Secret Rotation](./documentation/runbooks/secret-rotation.md)
-- [Disaster Recovery](./documentation/runbooks/disaster-recovery.md)
-
 ## 🎯 Success Metrics
 
 ### Technical Metrics
@@ -390,18 +378,18 @@ This project is created for the Pollinate Platform Engineering Technical Assessm
 
 - [Solution Architecture](./documentation/architecture/solution-architecture.md)
 - [Architecture Diagrams](./documentation/architecture/architecture-diagram.md)
-- [Architecture Decisions](./documentation/architecture/adr/README.md)
+- [Architecture Decisions](./documentation/adr/README.md)
 - [Azure Container Apps Docs](https://learn.microsoft.com/en-us/azure/container-apps/)
 - [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
-- [Node.js Best Practices](https://github.com/goldbergyoni/nodebestpractices)
+- [FastAPI Best Practices](https://fastapi.tiangolo.com/tutorial/)
 
 ## ❓ FAQ
 
 **Q: Why Container Apps over Kubernetes?**
-A: Managed Kubernetes abstraction reduces operational overhead while maintaining scalability. See [ADR-001](./documentation/architecture/adr/001-azure-container-apps.md).
+A: Managed Kubernetes abstraction reduces operational overhead while maintaining scalability. See [ADR-001](./documentation/adr/001-azure-container-apps.md).
 
 **Q: Why not use environment variables for secrets?**
-A: Managed Identity + Key Vault provides zero-trust security without exposing credentials. See [ADR-003](./documentation/architecture/adr/003-managed-identity-security.md).
+A: Managed Identity + Key Vault provides zero-trust security without exposing credentials. See [ADR-003](./documentation/adr/003-managed-identity-security.md).
 
 **Q: How do I run this locally?**
 A: Use Azure CLI authentication for local dev. See [Quick Start](#quick-start) section.
