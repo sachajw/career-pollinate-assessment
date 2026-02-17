@@ -4,6 +4,9 @@
 # This pipeline handles application CI/CD:
 # - Build, test, lint Docker image
 # - Deploy to Azure Container Apps
+# - Branch-based environment targeting:
+#   - dev branch -> dev environment
+#   - main branch -> prod environment
 # - Assumes infrastructure already exists (use infra pipeline first)
 
 name: FinRisk-App-CI-CD-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
@@ -12,7 +15,7 @@ trigger:
   branches:
     include:
       - main
-      - develop
+      - dev
   paths:
     include:
       - app/**
@@ -22,29 +25,42 @@ pr:
   branches:
     include:
       - main
+      - dev
   paths:
     include:
       - app/**
 
 variables:
-  - group: finrisk-dev
+  # Environment detection based on branch
+  - name: isMainBranch
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+
+  # Environment name: prod for main, dev for everything else
+  - name: environmentName
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
+
+  # Variable group based on environment
+  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
+
+  # Common variables
   - name: azureSubscription
     value: 'azure-service-connection'
-  - name: environmentName
-    value: 'dev'
   - name: pythonVersion
     value: '3.13'
-  - name: dockerRegistryServiceConnection
-    value: 'acr-service-connection'
-  - name: containerRegistry
-    value: 'acrfinriskdev.azurecr.io'      # Matches Terraform: acr${project_name}${environment}
   - name: imageName
     value: 'applicant-validator'            # Domain service name (DDD)
-  # imageTag is set dynamically from git describe --tags in BuildImage job
+
+  # Environment-specific resource names
+  # Dev:  ca-finrisk-dev, rg-finrisk-dev, acrfinriskdev
+  # Prod: ca-finrisk-prod, rg-finrisk-prod, acrfinriskprod
   - name: containerAppName
-    value: 'ca-finrisk-dev'                 # Matches Terraform: ca-${project_name}-${environment}
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'ca-finrisk-prod', 'ca-finrisk-dev']
   - name: resourceGroupName
-    value: 'rg-finrisk-dev'                 # Matches Terraform: rg-${project_name}-${environment}
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'rg-finrisk-prod', 'rg-finrisk-dev']
+  - name: containerRegistry
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acrfinriskprod.azurecr.io', 'acrfinriskdev.azurecr.io']
+  - name: dockerRegistryServiceConnection
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acr-prod-service-connection', 'acr-service-connection']
 
 stages:
   # ========================================
@@ -59,6 +75,14 @@ stages:
           - checkout: self
             fetchDepth: 1      # Shallow fetch (faster)
             clean: false       # Skip cleanup on local agent
+
+          - script: |
+              echo "Branch: $(Build.SourceBranch)"
+              echo "Environment: $(environmentName)"
+              echo "Container App: $(containerAppName)"
+              echo "Resource Group: $(resourceGroupName)"
+              echo "Registry: $(containerRegistry)"
+            displayName: 'Show Environment Info'
 
           - script: |
               echo "##vso[task.prependpath]/opt/homebrew/opt/python@3.13/bin"
@@ -205,8 +229,8 @@ stages:
 
               # Verify ACR authentication
               echo "Verifying ACR authentication..."
-              cat ~/.docker/config.json | grep -q "acrfinriskdev.azurecr.io" || {
-                echo "ERROR: ACR authentication not found!"
+              cat ~/.docker/config.json | grep -q "$(containerRegistry)" || {
+                echo "ERROR: ACR authentication not found for $(containerRegistry)!"
                 exit 1
               }
               echo "ACR authentication verified"
@@ -264,7 +288,9 @@ stages:
     jobs:
       - deployment: DeployContainerApp
         pool: Default
-        environment: '$(environmentName)'
+        # Environment enables approvals in Azure DevOps
+        # Create 'prod' environment with approvers for production
+        environment: $(environmentName)
         strategy:
           runOnce:
             deploy:
@@ -288,6 +314,7 @@ stages:
                     scriptLocation: 'inlineScript'
                     inlineScript: |
                       echo "Deploying image: $(containerRegistry)/$(imageName):$(imageTag)"
+                      echo "Target: $(containerAppName) in $(resourceGroupName)"
                       az containerapp update \
                         --name $(containerAppName) \
                         --resource-group $(resourceGroupName) \

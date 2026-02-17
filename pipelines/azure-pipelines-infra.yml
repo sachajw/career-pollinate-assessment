@@ -3,7 +3,9 @@
 #
 # This pipeline manages infrastructure provisioning:
 # - Terraform plan/apply for Azure resources
-# - Triggered on changes to terraform/ directory
+# - Branch-based environment targeting:
+#   - dev branch -> dev environment
+#   - main branch -> prod environment
 # - Manual approval for production changes
 
 name: FinRisk-IaC-Terraform-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
@@ -12,6 +14,7 @@ trigger:
   branches:
     include:
       - main
+      - dev
   paths:
     include:
       - terraform/**
@@ -21,20 +24,31 @@ pr:
   branches:
     include:
       - main
+      - dev
   paths:
     include:
       - terraform/**
 
 variables:
-  - group: finrisk-dev
+  # Environment detection based on branch
+  - name: isMainBranch
+    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
+
+  # Environment name: prod for main, dev for everything else
+  - name: environmentName
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
+
+  # Terraform working directory based on environment
+  - name: terraformWorkingDirectory
+    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), '$(System.DefaultWorkingDirectory)/terraform/environments/prod', '$(System.DefaultWorkingDirectory)/terraform/environments/dev']
+
+  # Variable group based on environment
+  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
+
   - name: azureSubscription
     value: 'azure-service-connection'
-  - name: environmentName
-    value: 'dev'
   - name: terraformVersion
     value: '1.7.0'
-  - name: terraformWorkingDirectory
-    value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
 
 stages:
   - stage: Plan
@@ -46,6 +60,12 @@ stages:
           - checkout: self
             fetchDepth: 1      # Shallow fetch (faster)
             clean: false       # Skip cleanup on local agent
+
+          - script: |
+              echo "Branch: $(Build.SourceBranch)"
+              echo "Environment: $(environmentName)"
+              echo "Working Directory: $(terraformWorkingDirectory)"
+            displayName: 'Show Environment Info'
 
           - task: TerraformInstaller@1
             inputs:
@@ -85,11 +105,15 @@ stages:
   - stage: Apply
     displayName: 'Terraform Apply'
     dependsOn: Plan
-    condition: and(succeeded(), eq(variables['Build.SourceBranch'], 'refs/heads/main'))
+    # Apply on main (prod) requires manual approval via environment
+    # Apply on dev branch happens automatically
+    condition: succeeded()
     jobs:
       - deployment: TerraformApply
         pool: Default
-        environment: '$(environmentName)-infrastructure'
+        # Environment name enables approvals in Azure DevOps
+        # Create 'prod-infrastructure' environment with approvers for production
+        environment: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod-infrastructure', 'dev-infrastructure']
         strategy:
           runOnce:
             deploy:

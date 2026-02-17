@@ -31,3 +31,12 @@ tags = {
   Owner       = "Platform Team"
   Environment = "Development"
 }
+
+#------------------------------------------------------------------------------
+# Custom Domain Configuration
+#------------------------------------------------------------------------------
+
+# Custom domain for development environment
+custom_domain_enabled = true
+custom_domain_name    = "finrisk-dev.yourdomain.com"  # Change to your domain
+certificate_name      = "your-wildcard-cert"          # Wildcard cert name

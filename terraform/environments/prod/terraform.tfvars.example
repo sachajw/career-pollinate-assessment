@@ -44,7 +44,7 @@ enable_availability_test = true
 # Enable custom domain in production
 custom_domain_enabled = true
 custom_domain_name    = "finrisk.yourdomain.com"  # Change to your domain
-certificate_name      = "finrisk-prod-cert"
+certificate_name      = "your-wildcard-cert"       # Wildcard cert name (same as dev)
 
 #------------------------------------------------------------------------------
 # Tags
