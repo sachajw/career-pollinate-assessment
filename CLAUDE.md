@@ -159,7 +159,6 @@ See `documentation/api/API_SPECIFICATION.md` for full API reference.
 
 | File | Purpose |
 |------|---------|
-| `documentation/ARCHITECTURE_SUMMARY.md` | Quick reference architecture overview |
 | `documentation/architecture/solution-architecture.md` | Complete architecture design |
 | `documentation/architecture/adr/` | Architecture Decision Records |
 | `terraform/README.md` | Terraform usage guide |

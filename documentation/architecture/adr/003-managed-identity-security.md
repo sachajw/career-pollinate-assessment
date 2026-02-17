@@ -8,11 +8,13 @@
 ## Context
 
 The RiskShield integration service needs to authenticate to Azure services:
+
 - **Azure Key Vault**: Retrieve RiskShield API key
 - **Azure Container Registry**: Pull container images during deployment
 - **Application Insights**: Send telemetry data
 
 We need a secure authentication mechanism that:
+
 - Eliminates credential management overhead
 - Follows zero-trust security principles
 - Provides auditable access logs
@@ -20,6 +22,7 @@ We need a secure authentication mechanism that:
 - Minimizes attack surface
 
 We need to choose between:
+
 1. Managed Identity (System-Assigned)
 2. Managed Identity (User-Assigned)
 3. Service Principal with Client Secret
@@ -32,20 +35,22 @@ We will use **System-Assigned Managed Identity** for Azure service authenticatio
 
 ## Decision Drivers
 
-| Criterion | Weight | System MI | User MI | SP+Secret | SP+Cert | Keys |
-|-----------|--------|-----------|---------|-----------|---------|------|
-| **Security** | Critical | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐ |
-| **Zero Secrets** | Critical | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐ | ⭐⭐ | ⭐ |
-| **Lifecycle Simplicity** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ |
-| **Audit Trail** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ |
-| **Ease of Use** | Medium | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| **Rotation Overhead** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐ | ⭐⭐ |
-| **Multi-Resource Reuse** | Low | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | N/A |
+| Criterion                | Weight   | System MI  | User MI    | SP+Secret | SP+Cert  | Keys     |
+| ------------------------ | -------- | ---------- | ---------- | --------- | -------- | -------- |
+| **Security**             | Critical | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    | ⭐⭐⭐⭐ | ⭐⭐     |
+| **Zero Secrets**         | Critical | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐        | ⭐⭐     | ⭐       |
+| **Lifecycle Simplicity** | High     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐     | ⭐⭐⭐   |
+| **Audit Trail**          | High     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐  | ⭐⭐⭐⭐ | ⭐⭐⭐   |
+| **Ease of Use**          | Medium   | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐   | ⭐⭐⭐    | ⭐⭐     | ⭐⭐⭐⭐ |
+| **Rotation Overhead**    | High     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐      | ⭐⭐⭐   | ⭐⭐     |
+| **Multi-Resource Reuse** | Low      | ⭐⭐⭐     | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐  | ⭐⭐⭐⭐ | N/A      |
 
 ### Detailed Analysis
 
 #### System-Assigned Managed Identity (Selected)
+
 **Pros:**
+
 - **Zero Secrets**: No passwords, keys, or certificates to manage
 - **Automatic Lifecycle**: Created/deleted with the Container App
 - **Azure AD Integration**: Tokens managed by Azure AD
@@ -56,11 +61,13 @@ We will use **System-Assigned Managed Identity** for Azure service authenticatio
 - **SOC 2 Compliant**: Meets password-less authentication requirements
 
 **Cons:**
+
 - **Single Resource**: Tied to Container App lifecycle (not an issue)
 - **No Cross-Subscription**: Cannot share identity across subscriptions (not needed)
 - **Regional**: Identity is regional (acceptable for our use case)
 
 **Authentication Flow:**
+
 ```
 1. Container App starts with System MI enabled
 2. Azure creates identity in Azure AD (automatic)
@@ -73,35 +80,38 @@ We will use **System-Assigned Managed Identity** for Azure service authenticatio
 ```
 
 **Code Example:**
-```typescript
-import { DefaultAzureCredential } from '@azure/identity';
-import { SecretClient } from '@azure/keyvault-secrets';
 
-// Automatically uses Managed Identity in Azure
-// Uses local credentials in development
-const credential = new DefaultAzureCredential();
+```python
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+import os
 
-const client = new SecretClient(
-  process.env.KEY_VAULT_URL,
-  credential
-);
+# Automatically uses Managed Identity in Azure
+# Falls back to Azure CLI in local development
+credential = DefaultAzureCredential()
 
-const secret = await client.getSecret('RISKSHIELD_API_KEY');
-console.log('API Key retrieved'); // Never log the actual value
+client = SecretClient(vault_url=os.environ["KEY_VAULT_URL"], credential=credential)
+
+secret = client.get_secret("RISKSHIELD_API_KEY")
+# Never log secret.value
 ```
 
 **Token Caching:**
+
 - Azure SDK automatically caches tokens
 - Token refreshed 5 minutes before expiration
 - No application code required
 
 #### User-Assigned Managed Identity (Considered)
+
 **Pros:**
+
 - **Reusable**: Can be shared across multiple resources
 - **Lifecycle Independence**: Exists independently of resources
 - **Cross-Resource**: Useful for multi-service scenarios
 
 **Cons:**
+
 - **Additional Complexity**: Requires separate identity resource
 - **Manual Lifecycle**: Must manage identity creation/deletion
 - **Unnecessary**: Single service doesn't need reusable identity
@@ -109,11 +119,14 @@ console.log('API Key retrieved'); // Never log the actual value
 **Decision:** System-Assigned is simpler for single-service scenario
 
 #### Service Principal + Client Secret (Rejected)
+
 **Pros:**
+
 - **Familiar**: Well-understood authentication pattern
 - **Cross-Platform**: Works outside Azure
 
 **Cons:**
+
 - **Secret Management**: Must store client secret securely (chicken-egg problem)
 - **Rotation Overhead**: Secrets expire, require rotation (90 days)
 - **Security Risk**: Secret exposure risk
@@ -122,11 +135,14 @@ console.log('API Key retrieved'); // Never log the actual value
 **Fatal Flaw:** Requires storing a secret to retrieve secrets (defeats purpose)
 
 #### Service Principal + Certificate (Rejected)
+
 **Pros:**
+
 - **More Secure**: Better than client secret
 - **Longer Expiration**: Certificates valid 1-2 years
 
 **Cons:**
+
 - **Certificate Management**: Complex certificate lifecycle
 - **Storage Overhead**: Must store certificate file
 - **Rotation**: Manual certificate renewal required
@@ -135,11 +151,14 @@ console.log('API Key retrieved'); // Never log the actual value
 **Decision:** Unnecessary complexity when MI is available
 
 #### Connection Strings / Access Keys (Rejected)
+
 **Pros:**
+
 - **Simple**: Easy to understand
 - **Universal**: Works everywhere
 
 **Cons:**
+
 - **Highly Insecure**: Static credentials, no rotation
 - **No Audit Trail**: Cannot trace who accessed what
 - **Non-Compliant**: Fails SOC 2 audit
@@ -176,12 +195,14 @@ Managed Identity aligns with zero-trust principles:
 ### Compliance Benefits
 
 **SOC 2 Type II Requirements:**
+
 - ✅ **CC6.1** - Logical access control: RBAC enforced
 - ✅ **CC6.2** - Authentication management: Password-less
 - ✅ **CC6.6** - Logical access removal: Automatic on resource deletion
 - ✅ **CC6.7** - Access audit: Azure AD logs every token request
 
 **ISO 27001 Controls:**
+
 - ✅ **A.9.2.1** - User registration: Automated by Azure
 - ✅ **A.9.2.4** - Secret information management: No secrets to manage
 - ✅ **A.9.4.3** - Password management: Not applicable (password-less)
@@ -190,14 +211,14 @@ Managed Identity aligns with zero-trust principles:
 
 **Threat Model Comparison:**
 
-| Threat | Service Principal | Managed Identity |
-|--------|------------------|------------------|
-| **Secret Exposure in Logs** | High Risk | No Risk (no secrets) |
-| **Credential Theft from Storage** | High Risk | No Risk (no storage) |
-| **Insider Threat** | Medium Risk | Low Risk (RBAC audit) |
-| **Credential Stuffing** | Low Risk | No Risk (no passwords) |
-| **Token Replay** | Medium Risk | Low Risk (1hr expiry) |
-| **Compromised DevOps Pipeline** | High Risk | Low Risk (no secrets) |
+| Threat                            | Service Principal | Managed Identity       |
+| --------------------------------- | ----------------- | ---------------------- |
+| **Secret Exposure in Logs**       | High Risk         | No Risk (no secrets)   |
+| **Credential Theft from Storage** | High Risk         | No Risk (no storage)   |
+| **Insider Threat**                | Medium Risk       | Low Risk (RBAC audit)  |
+| **Credential Stuffing**           | Low Risk          | No Risk (no passwords) |
+| **Token Replay**                  | Medium Risk       | Low Risk (1hr expiry)  |
+| **Compromised DevOps Pipeline**   | High Risk         | Low Risk (no secrets)  |
 
 ## Implementation Details
 
@@ -206,7 +227,7 @@ Managed Identity aligns with zero-trust principles:
 ```hcl
 # Container App with System-Assigned Managed Identity
 resource "azurerm_container_app" "risk_scoring" {
-  name                         = "ca-risk-scoring-${var.environment}"
+  name                         = "ca-${local.naming_prefix}"  # e.g. ca-finrisk-dev
   container_app_environment_id = azurerm_container_app_environment.main.id
   resource_group_name          = azurerm_resource_group.main.name
 
@@ -231,7 +252,7 @@ resource "azurerm_role_assignment" "acr_pull" {
 
 # Key Vault configured for RBAC (not access policies)
 resource "azurerm_key_vault" "main" {
-  name                       = "kv-riskscoring-${var.environment}"
+  name                       = "kv-${local.naming_prefix}"  # e.g. kv-finrisk-dev
   resource_group_name        = azurerm_resource_group.main.name
   tenant_id                  = data.azurerm_client_config.current.tenant_id
   sku_name                   = "standard"
@@ -244,70 +265,38 @@ resource "azurerm_key_vault" "main" {
 
 ### Application Code Pattern
 
-```typescript
-// config/azure.ts
-import { DefaultAzureCredential } from '@azure/identity';
+```python
+# src/services/keyvault.py
+import time
+from azure.identity import DefaultAzureCredential
+from azure.keyvault.secrets import SecretClient
+import structlog
 
-// DefaultAzureCredential automatically tries (in order):
-// 1. Environment variables (local dev with service principal)
-// 2. Managed Identity (Azure runtime)
-// 3. Azure CLI (local dev)
-// 4. Visual Studio Code (local dev)
-export const credential = new DefaultAzureCredential({
-  // Optional: Add logging for troubleshooting
-  loggingOptions: {
-    allowLoggingAccountIdentifiers: true,
-    enableUnsafeSupportLogging: true
-  }
-});
+logger = structlog.get_logger()
 
-// services/keyvault.service.ts
-import { SecretClient } from '@azure/keyvault-secrets';
-import { credential } from '../config/azure';
-import { logger } from '../utils/logger';
+class KeyVaultService:
+    """Key Vault client with 5-minute secret cache."""
 
-export class KeyVaultService {
-  private client: SecretClient;
-  private secretCache: Map<string, { value: string; expiresAt: number }>;
+    def __init__(self, vault_url: str):
+        # DefaultAzureCredential tries (in order):
+        # 1. Managed Identity (Azure runtime)  ← production
+        # 2. Azure CLI (local development)     ← developer machines
+        # 3. Environment variables (CI/CD)
+        self.client = SecretClient(
+            vault_url=vault_url,
+            credential=DefaultAzureCredential()
+        )
+        self._cache: dict[str, tuple[str, float]] = {}
 
-  constructor(vaultUrl: string) {
-    this.client = new SecretClient(vaultUrl, credential);
-    this.secretCache = new Map();
-  }
+    def get_secret(self, secret_name: str) -> str:
+        value, expires_at = self._cache.get(secret_name, (None, 0))
+        if value and time.time() < expires_at:
+            return value
 
-  async getSecret(secretName: string): Promise<string> {
-    // Check cache (5-minute TTL)
-    const cached = this.secretCache.get(secretName);
-    if (cached && Date.now() < cached.expiresAt) {
-      logger.debug('Secret retrieved from cache', { secretName });
-      return cached.value;
-    }
-
-    // Fetch from Key Vault
-    try {
-      const secret = await this.client.getSecret(secretName);
-
-      // Cache for 5 minutes
-      this.secretCache.set(secretName, {
-        value: secret.value!,
-        expiresAt: Date.now() + 5 * 60 * 1000
-      });
-
-      logger.info('Secret retrieved from Key Vault', {
-        secretName,
-        version: secret.properties.version
-      });
-
-      return secret.value!;
-    } catch (error) {
-      logger.error('Failed to retrieve secret', {
-        secretName,
-        error: error.message
-      });
-      throw error;
-    }
-  }
-}
+        secret = self.client.get_secret(secret_name)
+        logger.info("secret_retrieved", secret_name=secret_name)
+        self._cache[secret_name] = (secret.value, time.time() + 300)
+        return secret.value
 ```
 
 ### Local Development
@@ -330,6 +319,7 @@ export AZURE_CLIENT_SECRET="<client-secret>"  # Only for dev SP
 ```
 
 **Credential Chain Order:**
+
 1. **Environment Variables** (CI/CD pipelines)
 2. **Managed Identity** (Azure runtime) ✅ Production
 3. **Azure CLI** (Local development) ✅ Developer machines
@@ -339,6 +329,7 @@ export AZURE_CLIENT_SECRET="<client-secret>"  # Only for dev SP
 ### Monitoring & Auditing
 
 **Key Vault Diagnostic Settings:**
+
 ```hcl
 resource "azurerm_monitor_diagnostic_setting" "keyvault" {
   name                       = "keyvault-audit-logs"
@@ -357,6 +348,7 @@ resource "azurerm_monitor_diagnostic_setting" "keyvault" {
 ```
 
 **Query Key Vault Access Logs:**
+
 ```kql
 // Log Analytics Query
 AzureDiagnostics
@@ -368,6 +360,7 @@ AzureDiagnostics
 ```
 
 **Alert on Suspicious Access:**
+
 ```hcl
 resource "azurerm_monitor_metric_alert" "keyvault_unauthorized" {
   name                = "keyvault-unauthorized-access"
@@ -404,6 +397,7 @@ resource "azurerm_monitor_metric_alert" "keyvault_unauthorized" {
 ## Security Best Practices
 
 ### 1. Principle of Least Privilege
+
 ```hcl
 # ❌ BAD: Overly permissive role
 resource "azurerm_role_assignment" "bad" {
@@ -419,115 +413,76 @@ resource "azurerm_role_assignment" "good" {
 ```
 
 ### 2. Secret Caching Strategy
+
 - **Cache Duration**: 5 minutes (balance freshness vs. Key Vault calls)
 - **Cache Invalidation**: Clear on secret rotation events
 - **Fallback**: If Key Vault unavailable, use cached value with warning
 
 ### 3. Error Handling
-```typescript
-try {
-  const apiKey = await keyVaultService.getSecret('RISKSHIELD_API_KEY');
-} catch (error) {
-  if (error.statusCode === 403) {
-    // RBAC permission issue - alert security team
-    logger.error('RBAC permission denied', { error });
-  } else if (error.statusCode === 404) {
-    // Secret not found - configuration issue
-    logger.error('Secret not found', { error });
-  } else {
-    // Key Vault unavailable - use cached secret if available
-    logger.warn('Key Vault unavailable, using cache', { error });
-  }
-  throw error;
-}
+
+```python
+from azure.core.exceptions import HttpResponseError
+
+try:
+    api_key = keyvault_service.get_secret("RISKSHIELD_API_KEY")
+except HttpResponseError as e:
+    if e.status_code == 403:
+        # RBAC permission issue
+        logger.error("rbac_permission_denied", error=str(e))
+    elif e.status_code == 404:
+        # Secret not found — configuration issue
+        logger.error("secret_not_found", error=str(e))
+    else:
+        # Key Vault unavailable — cached value used if available
+        logger.warning("keyvault_unavailable", error=str(e))
+    raise
 ```
 
 ### 4. Rotation Readiness
-Even though MI doesn't require rotation, secrets in Key Vault do:
 
-```typescript
-// Graceful secret rotation handling
-class SecretRotationAwareService {
-  private currentSecret: string;
-  private nextSecret: string | null = null;
-
-  async rotateSecret(newSecretVersion: string): Promise<void> {
-    // Fetch new secret version
-    this.nextSecret = await keyVault.getSecret('API_KEY', newSecretVersion);
-
-    // Test new secret
-    const isValid = await this.validateSecret(this.nextSecret);
-
-    if (isValid) {
-      // Promote to current
-      this.currentSecret = this.nextSecret;
-      this.nextSecret = null;
-      logger.info('Secret rotation completed');
-    } else {
-      logger.error('Secret rotation failed - new secret invalid');
-      throw new Error('Secret rotation validation failed');
-    }
-  }
-}
-```
+The Managed Identity token rotates automatically. Secrets stored in Key Vault should be rotated periodically. The `KeyVaultService` cache (5-minute TTL) means a rotated secret is picked up within 5 minutes without restarting the container.
 
 ## Disaster Recovery
 
 **Scenario:** Azure AD outage affecting token issuance
 
 **Mitigation:**
+
 1. **Secret Caching**: 5-minute cache provides resilience
 2. **Graceful Degradation**: Continue operating with cached secrets
 3. **Monitoring**: Alert on repeated Key Vault failures
 4. **Manual Override**: Emergency procedure to inject secrets (break-glass)
 
 **Break-Glass Procedure:**
-```bash
-# Emergency secret injection (documented, audited)
-# Only use during Azure AD outage
-kubectl create secret generic risk-scoring-secrets \
-  --from-literal=RISKSHIELD_API_KEY="${EMERGENCY_API_KEY}" \
-  --namespace risk-scoring
 
-# Restart pods to pick up emergency secret
-kubectl rollout restart deployment/risk-scoring-api
+```bash
+# Emergency: inject secret as env var during Azure AD outage
+# Documented, audited — only use as last resort
+az containerapp update \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
+  --set-env-vars RISKSHIELD_API_KEY=secretref:emergency-key
+# Revert to Key Vault as soon as Azure AD is restored
 ```
 
 ## Cost Impact
 
 **Key Vault Costs:**
+
 - **Secret Operations**: $0.03 per 10,000 transactions
 - **Expected Usage**: 1,000 calls/day (with caching)
 - **Monthly Cost**: ~$0.09
 
 **Managed Identity:**
+
 - **Cost**: $0 (included with Azure AD)
 
 **Total Additional Cost:** Negligible (~$0.10/month)
 
-## Migration from Existing Authentication
-
-If migrating from Service Principal:
-
-**Phase 1: Parallel Run (Week 1)**
-- Add Managed Identity to Container App
-- Keep existing Service Principal
-- Monitor MI authentication success rate
-
-**Phase 2: Traffic Shift (Week 2)**
-- DefaultAzureCredential automatically prefers MI
-- Monitor error rates
-- Keep SP as fallback
-
-**Phase 3: Cleanup (Week 3)**
-- Remove Service Principal environment variables
-- Revoke Service Principal access
-- Update documentation
-
 ## Related Decisions
 
 - [ADR-001: Azure Container Apps](./001-azure-container-apps.md)
-- [ADR-004: Terraform for Infrastructure as Code](./004-terraform-iac.md)
+- [ADR-002: Python Runtime Selection](./002-python-runtime.md)
 
 ## References
 
@@ -538,11 +493,11 @@ If migrating from Service Principal:
 
 ## Review & Approval
 
-| Role | Name | Date | Status |
-|------|------|------|--------|
-| Solution Architect | [Name] | 2026-02-14 | ✅ Approved |
-| Security Architect | [Name] | 2026-02-14 | ✅ Approved |
-| Compliance Officer | [Name] | 2026-02-14 | ✅ Approved |
+| Role                      | Name   | Date       | Status      |
+| ------------------------- | ------ | ---------- | ----------- |
+| Solution Architect        | [Name] | 2026-02-14 | ✅ Approved |
+| Security Architect        | [Name] | 2026-02-14 | ✅ Approved |
+| Compliance Officer        | [Name] | 2026-02-14 | ✅ Approved |
 | Platform Engineering Lead | [Name] | 2026-02-14 | ✅ Approved |
 
 ---

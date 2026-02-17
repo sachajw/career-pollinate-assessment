@@ -71,28 +71,6 @@ This document outlines the solution architecture for FinSure Capital's RiskShiel
 - JIT compiler for 10-30% performance boost (experimental)
 - Industry standard for FinTech data processing
 
-**Application Structure:**
-```
-app/
-├── src/
-│   ├── api/              # API routes and endpoints
-│   │   └── v1/
-│   ├── models/           # Pydantic models
-│   │   └── validation.py
-│   ├── services/         # Business logic
-│   │   ├── keyvault.py
-│   │   └── riskshield.py
-│   ├── core/             # Config, logging, security
-│   └── main.py           # FastAPI app entry point
-├── tests/
-│   ├── unit/
-│   └── integration/
-├── Dockerfile
-├── .dockerignore
-├── README.md
-└── pyproject.toml
-```
-
 **Key Features:**
 - **Correlation IDs**: UUID v4 for request tracing
 - **Structured Logging**: JSON format with correlation context
@@ -107,34 +85,6 @@ app/
 ### 2. Container Strategy
 
 **Base Image: Python 3.13 Slim**
-
-**Multi-Stage Build:**
-```dockerfile
-# Stage 1: Builder - Install dependencies with uv
-FROM python:3.13-slim AS builder
-RUN pip install --no-cache-dir uv
-WORKDIR /app
-COPY pyproject.toml README.md ./
-RUN uv venv /opt/venv && \
-    . /opt/venv/bin/activate && \
-    uv pip install --no-cache -e .
-
-# Stage 2: Runtime - Minimal production image
-FROM python:3.13-slim AS production
-RUN groupadd -r appuser && useradd -r -g appuser appuser
-WORKDIR /app
-COPY --from=builder /opt/venv /opt/venv
-COPY src/ ./src/
-ENV PATH="/opt/venv/bin:$PATH" \
-    PYTHONUNBUFFERED=1 \
-    PYTHONDONTWRITEBYTECODE=1 \
-    PORT=8080
-USER appuser
-EXPOSE 8080
-HEALTHCHECK --interval=30s --timeout=5s --start-period=10s --retries=3 \
-    CMD python -c "import urllib.request; urllib.request.urlopen('http://localhost:8080/health')"
-CMD ["uvicorn", "src.main:app", "--host", "0.0.0.0", "--port", "8080"]
-```
 
 **Security Features:**
 - Non-root user (appuser:1001)
@@ -516,36 +466,47 @@ Error Scenarios:
 
 ### Estimated Monthly Costs (USD)
 
-**Development Environment:**
+> Prices sourced from Azure Retail Prices API, East US 2, February 2026.
+
+**Development Environment** (`rg-finrisk-dev`, min_replicas=0, scale-to-zero):
+
 ```
-Azure Container App         $30   (0.5 vCPU, 1Gi, scale to zero)
-Azure Container Registry    $5    (Basic tier)
-Key Vault                   $3    (Standard, <10k operations)
-Log Analytics               $10   (1GB ingestion/day)
-Application Insights        $5    (Included with Log Analytics)
-Storage Account (TF state)  $1
-─────────────────────────────────
-Total:                      ~$54/month
+Azure Container App          ~$0    Scale-to-zero: costs only active request seconds.
+                                    Consumption plan free grant covers dev traffic:
+                                    180,000 vCPU-s and 360,000 GiB-s free/month.
+                                    ($0.000024/vCPU-s, $0.000003/GiB-s)
+Azure Container Registry      $5    Basic tier ($0.1666/day × 30 days)
+Key Vault                    ~$0    Standard: $0.03/10k ops; <1,000 ops/day in dev
+Log Analytics                ~$3    $2.76/GB after 5 GB free; ~0.2 GB/day = ~1 GB billable
+Application Insights         ~$0    Workspace-based; counted in Log Analytics above
+Storage Account (TF state)   ~$0    LRS block blob: $0.024/GB; state < 1 MB
+Managed Identity              $0    Included with Azure AD
+──────────────────────────────────────
+Total:                        ~$8/month
 ```
 
-**Production Environment:**
+**Production Environment** (hypothetical target, min_replicas=2, 24/7, 0.5 vCPU, 1 GiB):
+
 ```
-Azure Container App         $180  (2-4 replicas, always-on)
-Azure Container Registry    $100  (Premium, geo-replication)
-Key Vault                   $15   (Standard + Private Endpoint)
-Log Analytics               $100  (10GB ingestion/day)
-Application Insights        $30
-Azure Front Door            $50   (WAF + routing)
-Storage Account             $5
-─────────────────────────────────
-Total:                      ~$480/month
+Azure Container App          ~$72   Consumption plan, 2 replicas always-on:
+                                    2,412,000 billable vCPU-s × $0.000024 = $57.89
+                                    4,824,000 billable GiB-s  × $0.000003 = $14.47
+Azure Container Registry     $20    Standard tier ($0.6666/day × 30 days)
+Key Vault                    ~$1    ~50,000 ops/month × $0.03/10k = $0.15
+Log Analytics                $28    ~500 MB/day = 15 GB/month; 10 GB billable × $2.76
+Application Insights         ~$0    Workspace-based; included in Log Analytics
+Azure Front Door             $35+   WAF + routing (prod target, not yet deployed)
+Storage Account               $1    LRS block blob: $0.024/GB/month
+──────────────────────────────────────
+Total without Front Door:     ~$122/month
+Total with Front Door:        ~$157/month
 ```
 
 **Cost Optimization Strategies:**
-- **Dev**: Scale to zero during off-hours (-50%)
-- **Reserved Instances**: Not applicable (consumption-based)
-- **Log Retention**: 30 days dev, 90 days prod (-40% storage)
-- **Image Pruning**: Automated cleanup of old images (-20% ACR costs)
+- **Dev scale-to-zero**: min_replicas=0 reduces Container App cost to near zero
+- **Log retention**: 30 days dev vs 90 days prod reduces Log Analytics storage cost
+- **ACR Basic in dev**: $5/month vs Standard ($20) or Premium ($50)
+- **Consumption plan**: No idle cost; pay only for active vCPU-seconds and GiB-seconds
 
 ---
 
@@ -627,52 +588,6 @@ Total:                      ~$480/month
 | Cost Overrun | Medium | Low | Budget alerts, auto-scaling limits |
 | Security Breach | High | Low | Zero trust, MI, audit logging |
 | Deployment Failure | Medium | Medium | Blue/green deployment, auto-rollback |
-
----
-
-## Success Metrics
-
-### Technical Metrics
-- ✅ Deployment time: < 10 minutes
-- ✅ Infrastructure provisioning: < 5 minutes (Terraform)
-- ✅ Test coverage: > 80%
-- ✅ Security scan: 0 critical vulnerabilities
-- ✅ Image size: < 150MB
-
-### Business Metrics
-- ✅ Loan processing time: Reduced by 40%
-- ✅ Manual review reduction: 60% of applications auto-scored
-- ✅ Operational cost: < $500/month (prod)
-- ✅ Uptime: 99.9% availability
-
----
-
-## Next Steps
-
-1. **Phase 1: Foundation** (Week 1)
-   - Set up Azure DevOps project
-   - Configure Terraform remote state
-   - Implement base API with health checks
-
-2. **Phase 2: Core Features** (Week 2)
-   - Integrate RiskShield API
-   - Implement retry/timeout logic
-   - Add correlation ID tracking
-
-3. **Phase 3: Security** (Week 2-3)
-   - Configure Key Vault + Managed Identity
-   - Implement secret rotation
-   - Security scanning in pipeline
-
-4. **Phase 4: Observability** (Week 3)
-   - Configure Application Insights
-   - Set up dashboards and alerts
-   - Load testing and optimization
-
-5. **Phase 5: Production Hardening** (Week 4)
-   - Front Door + WAF configuration
-   - DR testing and documentation
-   - Security audit and compliance review
 
 ---
 

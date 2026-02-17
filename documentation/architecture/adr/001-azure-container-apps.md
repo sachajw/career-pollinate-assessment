@@ -8,6 +8,7 @@
 ## Context
 
 FinSure Capital requires a compute platform to host the RiskShield API integration service. The platform must be:
+
 - Cost-effective for variable workloads
 - Scalable to handle peak loan application periods
 - Secure with managed identity support
@@ -15,6 +16,7 @@ FinSure Capital requires a compute platform to host the RiskShield API integrati
 - Easy to deploy and maintain
 
 We need to choose between:
+
 1. Azure Container Apps
 2. Azure App Service (Container)
 3. Azure Kubernetes Service (AKS)
@@ -26,21 +28,23 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 
 ## Decision Drivers
 
-| Criterion | Weight | Container Apps | App Service | AKS | Functions |
-|-----------|--------|----------------|-------------|-----|-----------|
-| **Cost Efficiency** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| **Ease of Management** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| **Scalability** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ |
-| **Cold Start Time** | Medium | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| **Container Support** | High | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| **Network Isolation** | High | ⭐⭐⭐⭐ | ⭐⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
-| **Team Familiarity** | Medium | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐ | ⭐⭐⭐⭐ |
-| **Future Flexibility** | Medium | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ | ⭐⭐⭐⭐⭐ | ⭐⭐⭐ |
+| Criterion              | Weight | Container Apps | App Service | AKS        | Functions |
+| ---------------------- | ------ | -------------- | ----------- | ---------- | --------- |
+| **Cost Efficiency**    | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐      | ⭐⭐       | ⭐⭐⭐⭐  |
+| **Ease of Management** | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐⭐  | ⭐⭐       | ⭐⭐⭐⭐  |
+| **Scalability**        | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐ | ⭐⭐⭐⭐  |
+| **Cold Start Time**    | Medium | ⭐⭐⭐⭐       | ⭐⭐⭐⭐⭐  | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    |
+| **Container Support**  | High   | ⭐⭐⭐⭐⭐     | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    |
+| **Network Isolation**  | High   | ⭐⭐⭐⭐       | ⭐⭐⭐⭐    | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    |
+| **Team Familiarity**   | Medium | ⭐⭐⭐         | ⭐⭐⭐⭐⭐  | ⭐⭐       | ⭐⭐⭐⭐  |
+| **Future Flexibility** | Medium | ⭐⭐⭐⭐⭐     | ⭐⭐⭐      | ⭐⭐⭐⭐⭐ | ⭐⭐⭐    |
 
 ### Detailed Analysis
 
 #### Azure Container Apps (Selected)
+
 **Pros:**
+
 - **Scale to Zero**: Pay only when processing requests (~70% cost savings in dev)
 - **KEDA Integration**: Event-driven autoscaling based on HTTP requests, queues, etc.
 - **Dapr Built-in**: Future-ready for service mesh, pub/sub patterns
@@ -50,53 +54,66 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 - **VNet Integration**: Private networking support
 
 **Cons:**
+
 - **Newer Service**: Less mature than App Service (GA: May 2022)
 - **Cold Start**: 2-3s cold start latency (mitigated by min replicas)
 - **Limited Customization**: Less control than full AKS
 - **Regional Availability**: Not available in all Azure regions (check: East US 2 ✅)
 
-**Cost Estimate:**
-- Dev: ~$30/month (scale to zero during off-hours)
-- Prod: ~$180/month (2-4 replicas, 0.5 vCPU, 1Gi RAM)
+**Cost Estimate** (East US 2, Azure Retail Prices API, Feb 2026):
+
+- Dev (min_replicas=0, scale-to-zero): **~$0/month** — free grant covers typical dev traffic (180,000 vCPU-s and 360,000 GiB-s free per month; $0.000024/vCPU-s, $0.000003/GiB-s beyond)
+- Prod (min_replicas=2, 24/7): **~$72/month** — 2,412,000 billable vCPU-s × $0.000024 + 4,824,000 billable GiB-s × $0.000003
 
 #### Azure App Service (Considered)
+
 **Pros:**
+
 - **Mature Platform**: Long history, extensive documentation
 - **No Cold Start**: Always-on instances
 - **Deployment Slots**: Blue/green deployments built-in
 - **Team Familiarity**: Well-known service
 
 **Cons:**
+
 - **Cost**: Minimum ~$100/month (P1v3 tier for production)
 - **Scaling**: Basic autoscaling compared to KEDA
 - **No Dapr**: Limited service mesh capabilities
 - **Always-On**: Cannot scale to zero
 
-**Cost Estimate:**
-- Dev: ~$15/month (B1 Basic)
-- Prod: ~$200/month (P1v3 Premium)
+**Cost Estimate** (East US 2, Feb 2026):
+
+- Dev B1 Linux (1 vCPU, 1.75 GB): ~$12/month always-on ($0.017/hr × 730h); no scale-to-zero
+- Prod P1v3 Linux (2 vCPU, 8 GB): ~$113/month always-on ($0.155/hr × 730h)
 
 #### AKS (Rejected)
+
 **Pros:**
+
 - **Full Control**: Complete Kubernetes flexibility
 - **Advanced Networking**: Full CNI, network policies
 - **Enterprise Features**: AAD Pod Identity, Azure Policy
 
 **Cons:**
+
 - **Operational Overhead**: Cluster management, patching, upgrades
 - **Cost**: Minimum ~$150/month for control plane + nodes
 - **Complexity**: Overkill for single-service deployment
 - **Team Skills**: Requires Kubernetes expertise
 
 **Cost Estimate:**
+
 - Prod: ~$500/month (3-node cluster, Standard D2s v3)
 
 #### Azure Functions (Rejected)
+
 **Pros:**
+
 - **Serverless**: True consumption model
 - **Event-Driven**: Native trigger support
 
 **Cons:**
+
 - **Execution Time Limit**: 10 minutes max (Premium plan)
 - **Cold Start**: Can be 5-10s for .NET/Java
 - **Container Support**: Limited compared to Container Apps
@@ -105,6 +122,7 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 ## Consequences
 
 ### Positive
+
 - **Reduced Costs**: Scale-to-zero capability saves 50-70% in non-production environments
 - **Simplified Operations**: No cluster management overhead
 - **Future-Ready**: Dapr integration enables easy migration to microservices if needed
@@ -112,12 +130,14 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 - **Cloud-Native**: Aligns with modern application patterns
 
 ### Negative
+
 - **Cold Start Latency**: 2-3s cold start (mitigated by min replicas in prod)
 - **Platform Lock-in**: Container Apps is Azure-specific (vs. AKS portability)
 - **Learning Curve**: Team needs to learn Container Apps vs. familiar App Service
 - **Limited Customization**: Less control over underlying infrastructure
 
 ### Neutral
+
 - **Monitoring**: Application Insights works equally well across all options
 - **Managed Identity**: All options support managed identity
 - **VNet Integration**: All options support private networking
@@ -125,16 +145,19 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 ## Mitigations
 
 ### Cold Start Mitigation
+
 - **Production**: Set `minReplicas: 2` to ensure always-on instances
 - **Development**: Accept cold start as cost trade-off
 - **Health Probes**: Configure aggressive health checks to prevent scale-to-zero during business hours
 
 ### Team Skills Gap
+
 - **Training**: Allocate 2 weeks for team upskilling on Container Apps
 - **Documentation**: Create runbooks for common operations
 - **Comparison Guide**: Document differences vs. App Service for team reference
 
 ### Platform Lock-in
+
 - **Abstraction**: Keep business logic container-portable
 - **Exit Strategy**: Container Apps uses standard Kubernetes concepts (can migrate to AKS if needed)
 - **Multi-Cloud Consideration**: Not a current requirement, re-evaluate if needed
@@ -147,95 +170,31 @@ We will use **Azure Container Apps** as the compute platform for the RiskShield 
 - **Managed Identity**: Fully supported ✅
 - **Private Endpoints**: Supported for production ✅
 
-## Implementation Notes
-
-### Initial Configuration
-```hcl
-resource "azurerm_container_app" "risk_scoring" {
-  name                         = "ca-risk-scoring-${var.environment}"
-  container_app_environment_id = azurerm_container_app_environment.main.id
-  resource_group_name          = azurerm_resource_group.main.name
-  revision_mode                = "Single"
-
-  template {
-    min_replicas = var.environment == "prod" ? 2 : 0
-    max_replicas = 10
-
-    container {
-      name   = "risk-scoring-api"
-      image  = "${azurerm_container_registry.main.login_server}/risk-scoring-api:${var.image_tag}"
-      cpu    = 0.5
-      memory = "1Gi"
-    }
-  }
-
-  ingress {
-    external_enabled = true
-    target_port      = 8080
-    transport        = "http"
-
-    traffic_weight {
-      latest_revision = true
-      percentage      = 100
-    }
-  }
-
-  identity {
-    type = "SystemAssigned"
-  }
-}
-```
-
-### Scaling Configuration
-```hcl
-scale {
-  min_replicas = var.environment == "prod" ? 2 : 0
-  max_replicas = 10
-
-  rule {
-    name = "http-scaling"
-    http {
-      metadata = {
-        concurrentRequests = "100"
-      }
-    }
-  }
-
-  rule {
-    name = "cpu-scaling"
-    custom {
-      type = "cpu"
-      metadata = {
-        type  = "Utilization"
-        value = "70"
-      }
-    }
-  }
-}
-```
-
 ## Alternatives Considered
 
 ### 1. Hybrid Approach
+
 - **Dev/Staging**: Container Apps (cost savings)
 - **Production**: App Service (no cold start)
 
 **Rejected because:**
+
 - Increases complexity with two deployment targets
 - Reduces environment parity
 - Cold start mitigated by min replicas
 
 ### 2. Service Fabric
+
 - Rejected due to legacy platform status and migration to Container Apps
 
 ### 3. VM-based Deployment
+
 - Rejected due to high operational overhead and cost
 
 ## Related Decisions
 
 - [ADR-002: Python Runtime Selection](./002-python-runtime.md)
-- [ADR-004: Terraform for Infrastructure as Code](./004-terraform-iac.md)
-- [ADR-005: Azure Front Door for Production](./005-azure-front-door.md)
+- [ADR-003: Managed Identity for Azure Authentication](./003-managed-identity-security.md)
 
 ## References
 
@@ -246,12 +205,12 @@ scale {
 
 ## Review & Approval
 
-| Role | Name | Date | Status |
-|------|------|------|--------|
-| Solution Architect | [Name] | 2026-02-14 | ✅ Approved |
+| Role                      | Name   | Date       | Status      |
+| ------------------------- | ------ | ---------- | ----------- |
+| Solution Architect        | [Name] | 2026-02-14 | ✅ Approved |
 | Platform Engineering Lead | [Name] | 2026-02-14 | ✅ Approved |
-| Security Architect | [Name] | 2026-02-14 | ✅ Approved |
-| FinOps Lead | [Name] | 2026-02-14 | ✅ Approved |
+| Security Architect        | [Name] | 2026-02-14 | ✅ Approved |
+| FinOps Lead               | [Name] | 2026-02-14 | ✅ Approved |
 
 ---
 

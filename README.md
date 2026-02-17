@@ -51,7 +51,6 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
 | [Architecture Decisions](./documentation/architecture/adr/README.md) | ADRs for key decisions |
-| [Decision Log](./documentation/architecture/DECISION_LOG.md) | Chronological decision history |
 | [**Deployment Log**](./documentation/archive/DEPLOYMENT_LOG.md) | **Complete infrastructure deployment record** |
 | [**Quick Reference**](./documentation/INFRASTRUCTURE_QUICK_REFERENCE.md) | **Daily operations and troubleshooting** |
 | [API Specification](./documentation/api/API_SPECIFICATION.md) | REST API documentation |
