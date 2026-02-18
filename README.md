@@ -140,7 +140,8 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 │   │   └── prod/
 │   └── README.md               # Terraform documentation
 ├── pipelines/                  # CI/CD definitions
-│   ├── azure-pipelines.yml     # Main pipeline
+│   ├── azure-pipelines-app.yml    # Application CI/CD pipeline
+│   ├── azure-pipelines-infra.yml  # Infrastructure pipeline
 │   └── README.md               # Pipeline documentation
 ├── documentation/              # Architecture documentation
 │   ├── adr/                    # Architecture Decision Records
@@ -317,7 +318,7 @@ git push origin feature/your-feature
 | MITM Attacks | HTTPS only, TLS 1.2+ |
 | Credential Theft | No passwords, MI-based auth |
 | DDoS | Azure DDoS Standard + rate limiting |
-| Injection | Input validation (Joi schemas) |
+| Injection | Input validation (Pydantic validation) |
 | Dependency Vulnerabilities | Trivy/Snyk scanning |
 
 ### Compliance
@@ -376,7 +377,7 @@ az load test run --test-id finrisk-load-test
 - ✅ Infrastructure provisioning: < 5 minutes
 - ✅ Test coverage: > 80%
 - ✅ Zero critical vulnerabilities
-- ✅ Container image: < 150MB
+- ✅ Container image: < 200MB
 
 ### Business Metrics
 - ✅ Loan processing time: 40% reduction

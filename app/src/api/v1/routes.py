@@ -14,7 +14,11 @@ from ...models.validation import (
     HealthResponse,
     ReadyResponse,
 )
-from ...services.riskshield import RiskShieldClient, RiskShieldUnavailableError
+from ...services.riskshield import (
+    RiskShieldCircuitOpenError,
+    RiskShieldClient,
+    RiskShieldUnavailableError,
+)
 
 logger = structlog.get_logger()
 
@@ -117,6 +121,16 @@ async def validate_applicant(
         )
 
         return response
+
+    except RiskShieldCircuitOpenError as e:
+        logger.warning(
+            "RiskShield circuit breaker open",
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Risk scoring service is temporarily unavailable. Please retry later.",
+        ) from e
 
     except RiskShieldUnavailableError as e:
         logger.error(
