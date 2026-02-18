@@ -43,7 +43,15 @@ terraform/
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
+│   ├── networking/                   # Virtual Network + Subnets
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
 │   ├── observability/                # Log Analytics + App Insights
+│   │   ├── main.tf
+│   │   ├── variables.tf
+│   │   └── outputs.tf
+│   ├── private-endpoints/            # Private Link endpoints
 │   │   ├── main.tf
 │   │   ├── variables.tf
 │   │   └── outputs.tf
@@ -373,7 +381,7 @@ terraform {
   required_providers {
     azurerm = {
       source  = "hashicorp/azurerm"
-      version = "~> 3.0"
+      version = "~> 4.0"
     }
   }
 
@@ -535,7 +543,7 @@ terraform state rm azurerm_resource_group.deprecated
 | Requirement              | Status | Implementation                        |
 | ------------------------ | ------ | ------------------------------------- |
 | Remote state             | ✅     | Azure Storage backend with locking    |
-| Modules                  | ✅     | 5 reusable modules                    |
+| Modules                  | ✅     | 7 reusable modules                    |
 | Reusable (dev/prod)      | ✅     | Environment-based configuration       |
 | Naming conventions       | ✅     | `{type}-{domain}-{env}` pattern       |
 | No hardcoded secrets     | ✅     | Sensitive variables + CI/CD injection |
@@ -563,5 +571,5 @@ terraform state rm azurerm_resource_group.deprecated
 
 ---
 
-**Last Updated:** 2026-02-14
-**Next Review:** 2026-08-14 (6 months)
+**Last Updated:** 2026-02-18
+**Next Review:** 2026-08-18 (6 months)
