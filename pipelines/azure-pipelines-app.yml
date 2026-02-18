@@ -53,7 +53,7 @@ variables:
       value: 'rg-finrisk-prod'
     - name: containerRegistry
       value: 'acrfinriskprod.azurecr.io'
-    - group: finrisk-prod
+    - group: finrisk-app-prod
 
   - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
     - name: environmentName
@@ -64,7 +64,7 @@ variables:
       value: 'rg-finrisk-dev'
     - name: containerRegistry
       value: 'acrfinriskdev.azurecr.io'
-    - group: finrisk-dev
+    - group: finrisk-app-dev
 
   # Default to dev for PRs and other branches
   - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
@@ -76,7 +76,7 @@ variables:
       value: 'rg-finrisk-dev'
     - name: containerRegistry
       value: 'acrfinriskdev.azurecr.io'
-    - group: finrisk-dev
+    - group: finrisk-app-dev
 
 stages:
   # ========================================

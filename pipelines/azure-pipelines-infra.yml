@@ -41,14 +41,14 @@ variables:
       value: 'prod'
     - name: terraformWorkingDirectory
       value: '$(System.DefaultWorkingDirectory)/terraform/environments/prod'
-    - group: finrisk-prod
+    - group: finrisk-iac-tf-prod
 
   - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
     - name: environmentName
       value: 'dev'
     - name: terraformWorkingDirectory
       value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
-    - group: finrisk-dev
+    - group: finrisk-iac-tf-dev
 
   # Default to dev for PRs and other branches
   - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
@@ -56,7 +56,7 @@ variables:
       value: 'dev'
     - name: terraformWorkingDirectory
       value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
-    - group: finrisk-dev
+    - group: finrisk-iac-tf-dev
 
 stages:
   - stage: Plan
