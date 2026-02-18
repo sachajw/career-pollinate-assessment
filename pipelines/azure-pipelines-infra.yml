@@ -86,6 +86,15 @@ stages:
               command: 'validate'
               workingDirectory: '$(terraformWorkingDirectory)'
 
+          # tfsec: Static analysis security scanner for Terraform
+          # Informational only (--soft-fail) - reports issues without blocking pipeline
+          - task: tfsec@1
+            displayName: 'Security Scan (tfsec)'
+            inputs:
+              dir: '$(System.DefaultWorkingDirectory)/terraform'
+              args: '--soft-fail --format junit --out tfsec-results.xml'
+              publishTestResults: true
+
           - task: TerraformTaskV4@4
             displayName: 'Terraform Plan'
             inputs:
