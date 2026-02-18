@@ -88,28 +88,36 @@ stages:
 
           # tfsec: Static analysis security scanner for Terraform
           # Informational only (--soft-fail) - reports issues without blocking pipeline
-          # Using direct binary to avoid Node.js compatibility issues with the extension
           - script: |
-              set -e
               echo "Installing tfsec..."
-              brew install tfsec 2>/dev/null || curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+              if command -v brew &> /dev/null; then
+                brew install tfsec 2>/dev/null || true
+              fi
+              if ! command -v tfsec &> /dev/null; then
+                echo "Installing tfsec via curl..."
+                curl -sL https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-darwin-amd64 -o /usr/local/bin/tfsec 2>/dev/null || \
+                curl -sL https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-darwin-arm64 -o /tmp/tfsec && chmod +x /tmp/tfsec && sudo mv /tmp/tfsec /usr/local/bin/tfsec 2>/dev/null || true
+              fi
 
               echo "Running tfsec security scan..."
-              cd $(System.DefaultWorkingDirectory)
+              cd "$(System.DefaultWorkingDirectory)"
               tfsec terraform/ \
                 --format junit \
-                --out tfsec-results.xml \
-                --soft-fail
+                --out "$(System.DefaultWorkingDirectory)/tfsec-results.xml" \
+                --soft-fail || true
 
-              echo "Scan complete. Results saved to tfsec-results.xml"
+              echo "Checking for results file..."
+              ls -la "$(System.DefaultWorkingDirectory)/tfsec-results.xml" 2>/dev/null || echo "Warning: Results file not found"
+              cat "$(System.DefaultWorkingDirectory)/tfsec-results.xml" 2>/dev/null | head -20 || echo "Could not read results"
             displayName: 'Security Scan (tfsec)'
             continueOnError: true
 
           - task: PublishTestResults@2
             displayName: 'Publish tfsec Results'
             inputs:
-              testResultsFiles: 'tfsec-results.xml'
+              testResultsFiles: '$(System.DefaultWorkingDirectory)/tfsec-results.xml'
               testRunTitle: 'tfsec Security Scan'
+              failTaskOnFailedTests: false
             condition: succeededOrFailed()
 
           - task: TerraformTaskV4@4
