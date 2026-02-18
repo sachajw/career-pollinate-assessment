@@ -43,7 +43,7 @@ variables:
   - name: azureSubscription
     value: 'azure-service-connection'
   - name: terraformVersion
-    value: '1.7.0'
+    value: '1.5.5'
 
 stages:
   - stage: Plan
