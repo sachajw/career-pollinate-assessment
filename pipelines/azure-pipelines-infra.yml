@@ -46,7 +46,7 @@ variables:
       value: 'dev'
     - name: terraformWorkingDirectory
       value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
-    - group: finrisk-iac-tf-dev
+    - group: finrisk-tf-state-storage-account
 
   # Default to dev for PRs and other branches
   - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
