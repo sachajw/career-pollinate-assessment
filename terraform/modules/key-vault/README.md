@@ -90,7 +90,7 @@ module "key_vault" {
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.5.0 |
-| azurerm   | ~> 4.0 |
+| azurerm   | ~> 4.0   |
 
 ## Inputs
 

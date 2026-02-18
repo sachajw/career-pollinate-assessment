@@ -4,11 +4,11 @@ Creates a Virtual Network with subnets for private endpoints and Container App e
 
 ## Resources
 
-| Resource | Purpose |
-|----------|---------|
-| `azurerm_virtual_network` | Main VNet |
+| Resource                           | Purpose                                        |
+| ---------------------------------- | ---------------------------------------------- |
+| `azurerm_virtual_network`          | Main VNet                                      |
 | `azurerm_subnet.private_endpoints` | Subnet for Key Vault and ACR private endpoints |
-| `azurerm_subnet.container_app` | Delegated subnet for Container App environment |
+| `azurerm_subnet.container_app`     | Delegated subnet for Container App environment |
 
 ## Architecture
 
@@ -41,31 +41,31 @@ module "networking" {
 
 ## Inputs
 
-| Name | Description | Type | Default |
-|------|-------------|------|---------|
-| `vnet_name` | Name of the Virtual Network | `string` | Required |
-| `resource_group_name` | Resource group name | `string` | Required |
-| `location` | Azure region | `string` | Required |
-| `vnet_address_space` | VNet CIDR | `string` | `"10.0.0.0/16"` |
-| `private_endpoint_subnet_cidr` | Private endpoints subnet CIDR | `string` | `"10.0.1.0/24"` |
-| `container_app_subnet_cidr` | Container App subnet CIDR | `string` | `"10.0.2.0/23"` |
-| `tags` | Resource tags | `map(string)` | `{}` |
+| Name                           | Description                   | Type          | Default         |
+| ------------------------------ | ----------------------------- | ------------- | --------------- |
+| `vnet_name`                    | Name of the Virtual Network   | `string`      | Required        |
+| `resource_group_name`          | Resource group name           | `string`      | Required        |
+| `location`                     | Azure region                  | `string`      | Required        |
+| `vnet_address_space`           | VNet CIDR                     | `string`      | `"10.0.0.0/16"` |
+| `private_endpoint_subnet_cidr` | Private endpoints subnet CIDR | `string`      | `"10.0.1.0/24"` |
+| `container_app_subnet_cidr`    | Container App subnet CIDR     | `string`      | `"10.0.2.0/23"` |
+| `tags`                         | Resource tags                 | `map(string)` | `{}`            |
 
 ## Outputs
 
-| Name | Description |
-|------|-------------|
-| `vnet_id` | Resource ID of the VNet |
-| `vnet_name` | Name of the VNet |
-| `private_endpoint_subnet_id` | Subnet ID for private endpoints |
-| `container_app_subnet_id` | Subnet ID for Container App environment |
+| Name                         | Description                             |
+| ---------------------------- | --------------------------------------- |
+| `vnet_id`                    | Resource ID of the VNet                 |
+| `vnet_name`                  | Name of the VNet                        |
+| `private_endpoint_subnet_id` | Subnet ID for private endpoints         |
+| `container_app_subnet_id`    | Subnet ID for Container App environment |
 
 ## Requirements
 
-| Name | Version |
-|------|---------|
+| Name      | Version  |
+| --------- | -------- |
 | Terraform | >= 1.5.0 |
-| azurerm | ~> 4.0 |
+| azurerm   | ~> 4.0   |
 
 ## Notes
 
