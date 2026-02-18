@@ -46,9 +46,15 @@ resource "azurerm_subnet" "private_endpoints" {
 
   # Required: disable endpoint network policies so private endpoints can be
   # provisioned in this subnet (Azure enforces this restriction).
-  # NOTE: private_endpoint_network_policies_enabled is deprecated in AzureRM 3.x
-  # and will be removed in 4.0. Update to private_endpoint_network_policies block
-  # when upgrading to AzureRM 4.x.
+  #
+  # NOTE: This attribute is deprecated in AzureRM 3.x but remains functional.
+  # When upgrading to AzureRM 4.x, replace with:
+  #   private_endpoint_network_policies {
+  #     enabled = false
+  #   }
+  #
+  # Suppressing the deprecation warning is intentional - the new block syntax
+  # is only available in AzureRM 4.x.
   private_endpoint_network_policies_enabled = false
 }
 
