@@ -75,7 +75,11 @@ class RiskShieldClient:
     ) -> tuple[int, RiskLevel]:
         """Validate applicant and return risk score.
 
-        Uses retry logic with exponential backoff for transient failures.
+        Calls RiskShield API (POST /v1/score) with retry logic and exponential
+        backoff for transient failures.
+
+        Falls back to a deterministic demo algorithm when no API key is
+        configured (local development without RiskShield credentials).
 
         Args:
             request: Applicant validation request
@@ -84,7 +88,7 @@ class RiskShieldClient:
             Tuple of (risk_score, risk_level)
 
         Raises:
-            RiskShieldTimeoutError: If API call times out
+            RiskShieldTimeoutError: If API call times out after retries
             RiskShieldUnavailableError: If API is unavailable after retries
         """
         logger.info(
@@ -94,10 +98,22 @@ class RiskShieldClient:
             id_number_hash=hash(request.idNumber) % 1000,
         )
 
-        # DEMO: Generate deterministic risk score from ID number
-        # In production, this would call _validate_with_retry()
-        risk_score = self._calculate_demo_risk_score(request.idNumber)
-        risk_level = self._classify_risk_level(risk_score)
+        if not self.api_key:
+            # Demo mode: no API key configured (local development only)
+            logger.warning(
+                "No RiskShield API key configured - running in demo mode. "
+                "Set RISKSHIELD_API_KEY or configure KEY_VAULT_URL for production."
+            )
+            risk_score = self._calculate_demo_risk_score(request.idNumber)
+            risk_level = self._classify_risk_level(risk_score)
+        else:
+            # Production: call RiskShield API with retry/timeout logic
+            try:
+                risk_score, risk_level = await self._validate_with_retry(request)
+            except RiskShieldTimeoutError:
+                raise RiskShieldUnavailableError(
+                    "RiskShield API timed out after retries"
+                )
 
         logger.info(
             "Applicant validation complete",

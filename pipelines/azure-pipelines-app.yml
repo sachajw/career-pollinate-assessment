@@ -8,6 +8,8 @@
 #   - dev branch -> dev environment
 #   - main branch -> prod environment
 # - Assumes infrastructure already exists (use infra pipeline first)
+#
+# Agent: self-hosted macOS (pool: Default) with OrbStack for Docker
 
 name: FinRisk-App-CI-CD-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 
@@ -80,7 +82,7 @@ stages:
 
           - script: |
               echo "##vso[task.prependpath]/opt/homebrew/opt/python@3.13/bin"
-              echo "##vso[task.prependpath]/Users/tvl/.local/bin"
+              echo "##vso[task.prependpath]$HOME/.local/bin"
             displayName: 'Setup Python PATH'
 
           - script: |
@@ -152,10 +154,10 @@ stages:
             displayName: 'Publish Image Tag'
 
           - script: |
-              # Use OrbStack Docker explicitly - set environment for all steps
-              export DOCKER=/Users/tvl/.orbstack/bin/docker
-              export DOCKER_CONFIG=/Users/tvl/.docker
-              export HOME=/Users/tvl
+              # OrbStack Docker on macOS self-hosted agent
+              # $HOME resolves to the agent user's home directory at runtime
+              export DOCKER=$HOME/.orbstack/bin/docker
+              export DOCKER_CONFIG=$HOME/.docker
 
               echo "Using Docker: $DOCKER"
               $DOCKER --version
@@ -176,10 +178,9 @@ stages:
           - script: |
               set -e
 
-              # Use OrbStack Docker explicitly
-              DOCKER=/Users/tvl/.orbstack/bin/docker
-              export DOCKER_CONFIG=/Users/tvl/.docker
-              export HOME=/Users/tvl
+              # OrbStack Docker on macOS self-hosted agent
+              DOCKER=$HOME/.orbstack/bin/docker
+              export DOCKER_CONFIG=$HOME/.docker
 
               # Navigate to app directory
               cd app
@@ -413,7 +414,7 @@ stages:
               echo "Request: $REQUEST_BODY"
               echo ""
 
-              # Call the validate API with timing (using Python for cross-platform milliseconds)
+              # Call the validate API with timing (python3 for cross-platform milliseconds)
               START_TIME=$(python3 -c "import time; print(int(time.time() * 1000))")
               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$VALIDATE_URL" \
                 -H "Content-Type: application/json" \
