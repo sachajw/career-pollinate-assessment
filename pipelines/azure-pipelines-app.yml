@@ -33,13 +33,6 @@ pr:
       - app/**
 
 variables:
-  # Dev environment only for assessment (prod not deployed due to quota limits)
-  - name: environmentName
-    value: 'dev'
-
-  # Variable group
-  - group: finrisk-dev
-
   # Common variables
   - name: azureSubscription
     value: 'azure-service-connection'
@@ -47,16 +40,43 @@ variables:
     value: '3.13'
   - name: imageName
     value: 'applicant-validator'
-
-  # Dev environment resource names
-  - name: containerAppName
-    value: 'ca-finrisk-dev'
-  - name: resourceGroupName
-    value: 'rg-finrisk-dev'
-  - name: containerRegistry
-    value: 'acrfinriskdev.azurecr.io'
   - name: dockerRegistryServiceConnection
     value: 'acr-service-connection'
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: containerAppName
+      value: 'ca-finrisk-prod'
+    - name: resourceGroupName
+      value: 'rg-finrisk-prod'
+    - name: containerRegistry
+      value: 'acrfinriskprod.azurecr.io'
+    - group: finrisk-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: containerAppName
+      value: 'ca-finrisk-dev'
+    - name: resourceGroupName
+      value: 'rg-finrisk-dev'
+    - name: containerRegistry
+      value: 'acrfinriskdev.azurecr.io'
+    - group: finrisk-dev
+
+  # Default to dev for PRs and other branches
+  - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
+    - name: environmentName
+      value: 'dev'
+    - name: containerAppName
+      value: 'ca-finrisk-dev'
+    - name: resourceGroupName
+      value: 'rg-finrisk-dev'
+    - name: containerRegistry
+      value: 'acrfinriskdev.azurecr.io'
+    - group: finrisk-dev
 
 stages:
   # ========================================

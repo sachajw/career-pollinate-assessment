@@ -30,20 +30,33 @@ pr:
       - terraform/**
 
 variables:
-  # Dev environment only for assessment (prod not deployed due to quota limits)
-  - name: environmentName
-    value: 'dev'
-
-  - name: terraformWorkingDirectory
-    value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
-
-  # Variable group
-  - group: finrisk-dev
-
   - name: azureSubscription
     value: 'azure-service-connection'
   - name: terraformVersion
     value: '1.5.5'
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/prod'
+    - group: finrisk-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+    - group: finrisk-dev
+
+  # Default to dev for PRs and other branches
+  - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
+    - name: environmentName
+      value: 'dev'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+    - group: finrisk-dev
 
 stages:
   - stage: Plan
@@ -135,14 +148,14 @@ stages:
   - stage: Apply
     displayName: 'Terraform Apply'
     dependsOn: Plan
-    # Apply on main (prod) requires manual approval via environment
-    # Apply on dev branch happens automatically
     condition: succeeded()
     jobs:
       - deployment: TerraformApply
         pool: Default
         # Environment enables approvals in Azure DevOps
-        environment: dev-infrastructure
+        # Create environments in Azure DevOps: dev-infrastructure, prod-infrastructure
+        # Configure approval requirements on prod-infrastructure
+        environment: ${{ variables.environmentName }}-infrastructure
         strategy:
           runOnce:
             deploy:
