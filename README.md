@@ -42,6 +42,16 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | **Dev** | ✅ Deployed | `https://finrisk-dev.pangarabbit.com` |
 | **Prod** | 📋 Documented | Not deployed (Azure quota limits) |
 
+### API Documentation Endpoints
+
+**Azure (Direct)**
+- Swagger UI: https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io/docs
+- ReDoc: https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io/redoc
+
+**Cloudflare (Custom Domain)**
+- Swagger UI: https://finrisk-dev.pangarabbit.com/docs
+- ReDoc: https://finrisk-dev.pangarabbit.com/redocs
+
 ### Documentation
 
 | Document | Description |
