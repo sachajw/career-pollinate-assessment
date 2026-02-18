@@ -102,7 +102,7 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 | Infrastructure stage | Terraform init/plan/apply | [Pipeline README](./pipelines/README.md) |
 | Deploy stage | Container App update, health check | [Pipeline README](./pipelines/README.md) |
 | Service connections | Azure Resource Manager | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
-| Variable groups | `finrisk-dev` with state storage | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
+| Variable groups | `finrisk-app-dev/prod`, `finrisk-iac-tf-dev/prod` | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
 | Separate environments | Branch-based: `dev` → dev, `main` → prod | [Pipeline README](./pipelines/README.md) |
 | **Deliverables** | | |
 | `/app` directory | FastAPI application | [App README](./app/README.md) |

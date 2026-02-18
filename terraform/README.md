@@ -123,7 +123,18 @@ For pipeline deployments, configure Azure DevOps:
 - Create Azure Resource Manager connection (Workload Identity federation recommended)
 - Name: `azure-service-connection`
 
-**2. Variable Group (`finrisk-dev`):**
+**2. Variable Groups:**
+
+Create four variable groups for branch-based environment targeting:
+
+| Variable Group | Environment | Branch |
+|----------------|-------------|--------|
+| `finrisk-iac-tf-dev` | Development | `dev` |
+| `finrisk-iac-tf-prod` | Production | `main` |
+| `finrisk-app-dev` | Development | `dev` |
+| `finrisk-app-prod` | Production | `main` |
+
+Each variable group needs:
 - `terraformStateStorageAccount` - storage account name from bootstrap
 
 **3. Terraform Extension:**
