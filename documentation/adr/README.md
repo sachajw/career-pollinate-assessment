@@ -27,6 +27,7 @@ Each ADR follows this structure:
 | [005](./005-docker-container-strategy.md) | Docker Container Strategy | ✅ Accepted | 2026-02-14 | 🟠 High |
 | [006](./006-terraform-module-architecture.md) | Terraform Module Architecture | ✅ Accepted | 2026-02-14 | 🔴 Critical |
 | [007](./007-cicd-pipeline-strategy.md) | CI/CD Pipeline Strategy (Azure DevOps) | ✅ Accepted | 2026-02-14 | 🔴 Critical |
+| [008](./008-bonus-security-enhancements.md) | Bonus Security Enhancements | ✅ Accepted | 2026-02-18 | 🟠 High |
 
 ## Technical Assessment Coverage
 
@@ -38,6 +39,7 @@ These ADRs comprehensively address all technical assessment requirements:
 | **2. Containerisation** (multi-stage, non-root, small image, healthcheck) | [ADR-005](./005-docker-container-strategy.md) |
 | **3. Infrastructure** (Terraform modules, remote state, environments, naming) | [ADR-006](./006-terraform-module-architecture.md) |
 | **4. Security** (Key Vault, Managed Identity, HTTPS, diagnostics, threat model) | [ADR-003](./003-managed-identity-security.md) |
+| **4. Security (Bonus)** (Network restrictions, Azure AD auth, Private endpoints) | [ADR-008](./008-bonus-security-enhancements.md) |
 | **5. CI/CD Pipeline** (3-stage, service connections, variable groups, environments) | [ADR-007](./007-cicd-pipeline-strategy.md) |
 | **Compute Platform** | [ADR-001](./001-azure-container-apps.md) |
 
@@ -80,5 +82,5 @@ Proposed → Under Review → Accepted → Implemented
 
 ---
 
-**Last Updated:** 2026-02-14
+**Last Updated:** 2026-02-18
 **Maintained By:** Solution Architecture Team

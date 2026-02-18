@@ -96,3 +96,33 @@ variable "certificate_name" {
   type        = string
   default     = "finrisk-pangarabbit-cert"
 }
+
+#------------------------------------------------------------------------------
+# Security: Network Restrictions (Item 1)
+#------------------------------------------------------------------------------
+
+variable "kv_allowed_ips" {
+  description = "IP address ranges (CIDR) allowed to access Key Vault directly. Empty list = only AzureServices bypass is permitted. Add your pipeline agent or developer IPs here when network ACLs are enabled."
+  type        = list(string)
+  default     = []
+}
+
+#------------------------------------------------------------------------------
+# Security: Azure AD Authentication / EasyAuth (Item 2)
+#------------------------------------------------------------------------------
+
+variable "aad_client_id" {
+  description = "Azure AD App Registration client ID to enable built-in Container App authentication (EasyAuth). When set, all requests to /api/v1/validate must include a valid Azure AD Bearer token. /health and /ready remain unauthenticated. Prerequisite: create an App Registration in Azure AD with Application ID URI = api://<client_id>."
+  type        = string
+  default     = null
+}
+
+#------------------------------------------------------------------------------
+# Security: Private Endpoints (Item 3)
+#------------------------------------------------------------------------------
+
+variable "enable_private_endpoints" {
+  description = "Enable private endpoints for Key Vault and ACR. Routes all service traffic over the VNet — removes public internet exposure. IMPORTANT: when true, the pipeline agent must have VNet connectivity (e.g. Point-to-Site VPN or a VNet-hosted build agent) to reach Key Vault and ACR. Also requires ACR SKU >= Standard."
+  type        = bool
+  default     = false
+}
