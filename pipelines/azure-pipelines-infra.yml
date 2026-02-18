@@ -135,7 +135,6 @@ stages:
                     backendAzureRmStorageAccountName: '$(terraformStateStorageAccount)'
                     backendAzureRmContainerName: 'tfstate'
                     backendAzureRmKey: 'finrisk-$(environmentName).tfstate'
-                    commandOptions: '-reconfigure'
 
                 - task: TerraformTaskV4@4
                   displayName: 'Terraform Apply'
