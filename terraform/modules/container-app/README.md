@@ -120,26 +120,26 @@ module "container_app" {
 | Name      | Version  |
 | --------- | -------- |
 | terraform | >= 1.5.0 |
-| azurerm   | ~> 3.100 |
+| azurerm   | ~> 4.0   |
 
 ## Inputs
 
 ### Required Variables
 
-| Name                | Description                           | Type          | Default |
-| ------------------- | ------------------------------------- | ------------- | ------- |
-| name                | Name of the container app             | `string`      | n/a     |
-| environment_name    | Name of the container app environment | `string`      | n/a     |
-| resource_group_name | Name of the resource group            | `string`      | n/a     |
-| location            | Azure region                          | `string`      | n/a     |
-| log_analytics_workspace_id | Log Analytics workspace ID     | `string`      | n/a     |
-| container_image     | Full container image path             | `string`      | n/a     |
+| Name                       | Description                           | Type     | Default |
+| -------------------------- | ------------------------------------- | -------- | ------- |
+| name                       | Name of the container app             | `string` | n/a     |
+| environment_name           | Name of the container app environment | `string` | n/a     |
+| resource_group_name        | Name of the resource group            | `string` | n/a     |
+| location                   | Azure region                          | `string` | n/a     |
+| log_analytics_workspace_id | Log Analytics workspace ID            | `string` | n/a     |
+| container_image            | Full container image path             | `string` | n/a     |
 
 ### Common Variables
 
-| Name  | Description       | Type          | Default |
-| ----- | ----------------- | ------------- | ------- |
-| tags  | Tags to apply     | `map(string)` | `{}`    |
+| Name | Description   | Type          | Default |
+| ---- | ------------- | ------------- | ------- |
+| tags | Tags to apply | `map(string)` | `{}`    |
 
 ### Environment Configuration
 
@@ -174,74 +174,74 @@ module "container_app" {
 
 ### Health Probes - Startup
 
-| Name                          | Description                  | Type     | Default     |
-| ----------------------------- | ---------------------------- | -------- | ----------- |
-| startup_probe_enabled         | Enable startup probe         | `bool`   | `false`     |
-| startup_probe_transport       | Transport (HTTP or TCP)      | `string` | `"HTTP"`    |
-| startup_probe_port            | Probe port                   | `number` | `8080`      |
-| startup_probe_path            | Probe HTTP path              | `string` | `"/health"` |
-| startup_probe_initial_delay   | Initial delay in seconds     | `number` | `5`         |
-| startup_probe_interval        | Interval in seconds          | `number` | `10`        |
-| startup_probe_timeout         | Timeout in seconds           | `number` | `3`         |
-| startup_probe_failure_threshold | Failure threshold           | `number` | `3`         |
+| Name                            | Description              | Type     | Default     |
+| ------------------------------- | ------------------------ | -------- | ----------- |
+| startup_probe_enabled           | Enable startup probe     | `bool`   | `false`     |
+| startup_probe_transport         | Transport (HTTP or TCP)  | `string` | `"HTTP"`    |
+| startup_probe_port              | Probe port               | `number` | `8080`      |
+| startup_probe_path              | Probe HTTP path          | `string` | `"/health"` |
+| startup_probe_initial_delay     | Initial delay in seconds | `number` | `5`         |
+| startup_probe_interval          | Interval in seconds      | `number` | `10`        |
+| startup_probe_timeout           | Timeout in seconds       | `number` | `3`         |
+| startup_probe_failure_threshold | Failure threshold        | `number` | `3`         |
 
 ### Health Probes - Liveness
 
-| Name                           | Description                  | Type     | Default     |
-| ------------------------------ | ---------------------------- | -------- | ----------- |
-| liveness_probe_enabled         | Enable liveness probe        | `bool`   | `true`      |
-| liveness_probe_transport       | Transport (HTTP or TCP)      | `string` | `"HTTP"`    |
-| liveness_probe_port            | Probe port                   | `number` | `8080`      |
-| liveness_probe_path            | Probe HTTP path              | `string` | `"/health"` |
-| liveness_probe_initial_delay   | Initial delay in seconds     | `number` | `10`        |
-| liveness_probe_interval        | Interval in seconds          | `number` | `30`        |
-| liveness_probe_timeout         | Timeout in seconds           | `number` | `3`         |
-| liveness_probe_failure_threshold | Failure threshold           | `number` | `3`         |
+| Name                             | Description              | Type     | Default     |
+| -------------------------------- | ------------------------ | -------- | ----------- |
+| liveness_probe_enabled           | Enable liveness probe    | `bool`   | `true`      |
+| liveness_probe_transport         | Transport (HTTP or TCP)  | `string` | `"HTTP"`    |
+| liveness_probe_port              | Probe port               | `number` | `8080`      |
+| liveness_probe_path              | Probe HTTP path          | `string` | `"/health"` |
+| liveness_probe_initial_delay     | Initial delay in seconds | `number` | `10`        |
+| liveness_probe_interval          | Interval in seconds      | `number` | `30`        |
+| liveness_probe_timeout           | Timeout in seconds       | `number` | `3`         |
+| liveness_probe_failure_threshold | Failure threshold        | `number` | `3`         |
 
 ### Health Probes - Readiness
 
-| Name                            | Description                  | Type     | Default    |
-| ------------------------------- | ---------------------------- | -------- | ---------- |
-| readiness_probe_enabled         | Enable readiness probe       | `bool`   | `true`     |
-| readiness_probe_transport       | Transport (HTTP or TCP)      | `string` | `"HTTP"`   |
-| readiness_probe_port            | Probe port                   | `number` | `8080`     |
-| readiness_probe_path            | Probe HTTP path              | `string` | `"/ready"` |
-| readiness_probe_interval        | Interval in seconds          | `number` | `10`       |
-| readiness_probe_timeout         | Timeout in seconds           | `number` | `3`        |
-| readiness_probe_failure_threshold | Failure threshold           | `number` | `3`        |
-| readiness_probe_success_threshold | Success threshold           | `number` | `1`        |
+| Name                              | Description             | Type     | Default    |
+| --------------------------------- | ----------------------- | -------- | ---------- |
+| readiness_probe_enabled           | Enable readiness probe  | `bool`   | `true`     |
+| readiness_probe_transport         | Transport (HTTP or TCP) | `string` | `"HTTP"`   |
+| readiness_probe_port              | Probe port              | `number` | `8080`     |
+| readiness_probe_path              | Probe HTTP path         | `string` | `"/ready"` |
+| readiness_probe_interval          | Interval in seconds     | `number` | `10`       |
+| readiness_probe_timeout           | Timeout in seconds      | `number` | `3`        |
+| readiness_probe_failure_threshold | Failure threshold       | `number` | `3`        |
+| readiness_probe_success_threshold | Success threshold       | `number` | `1`        |
 
 ### Ingress Configuration
 
-| Name                       | Description                      | Type     | Default  |
-| -------------------------- | -------------------------------- | -------- | -------- |
-| ingress_enabled            | Enable ingress                   | `bool`   | `true`   |
-| ingress_external_enabled   | Enable external (public) ingress | `bool`   | `true`   |
-| ingress_target_port        | Target port                      | `number` | `8080`   |
-| ingress_transport          | Transport (http, http2, tcp)     | `string` | `"http"` |
-| allow_insecure_connections | Allow HTTP (not just HTTPS)      | `bool`   | `false`  |
-| traffic_latest_revision    | Route to latest revision         | `bool`   | `true`   |
-| traffic_percentage         | Traffic percentage               | `number` | `100`    |
-| traffic_label              | Label for traffic split          | `string` | `null`   |
-| ip_security_restrictions   | IP security restrictions         | `list(object)` | `[]` |
+| Name                       | Description                      | Type           | Default  |
+| -------------------------- | -------------------------------- | -------------- | -------- |
+| ingress_enabled            | Enable ingress                   | `bool`         | `true`   |
+| ingress_external_enabled   | Enable external (public) ingress | `bool`         | `true`   |
+| ingress_target_port        | Target port                      | `number`       | `8080`   |
+| ingress_transport          | Transport (http, http2, tcp)     | `string`       | `"http"` |
+| allow_insecure_connections | Allow HTTP (not just HTTPS)      | `bool`         | `false`  |
+| traffic_latest_revision    | Route to latest revision         | `bool`         | `true`   |
+| traffic_percentage         | Traffic percentage               | `number`       | `100`    |
+| traffic_label              | Label for traffic split          | `string`       | `null`   |
+| ip_security_restrictions   | IP security restrictions         | `list(object)` | `[]`     |
 
 ### Registry and Key Vault
 
-| Name                    | Description                            | Type     | Default |
-| ----------------------- | -------------------------------------- | -------- | ------- |
-| registry_server         | Container registry server              | `string` | `""`    |
-| enable_acr_pull         | Enable ACR pull role assignment        | `bool`   | `false` |
-| container_registry_id   | ACR ID for RBAC                        | `string` | `""`    |
-| enable_key_vault_access | Enable Key Vault secrets user role     | `bool`   | `false` |
-| key_vault_id            | Key Vault ID for RBAC                  | `string` | `""`    |
+| Name                    | Description                        | Type     | Default |
+| ----------------------- | ---------------------------------- | -------- | ------- |
+| registry_server         | Container registry server          | `string` | `""`    |
+| enable_acr_pull         | Enable ACR pull role assignment    | `bool`   | `false` |
+| container_registry_id   | ACR ID for RBAC                    | `string` | `""`    |
+| enable_key_vault_access | Enable Key Vault secrets user role | `bool`   | `false` |
+| key_vault_id            | Key Vault ID for RBAC              | `string` | `""`    |
 
 ### Custom Domain Configuration
 
-| Name                   | Description                                           | Type     | Default |
-| ---------------------- | ----------------------------------------------------- | -------- | ------- |
-| custom_domain_enabled  | Enable custom domain with certificate                 | `bool`   | `false` |
-| custom_domain_name     | Custom domain name (e.g., api.example.com)            | `string` | `""`    |
-| certificate_name       | Name of existing certificate in Container App Env     | `string` | `""`    |
+| Name                  | Description                                       | Type     | Default |
+| --------------------- | ------------------------------------------------- | -------- | ------- |
+| custom_domain_enabled | Enable custom domain with certificate             | `bool`   | `false` |
+| custom_domain_name    | Custom domain name (e.g., api.example.com)        | `string` | `""`    |
+| certificate_name      | Name of existing certificate in Container App Env | `string` | `""`    |
 
 ## Outputs
 
@@ -297,9 +297,11 @@ module "container_app" {
 ## RBAC Assignments
 
 When `enable_acr_pull = true` and `container_registry_id` is provided:
+
 - Assigns `AcrPull` role to the container app's managed identity
 
 When `enable_key_vault_access = true` and `key_vault_id` is provided:
+
 - Assigns `Key Vault Secrets User` role to the container app's managed identity
 
 ## Health Probe Configuration
@@ -313,6 +315,7 @@ When `enable_key_vault_access = true` and `key_vault_id` is provided:
 ## Custom Domain Setup
 
 1. Upload certificate to Container App Environment via Azure CLI:
+
    ```bash
    az containerapp env certificate upload \
      --name cae-myapp-prod \
@@ -322,6 +325,7 @@ When `enable_key_vault_access = true` and `key_vault_id` is provided:
    ```
 
 2. Configure Terraform:
+
    ```hcl
    custom_domain_enabled = true
    custom_domain_name    = "api.example.com"

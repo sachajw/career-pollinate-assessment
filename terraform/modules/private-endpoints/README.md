@@ -88,11 +88,11 @@ module "private_endpoints" {
 | Name | Version |
 |------|---------|
 | Terraform | >= 1.5.0 |
-| azurerm | ~> 3.100 |
+| azurerm | ~> 4.0 |
 
 ## Prerequisites
 
-1. **VNet** with private endpoints subnet (`private_endpoint_network_policies_enabled = false`)
+1. **VNet** with private endpoints subnet (`private_endpoint_network_policies = "Disabled"`)
 2. **Key Vault** with `public_network_access_enabled = false`
 3. **ACR** with `public_network_access_enabled = false` and SKU >= Standard
 

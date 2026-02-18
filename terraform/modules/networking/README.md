@@ -65,10 +65,10 @@ module "networking" {
 | Name | Version |
 |------|---------|
 | Terraform | >= 1.5.0 |
-| azurerm | ~> 3.100 |
+| azurerm | ~> 4.0 |
 
 ## Notes
 
 - The Container App subnet must be `/23` or larger (Azure requirement)
-- `private_endpoint_network_policies_enabled = false` is required for the private endpoints subnet
+- `private_endpoint_network_policies = "Disabled"` is required for the private endpoints subnet (AzureRM 4.x syntax)
 - The Container App subnet is delegated to `Microsoft.App/environments`
