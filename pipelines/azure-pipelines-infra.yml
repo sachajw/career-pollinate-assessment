@@ -88,12 +88,29 @@ stages:
 
           # tfsec: Static analysis security scanner for Terraform
           # Informational only (--soft-fail) - reports issues without blocking pipeline
-          - task: tfsec@1
+          # Using direct binary to avoid Node.js compatibility issues with the extension
+          - script: |
+              set -e
+              echo "Installing tfsec..."
+              brew install tfsec 2>/dev/null || curl -s https://raw.githubusercontent.com/aquasecurity/tfsec/master/scripts/install_linux.sh | bash
+
+              echo "Running tfsec security scan..."
+              cd $(System.DefaultWorkingDirectory)
+              tfsec terraform/ \
+                --format junit \
+                --out tfsec-results.xml \
+                --soft-fail
+
+              echo "Scan complete. Results saved to tfsec-results.xml"
             displayName: 'Security Scan (tfsec)'
+            continueOnError: true
+
+          - task: PublishTestResults@2
+            displayName: 'Publish tfsec Results'
             inputs:
-              dir: '$(System.DefaultWorkingDirectory)/terraform'
-              args: '--soft-fail --format junit --out tfsec-results.xml'
-              publishTestResults: true
+              testResultsFiles: 'tfsec-results.xml'
+              testRunTitle: 'tfsec Security Scan'
+            condition: succeededOrFailed()
 
           - task: TerraformTaskV4@4
             displayName: 'Terraform Plan'
