@@ -87,7 +87,7 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 | Managed Identity | System-assigned on Container App | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
 | Role assignments | AcrPull, Key Vault Secrets User | [Terraform README](./terraform/README.md#resource-dependency-graph) |
 | Remote state | Azure Storage backend | [Terraform README](./terraform/README.md) |
-| Modules | 5 reusable modules | [Terraform Modules](./terraform/modules/) |
+| Modules | 7 reusable modules | [Terraform Modules](./terraform/modules/) |
 | Dev/Prod environments | Environment-specific configs | [Dev README](./terraform/environments/dev/README.md), [Prod README](./terraform/environments/prod/README.md) |
 | Naming conventions | `{type}-{project}-{env}` | [ADR-006](./documentation/adr/006-terraform-module-architecture.md) |
 | No hardcoded secrets | Key Vault + Managed Identity | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
@@ -106,7 +106,7 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 | Separate environments | Branch-based: `dev` → dev, `main` → prod | [Pipeline README](./pipelines/README.md) |
 | **Deliverables** | | |
 | `/app` directory | FastAPI application | [App README](./app/README.md) |
-| `/terraform` directory | 5 modules, 2 environments | [Terraform README](./terraform/README.md) |
+| `/terraform` directory | 7 modules, 2 environments | [Terraform README](./terraform/README.md) |
 | `/pipelines` directory | 2 YAML pipelines | [Pipeline README](./pipelines/README.md) |
 | Architecture diagram | System context, component diagrams | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) |
 | Local run instructions | Docker and uv commands | [Quick Start](#-quick-start) |
@@ -132,9 +132,12 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 ├── terraform/                  # Infrastructure as Code
 │   ├── modules/                # Reusable Terraform modules
 │   │   ├── container-app/
-│   │   ├── key-vault/
 │   │   ├── container-registry/
-│   │   └── observability/
+│   │   ├── key-vault/
+│   │   ├── networking/
+│   │   ├── observability/
+│   │   ├── private-endpoints/
+│   │   └── resource-group/
 │   ├── environments/           # Environment-specific configs
 │   │   ├── dev/
 │   │   └── prod/
