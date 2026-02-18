@@ -1,8 +1,39 @@
-# Application CI/CD Pipeline (FinRisk-App-CI-CD)
+# Application CI/CD Pipeline
 
 > **Pipeline File:** `azure-pipelines-app.yml`
 > **Azure DevOps Name:** `FinRisk-App-CI-CD`
 > **Purpose:** Build, test, and deploy the containerized FastAPI application
+
+---
+
+## Technical Assessment Compliance
+
+This pipeline satisfies the following requirements from the Technical Assessment:
+
+### Stage 1: Build ✅
+
+| Requirement | Implementation |
+|-------------|----------------|
+| Run tests | pytest with coverage reporting |
+| Build Docker image | Docker buildx cross-platform (ARM64 → AMD64) |
+| Scan image (bonus) | Trivy vulnerability scanner + SBOM generation |
+| Push to ACR | Azure Container Registry with semantic versioning |
+
+### Stage 3: Deploy ✅
+
+| Requirement | Implementation |
+|-------------|----------------|
+| Deploy container to Azure | Azure Container Apps rolling update |
+| Smoke test endpoint | Health check + API validation (`/api/v1/validate`) |
+
+### Must Demonstrate ✅
+
+| Requirement | Implementation |
+|-------------|----------------|
+| Use of service connections | `azure-service-connection`, `acr-service-connection` |
+| Variable groups | Not required (all values inline) |
+| Secure secret handling | Secrets in Key Vault, accessed via Managed Identity |
+| Separate environments (dev/prod) | Branch-based: `dev` → dev, `main` → prod |
 
 ---
 
@@ -15,12 +46,20 @@
 ├─────────────────────────────────────────────────────────────────┤
 │                                                                  │
 │   ┌─────────┐     ┌─────────┐     ┌─────────┐                   │
-│   │  Build  │ ──> │  Deploy │ ──> │ Verify  │                   │
+│   │  Build  │ ──> │  Deploy │ ──> │  Verify  │                  │
 │   └─────────┘     └─────────┘     └─────────┘                   │
+│       │                                                   │       │
+│       ├── Lint (Ruff)                                     │       │
+│       ├── Type Check (mypy)                               │       │
+│       ├── Security (Bandit)                               │       │
+│       ├── Unit Tests (pytest)                             │       │
+│       ├── Docker Build (buildx)                           │       │
+│       ├── Image Scan (Trivy)                              │       │
+│       └── Push to ACR                                     │       │
 │                                                                  │
 │   Triggered by:                                                  │
 │   - Changes to app/**                                            │
-│   - Changes to pipelines/*-app                                   │
+│   - Changes to pipelines/azure-pipelines-app.yml                │
 │                                                                  │
 │   Run AFTER infrastructure exists                                │
 └─────────────────────────────────────────────────────────────────┘
@@ -30,31 +69,30 @@
 
 ## Stage 1: Build & Test
 
-### Test Job (Unit Tests & Quality Checks)
+### Test Job
 
-- Setup Python 3.13 with uv package manager
-- Install dependencies (`uv sync --extra dev`)
-- **Lint** with Ruff
-- **Type check** with mypy
-- **Security scan** with Bandit
-- **Run unit tests** with pytest (coverage report)
-- Publish test results and code coverage
+| Step | Tool | Purpose |
+|------|------|---------|
+| Lint | Ruff | Code style and quality |
+| Type Check | mypy | Static type analysis |
+| Security Scan | Bandit | Python security analysis |
+| Unit Tests | pytest + coverage | Test execution and coverage |
 
-### BuildImage Job (Cross-Platform Docker Build)
+### BuildImage Job
 
-- **Setup PATH** for OrbStack Docker (buildx-capable)
-- **Login to ACR** (Azure Container Registry)
-- **Setup Docker buildx** for cross-platform builds
-- **Build AMD64 image** (cross-compile from ARM64 Mac to x86_64 Azure)
-- **Push to ACR** with semantic version tag (from git describe) + latest
-- **Scan image** with Trivy (CRITICAL/HIGH/MEDIUM severities, non-blocking)
-- **Generate SBOM** manifest for supply chain security
+| Step | Details |
+|------|---------|
+| Login to ACR | Via service connection |
+| Docker buildx | Cross-platform build (ARM64 → AMD64) |
+| Push to ACR | Semantic version tag from git |
+| Trivy scan | Vulnerability scanning (non-blocking) |
+| SBOM | Software Bill of Materials |
 
 ### Quality Gates
 
 - All tests must pass
 - No type checking errors
-- Security issues logged (non-blocking, review in Trivy tab)
+- Security issues logged (non-blocking)
 
 ---
 
@@ -66,271 +104,123 @@
 
 ---
 
-## Stage 3: Verify (Enhanced Smoke Tests)
+## Stage 3: Verify (Smoke Tests)
 
-### Health Check (`/health`)
-- 10 retry attempts with 10s intervals
-- Handles cold start (scale-to-zero) and rollout delays
+| Test | Endpoint | Validation |
+|------|----------|------------|
+| Health Check | `/health` | HTTP 200, handles cold start |
+| Ready Check | `/ready` | HTTP 200 |
+| API Validation | `/api/v1/validate` | POST request, verify response schema |
 
-### Endpoint Checks
-- OpenAPI docs (`/docs`)
-- Readiness probe (`/ready`)
-
-### Validate API Test (`/api/v1/validate`)
-- **Business logic verification**
-- POST request with sample data
-- Validates HTTP 200 response
-- Checks all required fields (riskScore, riskLevel, correlationId)
-- Verifies riskLevel enum (LOW, MEDIUM, HIGH)
-
----
-
-## Semantic Versioning
-
-Image tags are derived from **git tags** using `git describe --tags`. Git is the source of truth for versions.
-
-**Format:** `v{major}.{minor}.{patch}-{commits}-g{hash}`
-
-| Scenario | Git Tag | Commits Since | Image Tag |
-|----------|---------|---------------|-----------|
-| Release | `v1.0.0` | 0 | `v1.0.0` |
-| Post-release dev | `v1.0.0` | 5 | `v1.0.0-5-gabc123` |
-| No tags yet | (none) | - | `v0.0.0-abc123` |
-
-### Creating a Release
+### API Validation Details
 
 ```bash
-git tag v1.0.0
-git push origin v1.0.0
-# Pipeline will build image: applicant-validator:v1.0.0
+curl -X POST https://$APP_URL/api/v1/validate \
+  -H "Content-Type: application/json" \
+  -d '{"firstName":"Jane","lastName":"Doe","idNumber":"9001011234088"}'
 ```
 
-### Pipeline Step
-
-```yaml
-- script: |
-    VERSION=$(git describe --tags --always --dirty 2>/dev/null || echo "v0.0.0-$(git rev-parse --short HEAD)")
-    echo "##vso[task.setvariable variable=imageTag]$VERSION"
-  displayName: 'Set Version from Git'
-```
-
----
-
-## Pipeline Variables
-
-```yaml
-variables:
-  - name: azureSubscription
-    value: "azure-service-connection"
-  - name: pythonVersion
-    value: "3.13"
-  - name: imageName
-    value: "applicant-validator"
-  - name: dockerRegistryServiceConnection
-    value: "acr-service-connection"
-
-  # Branch-based environment targeting
-  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
-    - name: environmentName
-      value: 'prod'
-    - name: containerAppName
-      value: 'ca-finrisk-prod'
-    - name: resourceGroupName
-      value: 'rg-finrisk-prod'
-    - name: containerRegistry
-      value: 'acrfinriskprod.azurecr.io'
-    - group: finrisk-app-prod
-
-  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
-    - name: environmentName
-      value: 'dev'
-    - name: containerAppName
-      value: 'ca-finrisk-dev'
-    - name: resourceGroupName
-      value: 'rg-finrisk-dev'
-    - name: containerRegistry
-      value: 'acrfinriskdev.azurecr.io'
-    - group: finrisk-app-dev
-```
-
-### Variable Groups
-
-| Variable Group | Environment | Branch |
-|----------------|-------------|--------|
-| `finrisk-app-dev` | Development | `dev` |
-| `finrisk-app-prod` | Production | `main` |
-
-> **Note:** `imageTag` is set dynamically from `git describe --tags`
-
----
-
-## Local Agent Setup (macOS with Docker Buildx)
-
-### Why Docker Buildx?
-
-The application must run on **Azure Container Apps (AMD64/x86_64)**, but development happens on **Apple Silicon Macs (ARM64)**. Docker buildx enables **cross-platform builds** without emulation.
-
-### Prerequisites
-
-1. **macOS with Apple Silicon** (M1/M2/M3)
-2. **OrbStack** (provides Docker with buildx) - `brew install orbstack`
-3. **Azure DevOps Account** with agent pool access
-4. **Azure Subscription** with Container Apps access
-5. **Trivy Extension** - Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?itemName=AquaSecurityOfficial.trivy-official)
-6. **SBOM Tool Extension** - Install from [Visual Studio Marketplace](https://marketplace.visualstudio.com/items?displayName=Microsoft%20Security%20Risk%20Detection)
-
-### Step 1: Install Azure Pipelines Agent
-
-```bash
-mkdir -p ~/azure-pipelines-agent
-cd ~/azure-pipelines-agent
-
-curl -O https://vstsagentpackage.azureedge.net/agent/3.236.1/vsts-agent-osx-arm64-3.236.1.tar.gz
-tar zxvf vsts-agent-osx-arm64-3.236.1.tar.gz
-./config.sh
-
-# When prompted:
-# - Server URL: https://dev.azure.com/{your-org}
-# - Authentication: PAT
-# - Agent pool: Default
-# - Agent name: local-mac
-```
-
-### Step 2: Verify Docker Buildx
-
-```bash
-docker --version
-docker buildx version
-docker buildx ls
-
-# Create builder if not exists
-docker buildx create --name mybuilder --use
-docker buildx inspect --bootstrap
-```
-
-### Step 3: Run the Agent
-
-```bash
-cd ~/azure-pipelines-agent
-
-# Interactive mode (for testing)
-./run.sh
-
-# OR run as background service (recommended)
-./svc.sh install
-./svc.sh start
-./svc.sh status
+Expected response:
+```json
+{
+  "riskScore": 72,
+  "riskLevel": "MEDIUM",
+  "correlationId": "abc-123"
+}
 ```
 
 ---
 
-## Docker Buildx Configuration in Pipeline
+## Branch-Based Environment Targeting
 
-### Critical Environment Variables
+| Branch | Environment | Container App | Resource Group |
+|--------|-------------|---------------|----------------|
+| `dev` | dev | `ca-finrisk-dev` | `rg-finrisk-dev` |
+| `main` | prod | `ca-finrisk-prod` | `rg-finrisk-prod` |
 
-```yaml
-- script: |
-    DOCKER=/Users/tvl/.orbstack/bin/docker
-    export DOCKER_CONFIG=/Users/tvl/.docker
-    export HOME=/Users/tvl
-
-    $DOCKER buildx version
-
-    $DOCKER buildx build \
-      --platform linux/amd64 \
-      --target production \
-      -t $(containerRegistry)/$(imageName):$(imageTag) \
-      --push \
-      .
-  displayName: "Build and Push Docker Image (AMD64)"
-```
-
-### Why This Configuration?
-
-| Setting | Purpose |
-|---------|---------|
-| `DOCKER=/Users/tvl/.orbstack/bin/docker` | Ensures buildx-capable Docker is used |
-| `DOCKER_CONFIG=/Users/tvl/.docker` | Points to directory containing `cli-plugins/docker-buildx` |
-| `HOME=/Users/tvl` | Ensures Docker looks in correct home directory |
-| `--platform linux/amd64` | Cross-compiles from ARM64 (Mac) to AMD64 (Azure) |
+**Note:** Prod triggers currently disabled due to Azure subscription quota.
 
 ---
 
-## Testing Locally
+## Required Azure DevOps Resources
 
-### Test Application Build (with buildx)
+### Service Connections
+
+| Connection | Type | Purpose |
+|------------|------|---------|
+| `azure-service-connection` | Azure Resource Manager | Azure CLI operations |
+| `acr-service-connection` | Container Registry | Docker push/pull |
+
+### Environments
+
+| Environment | Purpose |
+|-------------|---------|
+| `finrisk-app-dev` | Dev deployment approvals |
+| `finrisk-app-prod` | Prod deployment approvals |
+
+**Note:** No variable groups required - all values are inline.
+
+---
+
+## Local Development
+
+### Test Locally
 
 ```bash
 cd app
 
+# Run tests
+uv sync --extra dev
+uv run pytest --cov=src
+uv run ruff check src/
+uv run mypy src/
+
+# Build Docker image
 docker buildx build \
   --platform linux/amd64 \
   --target production \
   -t applicant-validator:local \
-  --load \
-  .
+  --load .
 
-# Verify image architecture
-docker inspect applicant-validator:local | grep Architecture
-# Should show: "Architecture": "amd64"
-
-# Run and test
+# Run container
 docker run -p 8080:8080 applicant-validator:local
 curl http://localhost:8080/health
 ```
 
-### Test Build and Push to ACR
+### Push to ACR
 
 ```bash
 az acr login --name acrfinriskdev
 
-cd app
 docker buildx build \
   --platform linux/amd64 \
   --target production \
   -t acrfinriskdev.azurecr.io/applicant-validator:test \
-  --push \
-  .
-```
-
-### Test Python Steps Locally
-
-```bash
-cd app
-uv sync --extra dev
-uv run pytest --cov=src --cov-report=html
-uv run ruff check src/
-uv run mypy src/
-uv run bandit -r src/ -c pyproject.toml
+  --push .
 ```
 
 ---
 
 ## Troubleshooting
 
+### Pipeline Not Triggering
+
+1. Verify branch is `dev` (main disabled)
+2. Check path matches `app/**` or pipeline file
+3. Verify Azure DevOps webhook connected to GitHub
+
 ### Docker Buildx Issues
 
-**Issue:** `docker: unknown command: docker buildx`
-
 ```bash
-# Verify buildx plugin exists
+# Verify buildx plugin
 ls -la ~/.docker/cli-plugins/docker-buildx
 
-# Ensure pipeline sets DOCKER_CONFIG
-export DOCKER_CONFIG=/Users/$(whoami)/.docker
-export HOME=/Users/$(whoami)
+# Test buildx
 docker buildx version
+docker buildx create --name mybuilder --use
 ```
 
-**Issue:** `unknown flag: --platform`
-
-```bash
-# Use explicit path to OrbStack Docker
-DOCKER=/Users/tvl/.orbstack/bin/docker
-$DOCKER buildx version
-```
-
-### Container App Deployment Issues
+### Container App Issues
 
 ```bash
 # Check logs
@@ -339,54 +229,21 @@ az containerapp logs show \
   --resource-group rg-finrisk-dev \
   --follow
 
-# Test endpoints manually
+# Get app URL
 APP_URL=$(az containerapp show \
   --name ca-finrisk-dev \
   --resource-group rg-finrisk-dev \
   --query properties.configuration.ingress.fqdn \
   --output tsv)
 
+# Test endpoint
 curl https://$APP_URL/health
-curl -X POST https://$APP_URL/api/v1/validate \
-  -H "Content-Type: application/json" \
-  -d '{"firstName":"Test","lastName":"User","idNumber":"9001011234088"}'
 ```
 
----
-
-## CI/CD Workflow
-
-### Development Workflow
+### Rollback
 
 ```bash
-# 1. Make code changes
-cd app/src
-
-# 2. Test locally
-cd ../
-uv run pytest
-uv run ruff check src/
-
-# 3. Commit and push
-git add .
-git commit -m "feat: add new validation rule"
-git push origin main
-
-# 4. Pipeline automatically:
-#    - Runs tests (~2 min)
-#    - Builds AMD64 image with buildx (~1 min)
-#    - Pushes to ACR
-#    - Deploys to Container App (~1 min)
-#    - Runs smoke tests (~30 sec)
-#    Total: ~4-5 minutes
-```
-
-### Rollback Procedure
-
-```bash
-# Option 1: Rerun previous successful build in Azure DevOps
-
-# Option 2: Manual rollback via Azure CLI
+# Manual rollback to previous version
 az containerapp update \
   --name ca-finrisk-dev \
   --resource-group rg-finrisk-dev \
@@ -395,87 +252,25 @@ az containerapp update \
 
 ---
 
-## Key Learnings & Best Practices
+## Security Features
 
-### Docker Buildx on Local Agents
+### Trivy Vulnerability Scanner
+- Scans container image for CVEs
+- Reports CRITICAL, HIGH, MEDIUM severities
+- Non-blocking (informational)
 
-1. Use explicit paths - Don't rely on PATH for Docker binary
-2. Set DOCKER_CONFIG and HOME - Required for plugin discovery
-3. Create dedicated builder - `docker buildx create --name mybuilder --use`
-4. Bootstrap before use - `docker buildx inspect --bootstrap`
-5. Test locally first - Verify buildx works before pipeline
+### Bandit
+- Python security linting
+- Runs during test stage
 
-### Pipeline Design
-
-1. Comprehensive smoke tests - Test business logic, not just health checks
-2. Fast feedback - Keep builds under 5 minutes
-3. Explicit configuration - Don't rely on agent defaults
-4. Proper error handling - Use `set -e` and validate each step
-
-### Checkout Optimization (Local Agents)
-
-```yaml
-- checkout: self
-  fetchDepth: 0      # Full history needed for git describe
-  clean: false       # Skip post-job cleanup
-```
-
-### Cross-Platform Builds
-
-1. Always specify platform - `--platform linux/amd64`
-2. Use production target - `--target production`
-3. Push directly - `--push` (don't use `--load` for cross-platform)
-4. Verify architecture - Check `docker inspect` shows correct arch
-
-### Security Scanning
-
-The pipeline includes two security tools:
-
-**Trivy Vulnerability Scanner**
-- Scans container image for known CVEs
-- Reports CRITICAL, HIGH, and MEDIUM severities
-- Non-blocking (`continueOnError: true`) - provides visibility without blocking builds
-- Results published to Azure DevOps Security tab
-
-```yaml
-- task: trivy@2
-  displayName: 'Scan Image (Trivy)'
-  inputs:
-    type: 'image'
-    target: '$(containerRegistry)/$(imageName):$(imageTag)'
-    severities: 'CRITICAL,HIGH,MEDIUM'
-    'exit-code': 0  # Don't fail build on findings
-    reports: 'html,junit'
-    publish: true
-  continueOnError: true  # Fallback: ensure pipeline continues
-```
-
-**SBOM Generation**
-- Creates Software Bill of Materials for supply chain security
-- Generates manifest spreadsheet and dependency graph
-- Fetches license information and security advisories
-- Published as pipeline artifact for compliance audits
-
-```yaml
-- task: sbom-tool@1
-  displayName: 'Generate SBOM Manifest'
-  inputs:
-    command: 'generate'
-    buildSourcePath: '$(Build.SourcesDirectory)'
-    buildArtifactPath: '$(Build.ArtifactStagingDirectory)'
-    enableManifestSpreadsheetGeneration: true
-    enableManifestGraphGeneration: true
-    enablePackageMetadataParsing: true
-    fetchLicenseInformation: true
-    fetchSecurityAdvisories: true
-    packageSupplier: 'FinSure Capital'
-    packageName: 'applicant-validator'
-    packageVersion: '$(Build.BuildNumber)'
-```
+### SBOM Generation
+- Software Bill of Materials
+- Supply chain security
+- Compliance artifact
 
 ---
 
 **Last Updated:** 2026-02-18
 **Pipeline:** FinRisk-App-CI-CD
-**Agent Type:** Self-hosted macOS (Apple Silicon) with Docker Buildx
-**Deployment Target:** Azure Container Apps (AMD64)
+**Agent:** Self-hosted macOS (Apple Silicon) with Docker Buildx
+**Target:** Azure Container Apps (AMD64)
