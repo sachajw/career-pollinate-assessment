@@ -260,7 +260,7 @@ stages:
         pool: Default
         # Environment enables approvals in Azure DevOps
         # Create 'prod' environment with approvers for production
-        environment: $(environmentName)
+        environment: finrisk-app-$(environmentName)
         strategy:
           runOnce:
             deploy:

@@ -153,7 +153,7 @@ stages:
         # Environment enables approvals in Azure DevOps
         # Create environments in Azure DevOps: dev-infrastructure, prod-infrastructure
         # Configure approval requirements on prod-infrastructure
-        environment: ${{ variables.environmentName }}-infrastructure
+        environment: finrisk-iac-tf-${{ variables.environmentName }}
         strategy:
           runOnce:
             deploy:
