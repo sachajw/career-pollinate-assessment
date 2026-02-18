@@ -122,6 +122,7 @@ stages:
 
           - task: PublishCodeCoverageResults@2
             condition: succeededOrFailed()
+            continueOnError: true  # Non-blocking: publish timeout doesn't fail the build
             inputs:
               codeCoverageTool: 'Cobertura'
               summaryFileLocation: '$(System.DefaultWorkingDirectory)/app/coverage.xml'
