@@ -1,13 +1,19 @@
 # Azure DevOps Application Pipeline
-# FinRisk Platform - Applicant Validator Build & Deploy Only
+# FinRisk Platform - Applicant Validator Build & Deploy
 #
 # This pipeline handles application CI/CD:
-# - Build, test, lint Docker image
+# - Build, test, lint, security scan
+# - Docker buildx cross-compile (ARM64 Mac -> AMD64 Azure)
 # - Deploy to Azure Container Apps
+# - Smoke tests to verify deployment
 # - Branch-based environment targeting:
-#   - dev branch -> dev environment
-#   - main branch -> prod environment
-# - Assumes infrastructure already exists (use infra pipeline first)
+#   - dev branch -> dev environment (finrisk-app-dev)
+#   - main branch -> prod environment (finrisk-app-prod) - DISABLED due to quota
+#
+# Required Azure DevOps resources:
+# - Environment: finrisk-app-dev (auto-created on first run)
+# - Service connection: azure-service-connection
+# - Service connection: acr-service-connection
 #
 # Agent: self-hosted macOS (pool: Default) with OrbStack for Docker
 
@@ -255,8 +261,9 @@ stages:
     jobs:
       - deployment: DeployContainerApp
         pool: Default
-        # Environment enables approvals in Azure DevOps
-        # Create 'prod' environment with approvers for production
+        # Environment: finrisk-app-dev (dev) or finrisk-app-prod (prod)
+        # Create in Azure DevOps: Pipelines > Environments > New environment
+        # No checks = auto-deploy; Add Approvals check for manual approval
         environment: finrisk-app-$(environmentName)
         strategy:
           runOnce:

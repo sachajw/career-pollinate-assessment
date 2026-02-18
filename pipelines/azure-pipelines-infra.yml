@@ -3,10 +3,15 @@
 #
 # This pipeline manages infrastructure provisioning:
 # - Terraform plan/apply for Azure resources
+# - tfsec security scanning (informational)
 # - Branch-based environment targeting:
-#   - dev branch -> dev environment
-#   - main branch -> prod environment
-# - Manual approval for production changes
+#   - dev branch -> dev environment (finrisk-iac-tf-dev)
+#   - main branch -> prod environment (finrisk-iac-tf-prod) - DISABLED due to quota
+# - Auto-deploy for dev, approvals configurable for prod
+#
+# Required Azure DevOps resources:
+# - Variable group: finrisk-iac-tf-dev (with terraformStateStorageAccount)
+# - Environment: finrisk-iac-tf-dev
 
 name: FinRisk-IaC-Terraform-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 
@@ -150,9 +155,9 @@ stages:
     jobs:
       - deployment: TerraformApply
         pool: Default
-        # Environment enables approvals in Azure DevOps
-        # Create environments in Azure DevOps: dev-infrastructure, prod-infrastructure
-        # Configure approval requirements on prod-infrastructure
+        # Environment: finrisk-iac-tf-dev (dev) or finrisk-iac-tf-prod (prod)
+        # Create in Azure DevOps: Pipelines > Environments > New environment
+        # No checks = auto-deploy; Add Approvals check for manual approval
         environment: finrisk-iac-tf-${{ variables.environmentName }}
         strategy:
           runOnce:
