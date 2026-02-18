@@ -16,7 +16,6 @@ name: FinRisk-App-CI-CD-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 trigger:
   branches:
     include:
-      - main
       - dev
   paths:
     include:
@@ -26,7 +25,6 @@ trigger:
 pr:
   branches:
     include:
-      - main
       - dev
   paths:
     include:
