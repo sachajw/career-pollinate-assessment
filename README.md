@@ -2,24 +2,13 @@
 
 > **Technical Assessment Solution** for Pollinate Platform Engineering Role
 >
-> A secure, cloud-native domain service for loan applicant fraud risk validation.
+> A secure, cloud-native service for loan applicant fraud risk validation.
 
-## 📋 Project Overview
+## Project Overview
 
-FinSure Capital requires a production-ready integration service to validate loan applicants through RiskShield's fraud detection API. This solution delivers a secure, scalable Azure-based platform using modern cloud-native patterns and Domain-Driven Design principles.
+FinSure Capital requires a production-ready integration service to validate loan applicants through RiskShield's fraud detection API. This solution delivers a secure, scalable Azure-based platform using modern cloud-native patterns.
 
-### Key Features
-
-- ✅ RESTful API for risk score validation
-- ✅ Azure Container Apps deployment
-- ✅ Managed Identity security (zero secrets)
-- ✅ Infrastructure as Code (Terraform)
-- ✅ CI/CD with Azure DevOps
-- ✅ Comprehensive observability
-- ✅ SOC 2 Type II compliance ready
-- ✅ DDD-aligned naming conventions
-
-## 🏗️ Architecture
+## Architecture
 
 ### High-Level Design
 
@@ -32,48 +21,52 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
                             Log Analytics
 ```
 
-**Key Technologies:**
-- **Runtime**: Python 3.13 (FastAPI)
-- **Compute**: Azure Container Apps (ca-finrisk-dev)
-- **Container**: Docker (Python Slim)
-- **Secrets**: Azure Key Vault (kv-finrisk-dev)
-- **Identity**: Managed Identity
-- **Observability**: Application Insights
-- **IaC**: Terraform
-- **CI/CD**: Azure DevOps
+### Technology Stack
 
-**Deployed Environments:**
-- **Dev**: `https://finrisk-dev.pangarabbit.com` (custom domain)
-- **Prod**: Documented but not deployed (Azure quota limits)
+| Layer | Technology | Justification |
+|-------|-----------|---------------|
+| **Runtime** | Python 3.13 (FastAPI) | Async support, auto docs, Pydantic validation |
+| **Container** | Docker (Python Slim) | Small footprint (~180MB), security |
+| **Compute** | Azure Container Apps | Scale-to-zero, managed K8s, KEDA |
+| **Registry** | Azure Container Registry | Native integration with Container Apps |
+| **Secrets** | Azure Key Vault | Managed, audited, RBAC-based |
+| **Identity** | Managed Identity | Password-less, Azure-native |
+| **Logging** | Application Insights + Log Analytics | Full-stack APM, distributed tracing |
+| **IaC** | Terraform | Multi-cloud, declarative, state management |
+| **CI/CD** | Azure DevOps | Native integration, YAML pipelines |
+
+### Deployed Environments
+
+| Environment | Status | URL |
+|-------------|--------|-----|
+| **Dev** | ✅ Deployed | `https://finrisk-dev.pangarabbit.com` |
+| **Prod** | 📋 Documented | Not deployed (Azure quota limits) |
 
 ### Documentation
 
 | Document | Description |
 |----------|-------------|
-| [Taskfile Guide](./taskfile-guide.md) | Task runner commands and workflows |
 | [Technical Assessment](./documentation/technical-assessment.md) | Original assessment requirements |
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
 | [Architecture Decisions](./documentation/adr/README.md) | ADRs for key decisions |
 | [App README](./app/README.md) | Application-specific documentation |
+| [Terraform README](./terraform/README.md) | Infrastructure documentation |
+| [Pipeline README](./pipelines/README.md) | CI/CD documentation |
 
-> **API Documentation**: Auto-generated at `/docs` (Swagger) and `/redoc` when running the application.
-
-### Requirements Traceability
-
-Mapping of [Technical Assessment Requirements](./documentation/technical-assessment.md) to solution documentation:
+## Requirements Traceability
 
 | Requirement | Implementation | Documentation |
 |-------------|----------------|---------------|
 | **1. Application Layer** | | |
 | POST /validate endpoint | FastAPI route with Pydantic validation | [App README](./app/README.md) |
-| Error handling | Exception handlers, structured error responses | [Solution Architecture](./documentation/architecture/solution-architecture.md#error-handling-flow) |
+| Error handling | Exception handlers, structured error responses | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
 | Logging | Structured JSON logs with correlation IDs | [ADR-002](./documentation/adr/002-python-runtime.md) |
 | Timeout handling | 30s timeout on external API calls | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
 | Retry logic | Exponential backoff (3 attempts) | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
 | Correlation IDs | UUID v4 for request tracing | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
 | **2. Containerisation** | | |
-| Multi-stage builds | Dockerfile with builder/runtime stages | [App Dockerfile](./app/Dockerfile), [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
+| Multi-stage builds | Dockerfile with builder/runtime stages | [App Dockerfile](./app/Dockerfile) |
 | Non-root user | appuser:1001 | [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
 | Small base image | Python 3.13 Slim (~180MB) | [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
 | Healthcheck | /health and /ready endpoints | [App README](./app/README.md) |
@@ -85,36 +78,30 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 | Log Analytics | `log-finrisk-dev`, 30-day retention | [Observability Module](./terraform/modules/observability/README.md) |
 | Application Insights | Workspace-based | [Observability Module](./terraform/modules/observability/README.md) |
 | Managed Identity | System-assigned on Container App | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
-| Role assignments | AcrPull, Key Vault Secrets User | [Terraform README](./terraform/README.md#resource-dependency-graph) |
+| Role assignments | AcrPull, Key Vault Secrets User | [Terraform README](./terraform/README.md) |
 | Remote state | Azure Storage backend | [Terraform README](./terraform/README.md) |
 | Modules | 7 reusable modules | [Terraform Modules](./terraform/modules/) |
-| Dev/Prod environments | Environment-specific configs | [Dev README](./terraform/environments/dev/README.md), [Prod README](./terraform/environments/prod/README.md) |
+| Dev/Prod environments | Environment-specific configs | [Dev README](./terraform/environments/dev/README.md) |
 | Naming conventions | `{type}-{project}-{env}` | [ADR-006](./documentation/adr/006-terraform-module-architecture.md) |
 | No hardcoded secrets | Key Vault + Managed Identity | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
 | **4. Security** | | |
 | API key in Key Vault | RISKSHIELD-API-KEY secret | [Key Vault Module](./terraform/modules/key-vault/README.md) |
 | Managed Identity auth | System-assigned MI for all Azure access | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
-| HTTPS only | Ingress TLS enforced | [Solution Architecture](./documentation/architecture/solution-architecture.md#security-architecture) |
+| HTTPS only | Ingress TLS enforced | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
 | Diagnostic logging | All resources → Log Analytics | [Observability Module](./terraform/modules/observability/README.md) |
-| Threat modelling | MITM, credential theft, DDoS mitigations | [Solution Architecture](./documentation/architecture/solution-architecture.md#threat-model-summary) |
+| Threat modelling | MITM, credential theft, DDoS mitigations | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
+| Private endpoints (bonus) | Key Vault, ACR | [Private Endpoints Module](./terraform/modules/private-endpoints/README.md) |
+| Azure AD auth (bonus) | EasyAuth on Container App | [ADR-008](./documentation/adr/008-bonus-security-enhancements.md) |
+| Network restrictions (bonus) | IP allowlist, network ACLs | [ADR-008](./documentation/adr/008-bonus-security-enhancements.md) |
 | **5. CI/CD Pipeline** | | |
 | Build stage | Test, Docker build, Trivy scan, ACR push | [Pipeline README](./pipelines/README.md) |
 | Infrastructure stage | Terraform init/plan/apply | [Pipeline README](./pipelines/README.md) |
-| Deploy stage | Container App update, health check | [Pipeline README](./pipelines/README.md) |
-| Service connections | Azure Resource Manager | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
-| Variable groups | `finrisk-app-dev/prod`, `finrisk-iac-tf-dev/prod` | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
+| Deploy stage | Container App update, smoke test | [Pipeline README](./pipelines/README.md) |
+| Service connections | Azure Resource Manager | [Terraform README](./terraform/README.md) |
+| Variable groups | `finrisk-iac-tf-dev` | [Pipeline README](./pipelines/README.md) |
 | Separate environments | Branch-based: `dev` → dev, `main` → prod | [Pipeline README](./pipelines/README.md) |
-| **Deliverables** | | |
-| `/app` directory | FastAPI application | [App README](./app/README.md) |
-| `/terraform` directory | 7 modules, 2 environments | [Terraform README](./terraform/README.md) |
-| `/pipelines` directory | 2 YAML pipelines | [Pipeline README](./pipelines/README.md) |
-| Architecture diagram | System context, component diagrams | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) |
-| Local run instructions | Docker and uv commands | [Quick Start](#-quick-start) |
-| Deploy instructions | Bootstrap, init, apply | [Terraform README](./terraform/README.md) |
-| Security considerations | Threat model, compliance | [Security Considerations](#-security-considerations) |
-| Trade-offs explained | Container Apps vs alternatives | [ADR-001](./documentation/adr/001-azure-container-apps.md), [ADR-002](./documentation/adr/002-python-runtime.md) |
 
-## 📁 Repository Structure
+## Repository Structure
 
 ```
 .
@@ -154,23 +141,38 @@ Mapping of [Technical Assessment Requirements](./documentation/technical-assessm
 └── README.md                   # This file
 ```
 
-## 🚀 Quick Start
+## Instructions to Run Locally
 
 ### Prerequisites
 
-- Azure subscription with Contributor access
-- Azure CLI CLI installed and authenticated
 - Docker Desktop
-- Python 3.13+ (for local development)
+- Python 3.13+ (for local development without Docker)
 - uv (ultra-fast Python package installer)
-- Terraform 1.5+
 
-### Local Development
+### Using Docker (Recommended)
 
 ```bash
 # Clone repository
 git clone <repository-url>
-cd carreer-pollinate-assessment/app
+cd carreer-pollinate-assessment
+
+# Build container
+docker build -t applicant-validator:local ./app
+
+# Run container
+docker run -p 8080:8080 applicant-validator:local
+
+# Test the API
+curl http://localhost:8080/health
+curl -X POST http://localhost:8080/api/v1/validate \
+  -H "Content-Type: application/json" \
+  -d '{"firstName":"Jane","lastName":"Doe","idNumber":"9001011234088"}'
+```
+
+### Using Python (Development)
+
+```bash
+cd app
 
 # Install uv (if not already installed)
 curl -LsSf https://astral.sh/uv/install.sh | sh
@@ -180,10 +182,6 @@ uv sync
 
 # Activate virtual environment
 source .venv/bin/activate  # On Windows: .venv\Scripts\activate
-
-# Set up environment variables
-cp .env.example .env
-# Edit .env with your local configuration
 
 # Run locally with auto-reload
 uv run uvicorn src.main:app --reload --port 8080
@@ -196,274 +194,153 @@ uv run mypy src/
 
 # Linting
 uv run ruff check src/
-
-# Build container
-docker build -t applicant-validator:local .
-
-# Run container
-docker run -p 8080:8080 applicant-validator:local
 ```
 
-### Deploy to Azure
+### API Documentation
 
-See [terraform/README.md](./terraform/README.md) for the full infrastructure setup and deployment guide.
+Auto-generated by FastAPI:
+- **Swagger UI**: `http://localhost:8080/docs`
+- **ReDoc**: `http://localhost:8080/redoc`
 
-## 📊 Architecture Highlights
+## Instructions to Deploy
 
-- **Security**: Managed Identity (zero secrets), Key Vault, HTTPS enforced, SOC 2 compliant
-- **Scalability**: Scale-to-zero in dev (50–70% cost savings), KEDA event-driven autoscaling, stateless design
-- **Observability**: Distributed tracing, structured JSON logs with correlation IDs, Application Insights
+### Prerequisites
 
-See [Solution Architecture](./documentation/architecture/solution-architecture.md) for the full design.
+- Azure subscription with Contributor access
+- Azure CLI installed and authenticated (`az login`)
+- Terraform 1.5+
+- Azure DevOps project with service connections configured
 
-## 🔍 Key Design Decisions
-
-### Why Azure Container Apps?
-
-**Selected over** App Service, AKS, and Functions for:
-- Scale-to-zero cost savings (50-70% in non-prod)
-- Managed Kubernetes without operational overhead
-- KEDA event-driven autoscaling
-- Future-ready with Dapr support
-
-[Full analysis in ADR-001](./documentation/adr/001-azure-container-apps.md)
-
-### Why Python + FastAPI?
-
-**Selected over** .NET, Go, Node.js, and Java for:
-- Fastest development with automatic API documentation
-- Pydantic validation for data integrity
-- Native async/await for I/O operations
-- Strong Azure SDK support
-- FinTech industry standard
-
-[Full analysis in ADR-002](./documentation/adr/002-python-runtime.md)
-
-### Why Managed Identity?
-
-**Selected over** Service Principals and Keys for:
-- Zero secrets management
-- Automatic token rotation
-- SOC 2 compliance (password-less)
-- Comprehensive audit trail
-
-[Full analysis in ADR-003](./documentation/adr/003-managed-identity-security.md)
-
-## 📈 Performance Targets
-
-| Metric | Target | Actual |
-|--------|--------|--------|
-| **Availability** | 99.9% | TBD |
-| **Latency P95** | < 2s | TBD |
-| **Throughput** | 1000 req/min | TBD |
-| **Error Rate** | < 0.1% | TBD |
-| **Container Size** | < 200MB | ~180MB ✅ |
-| **Cold Start** | < 3s | ~2.5s ✅ |
-
-## 🛠️ Development Workflow
-
-### Feature Development
+### Step 1: Bootstrap Terraform State Storage (One-Time)
 
 ```bash
-# Create feature branch
-git checkout -b feature/your-feature
+# Create resource group for Terraform state
+az group create --name rg-terraform-state --location eastus2
 
-# Make changes and test
-uv run pytest
-uv run ruff check src/
-uv run mypy src/
+# Create storage account
+STORAGE="stfinrisktf$RANDOM"
+az storage account create \
+  --name $STORAGE \
+  --resource-group rg-terraform-state \
+  --sku Standard_LRS \
+  --allow-blob-public-access false
 
-# Format code
-uv run ruff format src/
+# Create container
+az storage container create --name tfstate --account-name $STORAGE
 
-# Commit with conventional commits
-git commit -m "feat: add input validation middleware"
-
-# Push and create PR
-git push origin feature/your-feature
+echo "Storage Account: $STORAGE"  # Save for variable group
 ```
 
-### CI/CD Pipeline
+### Step 2: Deploy Infrastructure
 
-**Stage 1: Build**
-- Lint and format check
-- Unit tests
-- Integration tests
-- Build Docker image
-- Security scan (Trivy)
-- Push to ACR
+```bash
+cd terraform/environments/dev
 
-**Stage 2: Infrastructure**
-- Terraform validate
-- Terraform plan
-- Cost estimation
-- Manual approval (prod only)
-- Terraform apply
+# Configure backend
+cp backend.hcl.example backend.hcl
+# Edit backend.hcl with your storage account name
 
-**Stage 3: Deploy**
-- Update Container App
-- Health check validation
-- Smoke tests
-- Integration tests
+# Initialize Terraform
+terraform init -backend-config=backend.hcl
 
-**Stage 4: Verify**
-- Performance tests
-- Security validation
-- Automated rollback on failure
+# Validate configuration
+terraform validate
 
-## 🔐 Security Considerations
+# Plan changes
+terraform plan -out=tfplan
+
+# Apply changes
+terraform apply tfplan
+
+# View outputs
+terraform output
+```
+
+### Step 3: Configure Azure DevOps
+
+1. **Service Connections**: Create `azure-service-connection` (Azure Resource Manager)
+2. **Variable Group**: Create `finrisk-iac-tf-dev` with `terraformStateStorageAccount`
+3. **Environments**: Create `finrisk-iac-tf-dev` and `finrisk-app-dev`
+
+### Step 4: Run CI/CD Pipeline
+
+Push to `dev` branch or manually trigger the pipelines in Azure DevOps:
+1. Run `FinRisk-IaC-Terraform` pipeline first (infrastructure)
+2. Run `FinRisk-App-CI-CD` pipeline (application)
+
+See [terraform/README.md](./terraform/README.md) and [pipelines/README.md](./pipelines/README.md) for detailed instructions.
+
+## Security Considerations
 
 ### Threat Model
 
 | Threat | Mitigation |
 |--------|-----------|
-| API Key Exposure | Key Vault + Managed Identity |
-| MITM Attacks | HTTPS only, TLS 1.2+ |
-| Credential Theft | No passwords, MI-based auth |
-| DDoS | Azure DDoS Standard + rate limiting |
-| Injection | Input validation (Pydantic validation) |
-| Dependency Vulnerabilities | Trivy/Snyk scanning |
+| API Key Exposure | Key Vault + Managed Identity (no env vars) |
+| MITM Attacks | HTTPS only, TLS 1.2+ enforced |
+| Credential Theft | No passwords, Managed Identity-based auth |
+| DDoS | Azure DDoS protection + rate limiting |
+| Injection Attacks | Input validation (Pydantic) |
+| Dependency Vulnerabilities | Trivy container scanning |
 
-### Compliance
+### Security Features
 
-- ✅ **SOC 2 Type II**: Access controls, audit logging
-- ✅ **ISO 27001**: Security controls documentation
-- ✅ **GDPR**: Data minimization, no PII storage
-- ⚠️ **PCI DSS**: Not applicable (no payment data)
+- **Secrets Management**: All secrets stored in Azure Key Vault, accessed via Managed Identity
+- **Network Security**: Private endpoints for Key Vault and ACR (bonus feature)
+- **Identity**: System-assigned Managed Identity on Container App
+- **Transport**: HTTPS enforced on all endpoints
+- **Monitoring**: Diagnostic logging to Log Analytics for all resources
+- **Container Security**: Non-root user, minimal base image, vulnerability scanning
 
-## 📞 API Reference
+See [ADR-003](./documentation/adr/003-managed-identity-security.md) and [ADR-008](./documentation/adr/008-bonus-security-enhancements.md) for detailed security analysis.
 
-API documentation is auto-generated by FastAPI:
-- **Swagger UI**: `http://localhost:8080/docs`
-- **ReDoc**: `http://localhost:8080/redoc`
-- **OpenAPI JSON**: `http://localhost:8080/openapi.json`
+## Trade-offs Explained
 
-## 🧪 Testing
+### Why Azure Container Apps over App Service?
 
-### Test Coverage
+| Criteria | Container Apps | App Service | Decision |
+|----------|---------------|-------------|----------|
+| Cost | Pay per second, scale to zero | Always-on minimum cost | ✅ Container Apps |
+| Scaling | KEDA event-driven | Basic autoscale | ✅ Container Apps |
+| Complexity | Managed K8s abstraction | Simpler | ⚖️ Acceptable |
+| Future | Dapr integration | Limited | ✅ Container Apps |
 
-```bash
-# Unit tests
-uv run pytest tests/unit/
+**Full analysis**: [ADR-001](./documentation/adr/001-azure-container-apps.md)
 
-# Integration tests
-uv run pytest tests/integration/
+### Why Python + FastAPI over .NET/Go/Node.js?
 
-# End-to-end tests
-uv run pytest tests/e2e/
+| Criteria | Python/FastAPI | Alternatives | Decision |
+|----------|---------------|--------------|----------|
+| Development Speed | Fastest | Slower | ✅ Python |
+| API Documentation | Auto-generated | Manual/Swagger | ✅ Python |
+| Data Validation | Pydantic (best-in-class) | Good | ✅ Python |
+| Performance | Good | Better | ⚖️ Acceptable |
+| Team Familiarity | FinTech standard | Varied | ✅ Python |
 
-# Coverage report
-uv run pytest --cov=src --cov-report=html
+**Full analysis**: [ADR-002](./documentation/adr/002-python-runtime.md)
 
-# Watch mode for TDD
-uv run pytest-watch
-```
+### Why Terraform over Bicep?
 
-**Target Coverage:** 80%+
+| Criteria | Terraform | Bicep | Decision |
+|----------|-----------|-------|----------|
+| Multi-Cloud | Yes | Azure only | ✅ Terraform |
+| Ecosystem | Large module library | Growing | ✅ Terraform |
+| State Management | Built-in | Azure-only | ✅ Terraform |
+| Azure Native | Good | Better | ⚖️ Acceptable |
 
-### Load Testing
+**Full analysis**: [ADR-006](./documentation/adr/006-terraform-module-architecture.md)
 
-```bash
-# Using k6
-k6 run tests/load/stress-test.js
+### Why Managed Identity over Service Principals?
 
-# Using Azure Load Testing
-az load test run --test-id finrisk-load-test
-```
+| Criteria | Managed Identity | Service Principal | Decision |
+|----------|-----------------|-------------------|----------|
+| Secret Management | None required | Credentials to manage | ✅ Managed Identity |
+| Rotation | Automatic | Manual | ✅ Managed Identity |
+| Audit Trail | Built-in | Limited | ✅ Managed Identity |
+| Scope | Resource-level | Subscription-level | ✅ Managed Identity |
 
-**Test Scenario:** 1000 concurrent users, 10 min duration
-
-## 🎯 Success Metrics
-
-### Technical Metrics
-- ✅ Deployment time: < 10 minutes
-- ✅ Infrastructure provisioning: < 5 minutes
-- ✅ Test coverage: > 80%
-- ✅ Zero critical vulnerabilities
-- ✅ Container image: < 200MB
-
-### Business Metrics
-- ✅ Loan processing time: 40% reduction
-- ✅ Manual review reduction: 60% automation
-- ✅ Operational cost: < $500/month (prod)
-- ✅ System uptime: 99.9%
-
-## 🗺️ Roadmap
-
-### Phase 1: MVP (Completed)
-- ✅ Base architecture design
-- ✅ Technology selection
-- ✅ Infrastructure as Code
-
-### Phase 2: Implementation (Completed)
-- ✅ Infrastructure deployment (Azure)
-- ✅ Terraform backend configuration
-- ✅ Resource provisioning (12+ resources)
-- ✅ Custom domain configuration
-- ✅ Application development
-- ✅ Container image creation
-- ✅ CI/CD pipeline setup
-- ✅ Dev environment fully operational
-
-### Phase 3: Production Readiness
-- 📋 Production environment (documented, pending quota increase)
-- ⬜ Load testing
-- ⬜ Security audit
-- ⬜ DR testing
-- ⬜ Documentation completion
-
-### Phase 4: Future Enhancements
-- ⬜ GraphQL API support
-- ⬜ Webhook notifications
-- ⬜ Batch processing
-- ⬜ Multi-region deployment
-
-## 🤝 Contributing
-
-This is an assessment project, but contributions are structured as follows:
-
-1. Create feature branch from `main`
-2. Make changes with tests
-3. Submit PR with description
-4. Automated checks must pass
-5. Manual review and approval
-6. Merge to `main`
-
-## 📄 License
-
-This project is created for the Pollinate Platform Engineering Technical Assessment.
-
-## 👤 Author
-
-**Assessment Candidate**
-- Assessment Date: February 2026
-- Time Investment: 8-10 hours
-- Role: Platform Engineer
-
-## 📚 Additional Resources
-
-- [Solution Architecture](./documentation/architecture/solution-architecture.md)
-- [Architecture Diagrams](./documentation/architecture/architecture-diagram.md)
-- [Architecture Decisions](./documentation/adr/README.md)
-- [Azure Container Apps Docs](https://learn.microsoft.com/en-us/azure/container-apps/)
-- [Terraform Azure Provider](https://registry.terraform.io/providers/hashicorp/azurerm/latest/docs)
-- [FastAPI Best Practices](https://fastapi.tiangolo.com/tutorial/)
-
-## ❓ FAQ
-
-**Q: Why Container Apps over Kubernetes?**
-A: Managed Kubernetes abstraction reduces operational overhead while maintaining scalability. See [ADR-001](./documentation/adr/001-azure-container-apps.md).
-
-**Q: Why not use environment variables for secrets?**
-A: Managed Identity + Key Vault provides zero-trust security without exposing credentials. See [ADR-003](./documentation/adr/003-managed-identity-security.md).
-
-**Q: How do I run this locally?**
-A: Use Azure CLI authentication for local dev. See [Quick Start](#quick-start) section.
-
-**Q: What's the expected monthly cost?**
-A: ~$8/month (dev with scale-to-zero), ~$122/month (prod). See [Cost Optimization](./documentation/architecture/solution-architecture.md#cost-optimization).
+**Full analysis**: [ADR-003](./documentation/adr/003-managed-identity-security.md)
 
 ---
 
-**Assessment Submission Date:** February 2026
-**For Questions:** Contact assessment coordinator
+**Assessment Date:** February 2026
