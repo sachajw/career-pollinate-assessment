@@ -1,5 +1,4 @@
-# Terraform and Provider Version Constraints for Resource Group Module
-# This ensures consistent behavior across all environments
+# Terraform and Provider Version Constraints for Networking Module
 
 terraform {
   required_version = ">= 1.5.0"

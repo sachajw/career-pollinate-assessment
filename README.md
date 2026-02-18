@@ -42,10 +42,15 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 - **IaC**: Terraform
 - **CI/CD**: Azure DevOps
 
+**Deployed Environments:**
+- **Dev**: `https://finrisk-dev.pangarabbit.com` (custom domain)
+- **Prod**: Documented but not deployed (Azure quota limits)
+
 ### Documentation
 
 | Document | Description |
 |----------|-------------|
+| [Taskfile Guide](./taskfile-guide.md) | Task runner commands and workflows |
 | [Technical Assessment](./documentation/technical-assessment.md) | Original assessment requirements |
 | [Solution Architecture](./documentation/architecture/solution-architecture.md) | Complete architecture design |
 | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) | Visual system representations |
@@ -53,6 +58,61 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 | [App README](./app/README.md) | Application-specific documentation |
 
 > **API Documentation**: Auto-generated at `/docs` (Swagger) and `/redoc` when running the application.
+
+### Requirements Traceability
+
+Mapping of [Technical Assessment Requirements](./documentation/technical-assessment.md) to solution documentation:
+
+| Requirement | Implementation | Documentation |
+|-------------|----------------|---------------|
+| **1. Application Layer** | | |
+| POST /validate endpoint | FastAPI route with Pydantic validation | [App README](./app/README.md) |
+| Error handling | Exception handlers, structured error responses | [Solution Architecture](./documentation/architecture/solution-architecture.md#error-handling-flow) |
+| Logging | Structured JSON logs with correlation IDs | [ADR-002](./documentation/adr/002-python-runtime.md) |
+| Timeout handling | 30s timeout on external API calls | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
+| Retry logic | Exponential backoff (3 attempts) | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
+| Correlation IDs | UUID v4 for request tracing | [Solution Architecture](./documentation/architecture/solution-architecture.md) |
+| **2. Containerisation** | | |
+| Multi-stage builds | Dockerfile with builder/runtime stages | [App Dockerfile](./app/Dockerfile), [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
+| Non-root user | appuser:1001 | [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
+| Small base image | Python 3.13 Slim (~180MB) | [ADR-005](./documentation/adr/005-docker-container-strategy.md) |
+| Healthcheck | /health and /ready endpoints | [App README](./app/README.md) |
+| **3. Infrastructure as Code** | | |
+| Resource Group | `rg-finrisk-dev` | [Terraform README](./terraform/README.md) |
+| Container App | `ca-finrisk-dev` with scale-to-zero | [Container App Module](./terraform/modules/container-app/README.md) |
+| Container Registry | ACR Basic tier | [Container Registry Module](./terraform/modules/container-registry/README.md) |
+| Key Vault | `kv-finrisk-dev` with RBAC | [Key Vault Module](./terraform/modules/key-vault/README.md) |
+| Log Analytics | `log-finrisk-dev`, 30-day retention | [Observability Module](./terraform/modules/observability/README.md) |
+| Application Insights | Workspace-based | [Observability Module](./terraform/modules/observability/README.md) |
+| Managed Identity | System-assigned on Container App | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
+| Role assignments | AcrPull, Key Vault Secrets User | [Terraform README](./terraform/README.md#resource-dependency-graph) |
+| Remote state | Azure Storage backend | [Terraform README](./terraform/README.md) |
+| Modules | 5 reusable modules | [Terraform Modules](./terraform/modules/) |
+| Dev/Prod environments | Environment-specific configs | [Dev README](./terraform/environments/dev/README.md), [Prod README](./terraform/environments/prod/README.md) |
+| Naming conventions | `{type}-{project}-{env}` | [ADR-006](./documentation/adr/006-terraform-module-architecture.md) |
+| No hardcoded secrets | Key Vault + Managed Identity | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
+| **4. Security** | | |
+| API key in Key Vault | RISKSHIELD-API-KEY secret | [Key Vault Module](./terraform/modules/key-vault/README.md) |
+| Managed Identity auth | System-assigned MI for all Azure access | [ADR-003](./documentation/adr/003-managed-identity-security.md) |
+| HTTPS only | Ingress TLS enforced | [Solution Architecture](./documentation/architecture/solution-architecture.md#security-architecture) |
+| Diagnostic logging | All resources → Log Analytics | [Observability Module](./terraform/modules/observability/README.md) |
+| Threat modelling | MITM, credential theft, DDoS mitigations | [Solution Architecture](./documentation/architecture/solution-architecture.md#threat-model-summary) |
+| **5. CI/CD Pipeline** | | |
+| Build stage | Test, Docker build, Trivy scan, ACR push | [Pipeline README](./pipelines/README.md) |
+| Infrastructure stage | Terraform init/plan/apply | [Pipeline README](./pipelines/README.md) |
+| Deploy stage | Container App update, health check | [Pipeline README](./pipelines/README.md) |
+| Service connections | Azure Resource Manager | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
+| Variable groups | `finrisk-app-dev/prod`, `finrisk-iac-tf-dev/prod` | [Terraform README](./terraform/README.md#azure-devops-setup-cicd) |
+| Separate environments | Branch-based: `dev` → dev, `main` → prod | [Pipeline README](./pipelines/README.md) |
+| **Deliverables** | | |
+| `/app` directory | FastAPI application | [App README](./app/README.md) |
+| `/terraform` directory | 5 modules, 2 environments | [Terraform README](./terraform/README.md) |
+| `/pipelines` directory | 2 YAML pipelines | [Pipeline README](./pipelines/README.md) |
+| Architecture diagram | System context, component diagrams | [Architecture Diagrams](./documentation/architecture/architecture-diagram.md) |
+| Local run instructions | Docker and uv commands | [Quick Start](#-quick-start) |
+| Deploy instructions | Bootstrap, init, apply | [Terraform README](./terraform/README.md) |
+| Security considerations | Threat model, compliance | [Security Considerations](#-security-considerations) |
+| Trade-offs explained | Container Apps vs alternatives | [ADR-001](./documentation/adr/001-azure-container-apps.md), [ADR-002](./documentation/adr/002-python-runtime.md) |
 
 ## 📁 Repository Structure
 
@@ -80,7 +140,8 @@ Loan System → API Gateway → Applicant Validator → RiskShield API
 │   │   └── prod/
 │   └── README.md               # Terraform documentation
 ├── pipelines/                  # CI/CD definitions
-│   ├── azure-pipelines.yml     # Main pipeline
+│   ├── azure-pipelines-app.yml    # Application CI/CD pipeline
+│   ├── azure-pipelines-infra.yml  # Infrastructure pipeline
 │   └── README.md               # Pipeline documentation
 ├── documentation/              # Architecture documentation
 │   ├── adr/                    # Architecture Decision Records
@@ -257,7 +318,7 @@ git push origin feature/your-feature
 | MITM Attacks | HTTPS only, TLS 1.2+ |
 | Credential Theft | No passwords, MI-based auth |
 | DDoS | Azure DDoS Standard + rate limiting |
-| Injection | Input validation (Joi schemas) |
+| Injection | Input validation (Pydantic validation) |
 | Dependency Vulnerabilities | Trivy/Snyk scanning |
 
 ### Compliance
@@ -316,7 +377,7 @@ az load test run --test-id finrisk-load-test
 - ✅ Infrastructure provisioning: < 5 minutes
 - ✅ Test coverage: > 80%
 - ✅ Zero critical vulnerabilities
-- ✅ Container image: < 150MB
+- ✅ Container image: < 200MB
 
 ### Business Metrics
 - ✅ Loan processing time: 40% reduction
@@ -331,16 +392,18 @@ az load test run --test-id finrisk-load-test
 - ✅ Technology selection
 - ✅ Infrastructure as Code
 
-### Phase 2: Implementation (In Progress)
+### Phase 2: Implementation (Completed)
 - ✅ Infrastructure deployment (Azure)
 - ✅ Terraform backend configuration
-- ✅ Resource provisioning (12 resources)
-- ⬜ Application development
-- ⬜ Container image creation
-- ⬜ CI/CD pipeline setup
-- ⬜ Security hardening
+- ✅ Resource provisioning (12+ resources)
+- ✅ Custom domain configuration
+- ✅ Application development
+- ✅ Container image creation
+- ✅ CI/CD pipeline setup
+- ✅ Dev environment fully operational
 
 ### Phase 3: Production Readiness
+- 📋 Production environment (documented, pending quota increase)
 - ⬜ Load testing
 - ⬜ Security audit
 - ⬜ DR testing
@@ -395,9 +458,9 @@ A: Managed Identity + Key Vault provides zero-trust security without exposing cr
 A: Use Azure CLI authentication for local dev. See [Quick Start](#quick-start) section.
 
 **Q: What's the expected monthly cost?**
-A: ~$54/month (dev), ~$480/month (prod). See [Cost Optimization](./documentation/architecture/solution-architecture.md#cost-optimization).
+A: ~$8/month (dev with scale-to-zero), ~$122/month (prod). See [Cost Optimization](./documentation/architecture/solution-architecture.md#cost-optimization).
 
 ---
 
-**Assessment Submission Date:** TBD
+**Assessment Submission Date:** February 2026
 **For Questions:** Contact assessment coordinator

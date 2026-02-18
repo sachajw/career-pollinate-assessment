@@ -1,3 +1,5 @@
+[![Build Status](https://dev.azure.com/pangarabbit/finrisk/_apis/build/status%2Fsachajw.career-pollinate-assessment%20(2)?branchName=main)](https://dev.azure.com/pangarabbit/finrisk/_build/latest?definitionId=2&branchName=main)
+
 # Azure DevOps CI/CD Pipelines
 
 CI/CD configuration for the **FinRisk Applicant Validator** platform.
@@ -106,4 +108,3 @@ git push origin v1.0.0  # → v1.0.0
 **Last Updated:** 2026-02-16
 **Agent Type:** Self-hosted macOS (Apple Silicon) with Docker Buildx
 **Deployment Target:** Azure Container Apps (AMD64)
-

@@ -74,7 +74,43 @@ With scale-to-zero enabled, costs can be as low as $12/month when idle.
 ## Custom Domain
 
 - **Domain:** `finrisk-dev.pangarabbit.com`
-- **Certificate:** `finrisk-pangarabbit-cert` (wildcard)
+- **Certificate:** `finrisk-pangarabbit-cert` (wildcard *.pangarabbit.com)
+
+### Custom Domain Setup (Manual)
+
+The custom domain is configured manually via Azure CLI after initial Terraform deployment. This is due to a deprecation in the Terraform `azurerm_container_app` custom_domain block.
+
+**Setup Steps:**
+
+1. Upload the wildcard certificate to the Container App Environment:
+   ```bash
+   az containerapp env certificate upload \
+     --name cae-finrisk-dev \
+     --resource-group rg-finrisk-dev \
+     --certificate-file /path/to/cloudflare-cert.pfx \
+     --certificate-name finrisk-pangarabbit-cert
+   ```
+
+2. Bind the custom domain:
+   ```bash
+   az containerapp hostname bind \
+     --name ca-finrisk-dev \
+     --resource-group rg-finrisk-dev \
+     --hostname finrisk-dev.pangarabbit.com \
+     --certificate finrisk-pangarabbit-cert \
+     --environment cae-finrisk-dev
+   ```
+
+3. Configure DNS (Cloudflare):
+   - **CNAME:** `finrisk-dev` → `ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io`
+   - **TXT:** `asuid.finrisk-dev` → `<customDomainVerificationId>`
+   - SSL/TLS: Full (strict) mode
+
+**Verification:**
+```bash
+curl https://finrisk-dev.pangarabbit.com/health
+# Expected: {"status":"healthy","version":"0.1.0","environment":"dev"}
+```
 
 ## Common Operations
 

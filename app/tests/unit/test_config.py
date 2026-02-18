@@ -27,7 +27,7 @@ class TestSettings:
     def test_riskshield_defaults(self):
         """Test RiskShield default values."""
         settings = Settings()
-        assert settings.RISKSHIELD_API_URL == "https://api.riskshield.io/v1"
+        assert settings.RISKSHIELD_API_URL == "https://api.riskshield.com/v1"
         assert settings.RISKSHIELD_API_KEY is None
 
     def test_cors_origins_default(self):

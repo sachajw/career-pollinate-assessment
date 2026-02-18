@@ -30,25 +30,33 @@ pr:
       - terraform/**
 
 variables:
-  # Environment detection based on branch
-  - name: isMainBranch
-    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
-
-  # Environment name: prod for main, dev for everything else
-  - name: environmentName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
-
-  # Terraform working directory based on environment
-  - name: terraformWorkingDirectory
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), '$(System.DefaultWorkingDirectory)/terraform/environments/prod', '$(System.DefaultWorkingDirectory)/terraform/environments/dev']
-
-  # Variable group based on environment
-  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
-
   - name: azureSubscription
     value: 'azure-service-connection'
   - name: terraformVersion
-    value: '1.7.0'
+    value: '1.5.5'
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/prod'
+    - group: finrisk-iac-tf-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+    - group: finrisk-iac-tf-dev
+
+  # Default to dev for PRs and other branches
+  - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
+    - name: environmentName
+      value: 'dev'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+    - group: finrisk-iac-tf-dev
 
 stages:
   - stage: Plan
@@ -82,6 +90,7 @@ stages:
               backendAzureRmStorageAccountName: '$(terraformStateStorageAccount)'
               backendAzureRmContainerName: 'tfstate'
               backendAzureRmKey: 'finrisk-$(environmentName).tfstate'
+              commandOptions: '-reconfigure'
 
           - task: TerraformTaskV4@4
             displayName: 'Terraform Validate'
@@ -89,6 +98,40 @@ stages:
               provider: 'azurerm'
               command: 'validate'
               workingDirectory: '$(terraformWorkingDirectory)'
+
+          # tfsec: Static analysis security scanner for Terraform
+          # Informational only (--soft-fail) - reports issues without blocking pipeline
+          - script: |
+              echo "Installing tfsec..."
+              if command -v brew &> /dev/null; then
+                brew install tfsec 2>/dev/null || true
+              fi
+              if ! command -v tfsec &> /dev/null; then
+                echo "Installing tfsec via curl..."
+                curl -sL https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-darwin-amd64 -o /usr/local/bin/tfsec 2>/dev/null || \
+                curl -sL https://github.com/aquasecurity/tfsec/releases/latest/download/tfsec-darwin-arm64 -o /tmp/tfsec && chmod +x /tmp/tfsec && sudo mv /tmp/tfsec /usr/local/bin/tfsec 2>/dev/null || true
+              fi
+
+              echo "Running tfsec security scan..."
+              cd "$(System.DefaultWorkingDirectory)"
+              tfsec terraform/ \
+                --format junit \
+                --out "$(System.DefaultWorkingDirectory)/tfsec-results.xml" \
+                --soft-fail || true
+
+              echo "Checking for results file..."
+              ls -la "$(System.DefaultWorkingDirectory)/tfsec-results.xml" 2>/dev/null || echo "Warning: Results file not found"
+              cat "$(System.DefaultWorkingDirectory)/tfsec-results.xml" 2>/dev/null | head -20 || echo "Could not read results"
+            displayName: 'Security Scan (tfsec)'
+            continueOnError: true
+
+          - task: PublishTestResults@2
+            displayName: 'Publish tfsec Results'
+            inputs:
+              testResultsFiles: '$(System.DefaultWorkingDirectory)/tfsec-results.xml'
+              testRunTitle: 'tfsec Security Scan'
+              failTaskOnFailedTests: false
+            condition: succeededOrFailed()
 
           - task: TerraformTaskV4@4
             displayName: 'Terraform Plan'
@@ -105,15 +148,14 @@ stages:
   - stage: Apply
     displayName: 'Terraform Apply'
     dependsOn: Plan
-    # Apply on main (prod) requires manual approval via environment
-    # Apply on dev branch happens automatically
     condition: succeeded()
     jobs:
       - deployment: TerraformApply
         pool: Default
-        # Environment name enables approvals in Azure DevOps
-        # Create 'prod-infrastructure' environment with approvers for production
-        environment: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod-infrastructure', 'dev-infrastructure']
+        # Environment enables approvals in Azure DevOps
+        # Create environments in Azure DevOps: dev-infrastructure, prod-infrastructure
+        # Configure approval requirements on prod-infrastructure
+        environment: ${{ variables.environmentName }}-infrastructure
         strategy:
           runOnce:
             deploy:

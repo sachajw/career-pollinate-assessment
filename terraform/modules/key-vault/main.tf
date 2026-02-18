@@ -50,7 +50,7 @@ resource "azurerm_key_vault" "this" {
   # RBAC Authorization (modern approach)
   # When true, uses Azure RBAC for access control instead of access policies
   # This is the recommended approach for new deployments
-  enable_rbac_authorization = true
+  rbac_authorization_enabled = true
 
   # Soft Delete: Allows recovery of deleted secrets/keys/certificates
   # Retention period (7-90 days) determines how long deleted items are recoverable

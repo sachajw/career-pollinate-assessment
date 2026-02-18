@@ -32,7 +32,7 @@ class Settings(BaseSettings):
 
     # RiskShield API (loaded from Key Vault at runtime)
     RISKSHIELD_API_URL: str = Field(
-        default="https://api.riskshield.io/v1",
+        default="https://api.riskshield.com/v1",
         description="RiskShield API base URL",
     )
     RISKSHIELD_API_KEY: str | None = Field(

@@ -41,7 +41,12 @@ version: '3'
 vars:
   TERRAFORM_ENV_DIR: './terraform/environments/dev'
   APP_DIR: './app'
-  SCRIPTS_DIR: './terraform/scripts'
+  # Deployment URLs
+  DEV_URL: 'https://finrisk-dev.pangarabbit.com'
+  DEV_URL_DEFAULT: 'https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io'
+  # Bootstrap config
+  STATE_RG: 'rg-terraform-state'
+  STATE_STORAGE_PREFIX: 'sttfstatefinrisk'
 
 tasks:
   default:
@@ -52,6 +57,63 @@ tasks:
   # ============================================================================
   # Infrastructure Tasks
   # ============================================================================
+
+  infra:bootstrap:
+    desc: Bootstrap Terraform state storage (one-time setup)
+    cmds:
+      - |
+        echo ""
+        echo "Bootstrapping Terraform State Storage"
+        echo "======================================"
+        echo ""
+        echo "This will create:"
+        echo "  - Resource Group: {{.STATE_RG}}"
+        echo "  - Storage Account: {{.STATE_STORAGE_PREFIX}}<random>"
+        echo "  - Container: tfstate"
+        echo ""
+        read -p "Continue? (y/N) " -n 1 -r
+        echo ""
+        if [[ ! $REPLY =~ ^[Yy]$ ]]; then
+          echo "Cancelled"
+          exit 1
+        fi
+
+        LOCATION="${LOCATION:-eastus2}"
+        RANDOM_SUFFIX=$(openssl rand -hex 4)
+        STORAGE_NAME="{{.STATE_STORAGE_PREFIX}}${RANDOM_SUFFIX}"
+
+        echo ""
+        echo "Creating resource group: {{.STATE_RG}}"
+        az group create --name {{.STATE_RG}} --location "$LOCATION" -o none
+
+        echo "Creating storage account: $STORAGE_NAME"
+        az storage account create \
+          --name "$STORAGE_NAME" \
+          --resource-group {{.STATE_RG}} \
+          --location "$LOCATION" \
+          --sku Standard_LRS \
+          --encryption-services blob \
+          --https-only true \
+          --min-tls-version TLS1_2 \
+          -o none
+
+        echo "Creating container: tfstate"
+        az storage container create \
+          --name tfstate \
+          --account-name "$STORAGE_NAME" \
+          --auth-mode login \
+          -o none
+
+        echo ""
+        echo "✅ Bootstrap complete!"
+        echo ""
+        echo "Add this to your backend.hcl:"
+        echo ""
+        echo "  resource_group_name  = \"{{.STATE_RG}}\""
+        echo "  storage_account_name = \"$STORAGE_NAME\""
+        echo "  container_name       = \"tfstate\""
+        echo "  key                  = \"finrisk-dev.tfstate\""
+        echo ""
 
   infra:preflight:
     desc: Run infrastructure pre-flight checks
@@ -377,6 +439,186 @@ tasks:
       - task: app:push
       - task: update-container-app
 
+  app:test-api:
+    desc: Test the /validate API endpoint locally
+    dir: '{{.APP_DIR}}'
+    cmds:
+      - |
+        echo "Testing /validate endpoint..."
+        echo ""
+        curl -X POST http://localhost:8080/validate \
+          -H "Content-Type: application/json" \
+          -d '{
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "idNumber": "9001011234088"
+          }'
+        echo ""
+
+  app:test-validate:
+    desc: Test the /validate API endpoint on deployed app
+    cmds:
+      - |
+        echo "Testing /validate endpoint on {{.DEV_URL}}..."
+        echo ""
+        curl -X POST "{{.DEV_URL}}/validate" \
+          -H "Content-Type: application/json" \
+          -d '{
+            "firstName": "Jane",
+            "lastName": "Doe",
+            "idNumber": "9001011234088"
+          }'
+        echo ""
+
+  # ============================================================================
+  # Security Tasks
+  # ============================================================================
+
+  kv:set-secret:
+    desc: Set a secret in Azure Key Vault (SECRET_NAME=name SECRET_VALUE=value)
+    cmds:
+      - |
+        if [ -z "$SECRET_NAME" ] || [ -z "$SECRET_VALUE" ]; then
+          echo "❌ SECRET_NAME and SECRET_VALUE must be set"
+          echo ""
+          echo "Usage:"
+          echo "  SECRET_NAME=RISKSHIELD-API-KEY SECRET_VALUE=your-key task kv:set-secret"
+          echo ""
+          exit 1
+        fi
+
+        echo "Setting secret: $SECRET_NAME"
+        az keyvault secret set \
+          --vault-name kv-finrisk-dev \
+          --name "$SECRET_NAME" \
+          --value "$SECRET_VALUE"
+
+        echo "✅ Secret set successfully"
+
+  kv:get-secret:
+    desc: Get a secret from Azure Key Vault (SECRET_NAME=name)
+    cmds:
+      - |
+        if [ -z "$SECRET_NAME" ]; then
+          echo "❌ SECRET_NAME must be set"
+          echo ""
+          echo "Usage:"
+          echo "  SECRET_NAME=RISKSHIELD-API-KEY task kv:get-secret"
+          echo ""
+          exit 1
+        fi
+
+        az keyvault secret show \
+          --vault-name kv-finrisk-dev \
+          --name "$SECRET_NAME" \
+          --query value \
+          --output tsv
+
+  kv:list-secrets:
+    desc: List all secrets in Key Vault
+    cmds:
+      - |
+        echo "Secrets in kv-finrisk-dev:"
+        az keyvault secret list \
+          --vault-name kv-finrisk-dev \
+          --query "[].name" \
+          --output tsv
+
+  # ============================================================================
+  # Azure DevOps Tasks
+  # ============================================================================
+
+  ado:status:
+    desc: Show Azure DevOps pipeline status
+    cmds:
+      - |
+        echo ""
+        echo "Azure DevOps - Pipeline Status"
+        echo "==============================="
+        echo ""
+
+        # Check if Azure DevOps extension is installed
+        if ! az extension show --name azure-devops &>/dev/null; then
+          echo "Installing Azure DevOps extension..."
+          az extension add --name azure-devops
+        fi
+
+        echo "Recent Pipeline Runs:"
+        echo ""
+        az pipelines list --output table 2>/dev/null || echo "  Run 'az login' and configure project first"
+        echo ""
+
+  ado:runs:
+    desc: Show recent pipeline runs
+    cmds:
+      - |
+        echo ""
+        echo "Recent Pipeline Runs"
+        echo "===================="
+        echo ""
+
+        az pipelines runs list --top 10 --output table 2>/dev/null || {
+          echo "❌ Failed to list pipeline runs"
+          echo ""
+          echo "Setup required:"
+          echo "  1. az login"
+          echo "  2. az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+          echo ""
+        }
+
+  ado:run-infra:
+    desc: Trigger infrastructure pipeline
+    cmds:
+      - |
+        echo "Triggering infrastructure pipeline..."
+        az pipelines run --name "finrisk-infrastructure" --branch dev 2>/dev/null || {
+          echo "❌ Failed to trigger pipeline"
+          echo "   Ensure Azure DevOps is configured:"
+          echo "   az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        }
+
+  ado:run-app:
+    desc: Trigger application pipeline
+    cmds:
+      - |
+        echo "Triggering application pipeline..."
+        az pipelines run --name "finrisk-app" --branch dev 2>/dev/null || {
+          echo "❌ Failed to trigger pipeline"
+          echo "   Ensure Azure DevOps is configured:"
+          echo "   az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        }
+
+  ado:logs:
+    desc: View logs for latest pipeline run
+    cmds:
+      - |
+        BUILD_ID=$(az pipelines runs list --top 1 --query "[0].id" -o tsv 2>/dev/null)
+
+        if [ -z "$BUILD_ID" ]; then
+          echo "❌ No pipeline runs found"
+          exit 1
+        fi
+
+        echo "Viewing logs for build #$BUILD_ID..."
+        az pipelines runs log --build-id "$BUILD_ID" 2>/dev/null || {
+          echo "❌ Failed to get logs"
+        }
+
+  ado:open:
+    desc: Open Azure DevOps in browser
+    cmds:
+      - |
+        ORG=$(az devops configure --list | grep organization | awk '{print $3}' 2>/dev/null)
+        PROJ=$(az devops configure --list | grep project | awk '{print $3}' 2>/dev/null)
+
+        if [ -n "$ORG" ] && [ -n "$PROJ" ]; then
+          echo "Opening: $ORG/$PROJ/_build"
+          open "$ORG/$PROJ/_build" 2>/dev/null || xdg-open "$ORG/$PROJ/_build" 2>/dev/null
+        else
+          echo "❌ Azure DevOps not configured"
+          echo "   Run: az devops configure --defaults organization=https://dev.azure.com/<org> project=<project>"
+        fi
+
   # ============================================================================
   # Monitoring & Operations Tasks
   # ============================================================================
@@ -385,6 +627,8 @@ tasks:
     desc: View Container App logs (live)
     cmds:
       - |
+        echo "Viewing logs for: ca-finrisk-dev ({{.DEV_URL}})"
+        echo ""
         az containerapp logs show \
           --name ca-finrisk-dev \
           --resource-group rg-finrisk-dev \
@@ -394,21 +638,142 @@ tasks:
     desc: Test deployed Container App endpoint
     cmds:
       - |
-        cd terraform/environments/dev
-        URL=$(terraform output -raw container_app_url 2>/dev/null || echo "")
-        if [ -z "$URL" ]; then
-          echo "❌ Container App not deployed yet"
-          exit 1
-        fi
+        URL="{{.DEV_URL}}"
 
         echo "Testing endpoint: $URL"
         echo ""
 
         echo "Health check:"
         curl -s "$URL/health" || echo "❌ Health check failed"
+        echo ""
+
+        echo "Ready check:"
+        curl -s "$URL/ready" || echo "❌ Ready check failed"
+        echo ""
+
+        echo "✅ Endpoint is responding"
+
+  smoke-test:
+    desc: Run smoke tests against deployed application
+    cmds:
+      - |
+        URL="{{.DEV_URL}}"
+        FAILED=0
 
         echo ""
-        echo "✅ Endpoint is responding"
+        echo "Smoke Tests - $URL"
+        echo "===================="
+        echo ""
+
+        # Test 1: Health endpoint
+        echo "1. Health check..."
+        if curl -sf "$URL/health" > /dev/null; then
+          echo "   ✅ Health check passed"
+        else
+          echo "   ❌ Health check failed"
+          FAILED=1
+        fi
+
+        # Test 2: Ready endpoint
+        echo "2. Ready check..."
+        if curl -sf "$URL/ready" > /dev/null; then
+          echo "   ✅ Ready check passed"
+        else
+          echo "   ❌ Ready check failed"
+          FAILED=1
+        fi
+
+        # Test 3: API docs available
+        echo "3. API docs..."
+        if curl -sf "$URL/docs" > /dev/null; then
+          echo "   ✅ API docs accessible"
+        else
+          echo "   ❌ API docs failed"
+          FAILED=1
+        fi
+
+        # Test 4: OpenAPI spec
+        echo "4. OpenAPI spec..."
+        if curl -sf "$URL/openapi.json" > /dev/null; then
+          echo "   ✅ OpenAPI spec accessible"
+        else
+          echo "   ❌ OpenAPI spec failed"
+          FAILED=1
+        fi
+
+        echo ""
+        if [ $FAILED -eq 0 ]; then
+          echo "✅ All smoke tests passed!"
+        else
+          echo "❌ Some smoke tests failed"
+          exit 1
+        fi
+
+  urls:
+    desc: Show deployed URLs
+    cmds:
+      - |
+        echo ""
+        echo "FinRisk Platform - Deployed URLs"
+        echo "================================="
+        echo ""
+        echo "Development Environment:"
+        echo "  Custom Domain:  {{.DEV_URL}}"
+        echo "  Default URL:    {{.DEV_URL_DEFAULT}}"
+        echo ""
+        echo "Health Endpoints:"
+        echo "  Health:         {{.DEV_URL}}/health"
+        echo "  Ready:          {{.DEV_URL}}/ready"
+        echo "  API Docs:       {{.DEV_URL}}/docs"
+        echo ""
+
+  cert:upload:
+    desc: Upload SSL certificate to Container App Environment
+    cmds:
+      - |
+        if [ -z "$CERT_FILE" ]; then
+          echo "❌ CERT_FILE environment variable not set"
+          echo "   Usage: CERT_FILE=/path/to/cert.pfx task cert:upload"
+          exit 1
+        fi
+
+        echo "Uploading certificate from: $CERT_FILE"
+        az containerapp env certificate upload \
+          --name cae-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --certificate-file "$CERT_FILE" \
+          --certificate-name finrisk-pangarabbit-cert
+
+        echo "✅ Certificate uploaded"
+
+  cert:bind:
+    desc: Bind custom domain to Container App
+    cmds:
+      - |
+        echo "Binding custom domain: finrisk-dev.pangarabbit.com"
+        az containerapp hostname bind \
+          --name ca-finrisk-dev \
+          --resource-group rg-finrisk-dev \
+          --hostname finrisk-dev.pangarabbit.com \
+          --certificate finrisk-pangarabbit-cert \
+          --environment cae-finrisk-dev
+
+        echo "✅ Custom domain bound"
+
+  cert:setup:
+    desc: Full certificate setup (upload + bind)
+    cmds:
+      - task: cert:upload
+      - task: cert:bind
+      - |
+        echo ""
+        echo "✅ Custom domain configured!"
+        echo ""
+        echo "DNS Configuration (Cloudflare):"
+        echo "  CNAME: finrisk-dev → ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io"
+        echo "  TXT:   asuid.finrisk-dev → <verification-id>"
+        echo "  SSL:   Full (strict)"
+        echo ""
 
   cost-estimate:
     desc: Show estimated monthly cost
@@ -418,18 +783,25 @@ tasks:
         echo "FinRisk Platform - Cost Estimate"
         echo "================================="
         echo ""
-        echo "Development Environment:"
+        echo "Development Environment (scale-to-zero):"
         echo ""
-        echo "Container App:          $0-15   (scale-to-zero enabled)"
-        echo "Container Registry:     $5      (Basic SKU)"
-        echo "Log Analytics:          $0-25   (5GB daily quota)"
-        echo "Application Insights:   $0-20   (2GB daily cap)"
-        echo "Key Vault:             ~$0.03   (per 10K operations)"
-        echo "Storage (state):       ~$0.50   (minimal usage)"
+        echo "  Container App:        ~$0     (free grant: 180K vCPU-s, 360K GiB-s)"
+        echo "  Container Registry:   ~$5     (Basic SKU)"
+        echo "  Log Analytics:        ~$3     (~0.2 GB/day after 5GB free)"
+        echo "  Application Insights: ~$0     (workspace-based, in Log Analytics)"
+        echo "  Key Vault:           ~$0      ($0.03/10K ops, low usage)"
+        echo "  Storage (state):     ~$0      (< 1 MB state file)"
         echo ""
-        echo "Total:                  $5.53 - $65.53 USD/month"
+        echo "  Total Dev:           ~\$8/month"
         echo ""
-        echo "Production environment would be ~$480/month (always-on, HA)"
+        echo "Production Environment (2 replicas always-on):"
+        echo ""
+        echo "  Container App:        ~\$72    (consumption plan)"
+        echo "  Container Registry:   ~\$20    (Standard SKU)"
+        echo "  Log Analytics:        ~\$28    (~15 GB/month)"
+        echo "  Key Vault:           ~\$1      (higher usage)"
+        echo ""
+        echo "  Total Prod:          ~\$122/month (without Front Door)"
         echo ""
 
   update-container-app:
@@ -475,5 +847,7 @@ tasks:
     desc: Show overall platform status
     cmds:
       - task: infra:status
+      - echo ""
+      - task: urls
       - echo ""
       - task: cost-estimate

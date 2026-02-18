@@ -64,18 +64,35 @@
 
 ```yaml
 variables:
-  - group: finrisk-dev
   - name: azureSubscription
     value: "azure-service-connection"
-  - name: environmentName
-    value: "dev"
   - name: terraformVersion
-    value: "1.7.0"
-  - name: terraformWorkingDirectory
-    value: "$(System.DefaultWorkingDirectory)/terraform/environments/dev"
+    value: "1.5.5"
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/prod'
+    - group: finrisk-iac-tf-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: terraformWorkingDirectory
+      value: '$(System.DefaultWorkingDirectory)/terraform/environments/dev'
+    - group: finrisk-iac-tf-dev
 ```
 
-### Variable Group (finrisk-dev)
+### Variable Groups
+
+| Variable Group | Environment | Branch |
+|----------------|-------------|--------|
+| `finrisk-iac-tf-dev` | Development | `dev` |
+| `finrisk-iac-tf-prod` | Production | `main` |
+
+### Variable Group Variables
 
 | Variable | Description | Source |
 |----------|-------------|--------|
@@ -155,27 +172,38 @@ echo "Storage Account: $STORAGE_ACCOUNT"
 # - Grant access to all pipelines: Yes
 ```
 
-### Step 3: Create Variable Group
+### Step 3: Create Variable Groups
 
 ```bash
 # In Azure DevOps:
 # Pipelines > Library > + Variable group
 
-# Variable group name: finrisk-dev
+# Create TWO variable groups:
 
-# Variables:
-# - terraformStateStorageAccount: <storage-account-name-from-step-1>
+# 1. Variable group name: finrisk-iac-tf-dev
+#    Variables:
+#    - terraformStateStorageAccount: <storage-account-name-from-step-1>
+
+# 2. Variable group name: finrisk-iac-tf-prod
+#    Variables:
+#    - terraformStateStorageAccount: <storage-account-name-from-step-1>
 ```
 
-### Step 4: Create Environment
+### Step 4: Create Environments
 
 ```bash
 # In Azure DevOps:
 # Pipelines > Environments > New environment
 
-# Environment name: dev-infrastructure
-# Description: Infrastructure deployment approval
-# Add approvers: Recommended for production
+# Create TWO environments:
+
+# 1. Environment name: dev-infrastructure
+#    Description: Development infrastructure deployment
+#    Approvers: Optional (auto-deploy)
+
+# 2. Environment name: prod-infrastructure
+#    Description: Production infrastructure deployment
+#    Approvers: REQUIRED - Add reviewers for production changes
 ```
 
 ### Step 5: Create Pipeline
@@ -442,7 +470,7 @@ terraform import azurerm_resource_group.this /subscriptions/<id>/resourceGroups/
 
 ---
 
-**Last Updated:** 2026-02-16
+**Last Updated:** 2026-02-18
 **Pipeline:** FinRisk-IaC-Terraform
-**Terraform Version:** 1.7.0
+**Terraform Version:** 1.5.5
 **Backend:** Azure Storage

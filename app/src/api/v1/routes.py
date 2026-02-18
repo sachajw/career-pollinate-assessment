@@ -3,16 +3,22 @@
 from typing import Annotated
 
 import structlog
+from azure.core.exceptions import AzureError
 from fastapi import APIRouter, Depends, HTTPException, status
 
 from ...core.config import Settings, get_settings
+from ...core.secrets import get_key_vault_secret
 from ...models.validation import (
     ApplicantValidationRequest,
     ApplicantValidationResponse,
     HealthResponse,
     ReadyResponse,
 )
-from ...services.riskshield import RiskShieldClient
+from ...services.riskshield import (
+    RiskShieldCircuitOpenError,
+    RiskShieldClient,
+    RiskShieldUnavailableError,
+)
 
 logger = structlog.get_logger()
 
@@ -24,15 +30,31 @@ def get_riskshield_client(
 ) -> RiskShieldClient:
     """Get RiskShield client dependency.
 
+    Resolves the RiskShield API key from Azure Key Vault when KEY_VAULT_URL
+    is configured (production/staging). Falls back to the RISKSHIELD_API_KEY
+    environment variable for local development.
+
     Args:
         settings: Application settings
 
     Returns:
         Configured RiskShield client
     """
+    api_key = settings.RISKSHIELD_API_KEY
+
+    if settings.KEY_VAULT_URL:
+        try:
+            api_key = get_key_vault_secret(settings.KEY_VAULT_URL, "RISKSHIELD-API-KEY")
+        except AzureError as e:
+            logger.warning(
+                "Key Vault unavailable, falling back to env var",
+                vault_url=settings.KEY_VAULT_URL,
+                error=str(e),
+            )
+
     return RiskShieldClient(
         api_url=settings.RISKSHIELD_API_URL,
-        api_key=settings.RISKSHIELD_API_KEY,
+        api_key=api_key,
     )
 
 
@@ -99,6 +121,26 @@ async def validate_applicant(
         )
 
         return response
+
+    except RiskShieldCircuitOpenError as e:
+        logger.warning(
+            "RiskShield circuit breaker open",
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Risk scoring service is temporarily unavailable. Please retry later.",
+        ) from e
+
+    except RiskShieldUnavailableError as e:
+        logger.error(
+            "RiskShield API unavailable",
+            error=str(e),
+        )
+        raise HTTPException(
+            status_code=status.HTTP_503_SERVICE_UNAVAILABLE,
+            detail="Risk scoring service is currently unavailable. Please retry.",
+        ) from e
 
     except Exception as e:
         logger.error(

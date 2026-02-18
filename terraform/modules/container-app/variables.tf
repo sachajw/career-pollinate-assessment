@@ -508,6 +508,23 @@ variable "key_vault_id" {
 }
 
 #------------------------------------------------------------------------------
+# Azure AD Authentication (EasyAuth)
+#------------------------------------------------------------------------------
+
+# aad_client_id - Azure AD App Registration client ID
+# When set, the Container Apps platform validates Bearer tokens before requests
+# reach the container (no app code changes required).
+# Prerequisite: an App Registration must exist with:
+#   - Application ID URI = api://<client_id>
+#   - The caller must acquire a token for that audience
+# /health and /ready are excluded from authentication for health probes.
+variable "aad_client_id" {
+  description = "Azure AD App Registration client ID for built-in Container App EasyAuth. Null = authentication disabled."
+  type        = string
+  default     = null
+}
+
+#------------------------------------------------------------------------------
 # Custom Domain and Certificate Configuration
 #------------------------------------------------------------------------------
 

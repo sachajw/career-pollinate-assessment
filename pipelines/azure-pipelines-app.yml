@@ -8,6 +8,8 @@
 #   - dev branch -> dev environment
 #   - main branch -> prod environment
 # - Assumes infrastructure already exists (use infra pipeline first)
+#
+# Agent: self-hosted macOS (pool: Default) with OrbStack for Docker
 
 name: FinRisk-App-CI-CD-$(Date:yyyyMMdd-HHmm)$(Rev:.r)
 
@@ -31,36 +33,50 @@ pr:
       - app/**
 
 variables:
-  # Environment detection based on branch
-  - name: isMainBranch
-    value: $[eq(variables['Build.SourceBranch'], 'refs/heads/main')]
-
-  # Environment name: prod for main, dev for everything else
-  - name: environmentName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'prod', 'dev']
-
-  # Variable group based on environment
-  - group: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'finrisk-prod', 'finrisk-dev']
-
   # Common variables
   - name: azureSubscription
     value: 'azure-service-connection'
   - name: pythonVersion
     value: '3.13'
   - name: imageName
-    value: 'applicant-validator'            # Domain service name (DDD)
-
-  # Environment-specific resource names
-  # Dev:  ca-finrisk-dev, rg-finrisk-dev, acrfinriskdev
-  # Prod: ca-finrisk-prod, rg-finrisk-prod, acrfinriskprod
-  - name: containerAppName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'ca-finrisk-prod', 'ca-finrisk-dev']
-  - name: resourceGroupName
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'rg-finrisk-prod', 'rg-finrisk-dev']
-  - name: containerRegistry
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acrfinriskprod.azurecr.io', 'acrfinriskdev.azurecr.io']
+    value: 'applicant-validator'
   - name: dockerRegistryServiceConnection
-    value: $[if eq(variables['Build.SourceBranch'], 'refs/heads/main'), 'acr-prod-service-connection', 'acr-service-connection']
+    value: 'acr-service-connection'
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: containerAppName
+      value: 'ca-finrisk-prod'
+    - name: resourceGroupName
+      value: 'rg-finrisk-prod'
+    - name: containerRegistry
+      value: 'acrfinriskprod.azurecr.io'
+    - group: finrisk-app-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: containerAppName
+      value: 'ca-finrisk-dev'
+    - name: resourceGroupName
+      value: 'rg-finrisk-dev'
+    - name: containerRegistry
+      value: 'acrfinriskdev.azurecr.io'
+    - group: finrisk-app-dev
+
+  # Default to dev for PRs and other branches
+  - ${{ if and(ne(variables['Build.SourceBranch'], 'refs/heads/main'), ne(variables['Build.SourceBranch'], 'refs/heads/dev')) }}:
+    - name: environmentName
+      value: 'dev'
+    - name: containerAppName
+      value: 'ca-finrisk-dev'
+    - name: resourceGroupName
+      value: 'rg-finrisk-dev'
+    - name: containerRegistry
+      value: 'acrfinriskdev.azurecr.io'
+    - group: finrisk-app-dev
 
 stages:
   # ========================================
@@ -86,7 +102,7 @@ stages:
 
           - script: |
               echo "##vso[task.prependpath]/opt/homebrew/opt/python@3.13/bin"
-              echo "##vso[task.prependpath]/Users/tvl/.local/bin"
+              echo "##vso[task.prependpath]$HOME/.local/bin"
             displayName: 'Setup Python PATH'
 
           - script: |
@@ -126,6 +142,7 @@ stages:
 
           - task: PublishCodeCoverageResults@2
             condition: succeededOrFailed()
+            continueOnError: true  # Non-blocking: publish timeout doesn't fail the build
             inputs:
               codeCoverageTool: 'Cobertura'
               summaryFileLocation: '$(System.DefaultWorkingDirectory)/app/coverage.xml'
@@ -158,82 +175,37 @@ stages:
             displayName: 'Publish Image Tag'
 
           - script: |
-              # Add OrbStack Docker to PATH for all subsequent tasks
-              echo "##vso[task.prependpath]/Users/tvl/.orbstack/bin"
-              echo "OrbStack Docker path added to PATH"
-            displayName: 'Setup PATH for Docker'
+              # OrbStack Docker on macOS self-hosted agent
+              # $HOME resolves to the agent user's home directory at runtime
+              export DOCKER=$HOME/.orbstack/bin/docker
+              export DOCKER_CONFIG=$HOME/.docker
 
-          - task: Docker@2
-            displayName: 'Login to ACR'
-            inputs:
-              command: login
-              containerRegistry: $(dockerRegistryServiceConnection)
-
-          - script: |
-              # Verify Docker is accessible
-              echo "Docker version:"
-              docker --version
-              docker buildx version
-
-              # List available builders
-              echo "Available builders:"
-              docker buildx ls
-
-              echo "Buildx setup complete!"
-            displayName: 'Verify Docker Buildx'
-
-          - script: |
-              # Verify Docker is accessible
-              echo "Docker version:"
-              docker --version
-              docker buildx version
-
-              # Setup buildx for cross-platform builds
-              echo "Setting up buildx builder..."
-              docker buildx create --name mybuilder --use 2>/dev/null || docker buildx use mybuilder
-              docker buildx inspect --bootstrap
-
-              echo "Buildx setup complete!"
-            displayName: 'Setup Docker Buildx'
-
-          - script: |
-              set -e  # Exit on error
-
-              # Use OrbStack Docker explicitly
-              DOCKER=/Users/tvl/.orbstack/bin/docker
-
-              # Set Docker config path so plugins can be found
-              export DOCKER_CONFIG=/Users/tvl/.docker
-              export HOME=/Users/tvl
-
-              # Debug environment
-              echo "HOME: $HOME"
-              echo "DOCKER_CONFIG: $DOCKER_CONFIG"
               echo "Using Docker: $DOCKER"
               $DOCKER --version
-
-              # Check if buildx plugin exists
-              if [ -f "$DOCKER_CONFIG/cli-plugins/docker-buildx" ]; then
-                echo "Buildx plugin found at: $DOCKER_CONFIG/cli-plugins/docker-buildx"
-              else
-                echo "ERROR: Buildx plugin not found!"
-                exit 1
-              fi
-
-              # Verify buildx works
               $DOCKER buildx version
+
+              # Login to ACR using Azure CLI (works with OrbStack)
+              echo "Logging in to ACR..."
+              az acr login --name acrfinriskdev
+
+              # Setup buildx builder
+              echo "Setting up buildx builder..."
+              $DOCKER buildx create --name mybuilder --use 2>/dev/null || $DOCKER buildx use mybuilder
+              $DOCKER buildx inspect --bootstrap
+
+              echo "Buildx setup complete!"
+            displayName: 'Setup Docker Buildx and Login'
+
+          - script: |
+              set -e
+
+              # OrbStack Docker on macOS self-hosted agent
+              DOCKER=$HOME/.orbstack/bin/docker
+              export DOCKER_CONFIG=$HOME/.docker
 
               # Navigate to app directory
               cd app
               echo "Building in: $(pwd)"
-
-              # Verify ACR authentication
-              echo "Verifying ACR authentication..."
-              cat ~/.docker/config.json | grep -q "$(containerRegistry)" || {
-                echo "ERROR: ACR authentication not found for $(containerRegistry)!"
-                exit 1
-              }
-              echo "ACR authentication verified"
 
               # Build and push
               echo "Starting Docker buildx build..."
@@ -463,7 +435,7 @@ stages:
               echo "Request: $REQUEST_BODY"
               echo ""
 
-              # Call the validate API with timing (using Python for cross-platform milliseconds)
+              # Call the validate API with timing (python3 for cross-platform milliseconds)
               START_TIME=$(python3 -c "import time; print(int(time.time() * 1000))")
               RESPONSE=$(curl -s -w "\n%{http_code}" -X POST "$VALIDATE_URL" \
                 -H "Content-Type: application/json" \

@@ -266,11 +266,16 @@ Request: POST /validate [200ms]
 
 #### Environment Strategy
 
-| Environment | Purpose | Config |
-|-------------|---------|--------|
-| **Dev** | Development/testing | Manual deploy, ephemeral |
-| **Staging** | Pre-prod validation | Auto-deploy from main |
-| **Prod** | Production workloads | Manual approval required |
+| Environment | Purpose | Config | Status |
+|-------------|---------|--------|--------|
+| **Dev** | Development/testing | Manual deploy, scale-to-zero | ✅ Deployed |
+| **Prod** | Production workloads | Manual approval required | 📋 Documented (quota limit) |
+
+**Assessment Note:** For this technical assessment, only the **dev environment** is deployed due to Azure subscription quota limits (1 Container App Environment per subscription). The production configuration is fully documented and ready for deployment with increased quotas or a separate subscription.
+
+**Branch Strategy:**
+- `dev` branch → dev environment (`rg-finrisk-dev`)
+- `main` branch → prod environment (`rg-finrisk-prod`) - when quotas allow
 
 #### CI/CD Pipeline Architecture
 
@@ -421,7 +426,12 @@ Error Scenarios:
 - **Trigger**: CPU > 70% OR Request queue > 100
 - **Scale Out**: +1 replica every 30s
 - **Scale In**: -1 replica every 5 min (gradual)
-- **Limits**: Min 2, Max 10 (prod)
+- **Limits**: Min 0 (dev), Min 2 (prod), Max 10
+
+**Deployed URLs:**
+- **Dev (Default):** `https://ca-finrisk-dev.icydune-b53581f6.eastus2.azurecontainerapps.io`
+- **Dev (Custom):** `https://finrisk-dev.pangarabbit.com`
+- **Prod:** Not deployed (documented for future deployment)
 
 **Load Testing:**
 - **Tool**: Azure Load Testing / k6
@@ -591,6 +601,6 @@ Total with Front Door:        ~$157/month
 
 ---
 
-*Document Version: 1.0*
-*Last Updated: 2026-02-14*
+*Document Version: 1.1*
+*Last Updated: 2026-02-17*
 *Author: Solution Architect*

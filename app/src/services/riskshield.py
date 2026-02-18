@@ -3,10 +3,12 @@
 Implements resilience patterns as defined in ADR-002:
 - Timeout handling with httpx
 - Retry logic with tenacity (exponential backoff)
+- Circuit breaker (fail fast after consecutive failures)
 - Structured logging with structlog
 """
 
 import logging
+import time
 
 import httpx
 import structlog
@@ -30,6 +32,10 @@ HTTP_TIMEOUT = httpx.Timeout(
     pool=5.0,      # Pool timeout
 )
 
+# Circuit breaker configuration
+_CIRCUIT_FAILURE_THRESHOLD = 5   # Trip after 5 consecutive failures
+_CIRCUIT_RECOVERY_TIMEOUT = 60.0  # Seconds before attempting recovery (half-open)
+
 
 class RiskShieldError(Exception):
     """Base exception for RiskShield errors."""
@@ -46,12 +52,68 @@ class RiskShieldUnavailableError(RiskShieldError):
     pass
 
 
+class RiskShieldCircuitOpenError(RiskShieldError):
+    """Circuit breaker is open; request rejected to protect downstream."""
+    pass
+
+
+class CircuitBreaker:
+    """Simple circuit breaker for the RiskShield API.
+
+    States:
+    - CLOSED  : normal operation; failures are counted
+    - OPEN    : calls are rejected immediately (fail fast)
+    - HALF-OPEN: one probe call allowed to test recovery
+
+    Trips to OPEN after ``failure_threshold`` consecutive failures.
+    Attempts recovery after ``recovery_timeout`` seconds.
+    """
+
+    def __init__(
+        self,
+        failure_threshold: int = _CIRCUIT_FAILURE_THRESHOLD,
+        recovery_timeout: float = _CIRCUIT_RECOVERY_TIMEOUT,
+    ) -> None:
+        self._failure_threshold = failure_threshold
+        self._recovery_timeout = recovery_timeout
+        self._failure_count = 0
+        self._opened_at: float | None = None  # monotonic timestamp when tripped
+
+    @property
+    def is_open(self) -> bool:
+        if self._opened_at is None:
+            return False
+        elapsed = time.monotonic() - self._opened_at
+        if elapsed >= self._recovery_timeout:
+            # Allow one probe (half-open); caller decides to reset or re-trip
+            return False
+        return True
+
+    def record_success(self) -> None:
+        """Reset circuit after a successful call."""
+        self._failure_count = 0
+        self._opened_at = None
+
+    def record_failure(self) -> None:
+        """Increment failure counter and trip circuit when threshold is reached."""
+        self._failure_count += 1
+        if self._failure_count >= self._failure_threshold:
+            if self._opened_at is None:
+                self._opened_at = time.monotonic()
+                logger.error(
+                    "RiskShield circuit breaker tripped",
+                    failure_count=self._failure_count,
+                    recovery_timeout=self._recovery_timeout,
+                )
+
+
 class RiskShieldClient:
     """Client for RiskShield API integration.
 
     Implements resilience patterns:
     - Timeout handling with configurable timeouts
     - Retry logic with exponential backoff for transient failures
+    - Circuit breaker (fail fast after consecutive failures)
     - Structured logging for observability
     """
 
@@ -64,6 +126,7 @@ class RiskShieldClient:
         """
         self.api_url = api_url
         self.api_key = api_key
+        self._circuit_breaker = CircuitBreaker()
         self.client = httpx.AsyncClient(
             base_url=api_url,
             timeout=HTTP_TIMEOUT,
@@ -75,7 +138,11 @@ class RiskShieldClient:
     ) -> tuple[int, RiskLevel]:
         """Validate applicant and return risk score.
 
-        Uses retry logic with exponential backoff for transient failures.
+        Calls RiskShield API (POST /v1/score) with retry logic and exponential
+        backoff for transient failures.
+
+        Falls back to a deterministic demo algorithm when no API key is
+        configured (local development without RiskShield credentials).
 
         Args:
             request: Applicant validation request
@@ -84,7 +151,7 @@ class RiskShieldClient:
             Tuple of (risk_score, risk_level)
 
         Raises:
-            RiskShieldTimeoutError: If API call times out
+            RiskShieldTimeoutError: If API call times out after retries
             RiskShieldUnavailableError: If API is unavailable after retries
         """
         logger.info(
@@ -94,10 +161,33 @@ class RiskShieldClient:
             id_number_hash=hash(request.idNumber) % 1000,
         )
 
-        # DEMO: Generate deterministic risk score from ID number
-        # In production, this would call _validate_with_retry()
-        risk_score = self._calculate_demo_risk_score(request.idNumber)
-        risk_level = self._classify_risk_level(risk_score)
+        if not self.api_key:
+            # Demo mode: no API key configured (local development only)
+            logger.warning(
+                "No RiskShield API key configured - running in demo mode. "
+                "Set RISKSHIELD_API_KEY or configure KEY_VAULT_URL for production."
+            )
+            risk_score = self._calculate_demo_risk_score(request.idNumber)
+            risk_level = self._classify_risk_level(risk_score)
+        else:
+            # Production: check circuit breaker before attempting call
+            if self._circuit_breaker.is_open:
+                logger.warning("RiskShield circuit breaker is open — rejecting request")
+                raise RiskShieldCircuitOpenError(
+                    "RiskShield circuit breaker is open; try again later"
+                )
+
+            try:
+                risk_score, risk_level = await self._validate_with_retry(request)
+                self._circuit_breaker.record_success()
+            except RiskShieldTimeoutError:
+                self._circuit_breaker.record_failure()
+                raise RiskShieldUnavailableError(
+                    "RiskShield API timed out after retries"
+                )
+            except RiskShieldUnavailableError:
+                self._circuit_breaker.record_failure()
+                raise
 
         logger.info(
             "Applicant validation complete",

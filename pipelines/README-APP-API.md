@@ -120,25 +120,47 @@ git push origin v1.0.0
 
 ```yaml
 variables:
-  - group: finrisk-dev
   - name: azureSubscription
     value: "azure-service-connection"
-  - name: environmentName
-    value: "dev"
   - name: pythonVersion
     value: "3.13"
-  - name: dockerRegistryServiceConnection
-    value: "acr-service-connection"
-  - name: containerRegistry
-    value: "acrfinriskdev.azurecr.io"
   - name: imageName
     value: "applicant-validator"
-  # imageTag: Set dynamically from git describe --tags
-  - name: containerAppName
-    value: "ca-finrisk-dev"
-  - name: resourceGroupName
-    value: "rg-finrisk-dev"
+  - name: dockerRegistryServiceConnection
+    value: "acr-service-connection"
+
+  # Branch-based environment targeting
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/main') }}:
+    - name: environmentName
+      value: 'prod'
+    - name: containerAppName
+      value: 'ca-finrisk-prod'
+    - name: resourceGroupName
+      value: 'rg-finrisk-prod'
+    - name: containerRegistry
+      value: 'acrfinriskprod.azurecr.io'
+    - group: finrisk-app-prod
+
+  - ${{ if eq(variables['Build.SourceBranch'], 'refs/heads/dev') }}:
+    - name: environmentName
+      value: 'dev'
+    - name: containerAppName
+      value: 'ca-finrisk-dev'
+    - name: resourceGroupName
+      value: 'rg-finrisk-dev'
+    - name: containerRegistry
+      value: 'acrfinriskdev.azurecr.io'
+    - group: finrisk-app-dev
 ```
+
+### Variable Groups
+
+| Variable Group | Environment | Branch |
+|----------------|-------------|--------|
+| `finrisk-app-dev` | Development | `dev` |
+| `finrisk-app-prod` | Production | `main` |
+
+> **Note:** `imageTag` is set dynamically from `git describe --tags`
 
 ---
 
@@ -453,7 +475,7 @@ The pipeline includes two security tools:
 
 ---
 
-**Last Updated:** 2026-02-16
+**Last Updated:** 2026-02-18
 **Pipeline:** FinRisk-App-CI-CD
 **Agent Type:** Self-hosted macOS (Apple Silicon) with Docker Buildx
 **Deployment Target:** Azure Container Apps (AMD64)

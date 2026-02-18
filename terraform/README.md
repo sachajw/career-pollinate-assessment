@@ -27,11 +27,9 @@ terraform/
 │       └── (same structure as dev)
 │
 ├── tests/                     # Terratest infrastructure tests (Go)
-├── scripts/                   # Helper scripts (e.g. certificate upload)
+├── scripts/                   # Helper scripts (bootstrap, certificate upload)
 ├── versions.tf                # Terraform and provider versions
 ├── providers.tf               # Provider configuration
-├── BOOTSTRAP.md               # One-time prerequisites setup guide
-├── TESTING.md                 # Infrastructure testing guide
 └── README.md                  # This file
 ```
 
@@ -116,40 +114,36 @@ terraform init -backend-config=backend.hcl
 terraform validate
 ```
 
-#### Step 2: Configure Backend
+### Azure DevOps Setup (CI/CD)
 
-```bash
-cd environments/dev
+For pipeline deployments, configure Azure DevOps:
 
-# Copy backend configuration template
-cp backend.hcl.example backend.hcl
+**1. Service Connection:**
+- Go to Project Settings → Service connections
+- Create Azure Resource Manager connection (Workload Identity federation recommended)
+- Name: `azure-service-connection`
 
-# Edit backend.hcl with your storage account name
-# Replace <your-unique-suffix> with your actual storage account suffix
-nano backend.hcl
-```
+**2. Variable Groups:**
 
-#### Step 3: Configure Variables
+Create four variable groups for branch-based environment targeting:
 
-```bash
-# Copy variables template
-cp terraform.tfvars.example terraform.tfvars
+| Variable Group | Environment | Branch |
+|----------------|-------------|--------|
+| `finrisk-iac-tf-dev` | Development | `dev` |
+| `finrisk-iac-tf-prod` | Production | `main` |
+| `finrisk-app-dev` | Development | `dev` |
+| `finrisk-app-prod` | Production | `main` |
 
-# Edit terraform.tfvars (optional, defaults are provided)
-nano terraform.tfvars
-```
+Each variable group needs:
+- `terraformStateStorageAccount` - storage account name from bootstrap
 
-#### Step 4: Initialize Terraform
+**3. Terraform Extension:**
+- Install from [Azure DevOps Marketplace](https://marketplace.visualstudio.com/items?itemName=ms-devlabs.custom-terraform-tasks)
 
-```bash
-# Initialize Terraform with backend configuration
-terraform init -backend-config=backend.hcl
-
-# This will:
-# - Download required providers
-# - Configure remote state backend
-# - Prepare working directory
-```
+**4. Permissions:**
+Service principal needs:
+- Storage Blob Data Contributor on state storage account
+- Contributor on target resource group/subscription
 
 ### Deploy Infrastructure
 
@@ -172,6 +166,36 @@ terraform apply tfplan
 # After successful apply, save outputs
 terraform output -json > outputs.json
 ```
+
+### Custom Domain Configuration
+
+Custom domains are configured **manually via Azure CLI** after initial Terraform deployment. This approach is used because:
+
+1. The `custom_domain` block in `azurerm_container_app` is deprecated in favor of `azurerm_container_app_custom_domain` resource
+2. Certificate upload requires the PFX file which shouldn't be stored in Terraform
+3. Manual configuration provides more control over certificate management
+
+**Setup Commands:**
+```bash
+# Upload certificate
+az containerapp env certificate upload \
+  --name cae-finrisk-dev \
+  --resource-group rg-finrisk-dev \
+  --certificate-file /path/to/cert.pfx \
+  --certificate-name finrisk-pangarabbit-cert
+
+# Bind custom domain
+az containerapp hostname bind \
+  --name ca-finrisk-dev \
+  --resource-group rg-finrisk-dev \
+  --hostname finrisk-dev.pangarabbit.com \
+  --certificate finrisk-pangarabbit-cert \
+  --environment cae-finrisk-dev
+```
+
+See environment-specific READMEs for detailed instructions:
+- [Development Environment](./environments/dev/README.md)
+- [Production Environment](./environments/prod/README.md)
 
 ### Outputs
 
@@ -497,15 +521,26 @@ checkov --directory .
 
 Use the [Azure Pricing Calculator](https://azure.microsoft.com/en-us/pricing/calculator/) to estimate costs.
 
-**Estimated Monthly Cost (Dev):**
+**Estimated Monthly Cost (Dev - with scale-to-zero):**
 
-- Resource Group: Free
-- Container App: ~$30 (scale-to-zero)
-- Container Registry (Basic): ~$5
-- Key Vault: ~$3
-- Log Analytics (1GB/day): ~$10
-- Application Insights: ~$5
-- **Total: ~$53/month**
+| Resource | Cost | Notes |
+|----------|------|-------|
+| Container App | ~$0 | Scale-to-zero; pay only for active request seconds |
+| Container Registry (Basic) | ~$5 | $0.17/day |
+| Key Vault | ~$0 | $0.03/10k ops; low usage in dev |
+| Log Analytics | ~$3 | ~0.2 GB/day after 5 GB free tier |
+| Application Insights | ~$0 | Workspace-based (included in Log Analytics) |
+| **Total** | **~$8/month** | With scale-to-zero enabled |
+
+**Estimated Monthly Cost (Prod - min 2 replicas):**
+
+| Resource | Cost | Notes |
+|----------|------|-------|
+| Container App | ~$72 | 2 replicas always-on (consumption plan) |
+| Container Registry (Standard) | ~$20 | $0.67/day |
+| Key Vault | ~$1 | Higher usage |
+| Log Analytics | ~$28 | ~15 GB/month |
+| **Total** | **~$122/month** | Without Front Door |
 
 ### Terraform Cost Estimation
 
@@ -599,3 +634,12 @@ docs(readme): add troubleshooting section
 **Last Updated:** 2026-02-17
 **Terraform Version:** >= 1.5.0
 **Azure Provider Version:** ~> 3.100
+
+## Deployment Status
+
+| Environment | Status | Notes |
+|-------------|--------|-------|
+| **Dev** | ✅ Deployed | `rg-finrisk-dev` in `eastus2` |
+| **Prod** | 📋 Documented | Ready for deployment with increased quotas |
+
+**Custom Domain:** Configured manually via Azure CLI (see environment READMEs for details)

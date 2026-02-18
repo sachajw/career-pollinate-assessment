@@ -340,6 +340,64 @@ resource "azurerm_container_app" "this" {
 }
 
 #------------------------------------------------------------------------------
+# Container App Authentication (EasyAuth) — Azure AD Bearer token validation
+#------------------------------------------------------------------------------
+# When aad_client_id is set, the Container Apps platform sidecar intercepts
+# every inbound request and validates the Azure AD Bearer token BEFORE the
+# request reaches the application container — no app code changes required.
+#
+# Unauthenticated requests receive HTTP 401.
+# /health and /ready are excluded so liveness/readiness probes and pipeline
+# smoke tests continue to work without a token.
+#
+# Requires: an Azure AD App Registration with:
+#   Application ID URI = api://<client_id>
+#   Allowed audience   = api://<client_id>
+# The caller acquires a token with scope = api://<client_id>/.default
+#
+# NOTE: azurerm_container_app_auth_configs is only available in AzureRM 4.x.
+# This implementation uses the azapi provider (Microsoft's official shim for
+# Azure REST APIs not yet in azurerm) which works with AzureRM 3.x.
+#------------------------------------------------------------------------------
+data "azurerm_client_config" "current" {}
+
+resource "azapi_resource" "auth_configs" {
+  count = var.aad_client_id != null ? 1 : 0
+
+  type      = "Microsoft.App/containerApps/authConfigs@2023-05-01"
+  name      = "current"
+  parent_id = azurerm_container_app.this.id
+
+  body = jsonencode({
+    properties = {
+      platform = {
+        enabled = true
+      }
+      globalValidation = {
+        unauthenticatedClientAction = "Return401"
+        excludedPaths               = ["/health", "/ready"]
+      }
+      identityProviders = {
+        azureActiveDirectory = {
+          registration = {
+            openIdIssuer = "https://login.microsoftonline.com/${data.azurerm_client_config.current.tenant_id}/v2.0"
+            clientId     = var.aad_client_id
+          }
+          validation = {
+            allowedAudiences = [
+              var.aad_client_id,
+              "api://${var.aad_client_id}"
+            ]
+          }
+        }
+      }
+    }
+  })
+
+  depends_on = [azurerm_container_app.this]
+}
+
+#------------------------------------------------------------------------------
 # RBAC: ACR Pull Access (Optional)
 #------------------------------------------------------------------------------
 # Grants the Container App's managed identity the AcrPull role on the

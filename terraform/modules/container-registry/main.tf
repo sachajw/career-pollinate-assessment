@@ -48,34 +48,14 @@ resource "azurerm_container_registry" "this" {
   # false: Require private endpoints (recommended for production)
   public_network_access_enabled = var.public_network_access_enabled
 
-  # Encryption with customer-managed keys (Premium SKU only)
-  # When enabled, uses Key Vault for encryption key management
-  dynamic "encryption" {
-    for_each = var.encryption_enabled ? [1] : []
-    content {
-      enabled = true
-    }
-  }
-
   # Retention policy for untagged manifests (Premium SKU only)
   # Automatically cleans up old images to reduce storage costs
   # Only applies when retention_enabled is true
-  dynamic "retention_policy" {
-    for_each = var.sku == "Premium" ? [1] : []
-    content {
-      days    = var.retention_days
-      enabled = var.retention_enabled
-    }
-  }
+  retention_policy_in_days = var.sku == "Premium" && var.retention_enabled ? var.retention_days : null
 
   # Trust policy for content signing (Premium SKU only)
   # Enables Docker Content Trust for image signing and verification
-  dynamic "trust_policy" {
-    for_each = var.sku == "Premium" && var.trust_policy_enabled ? [1] : []
-    content {
-      enabled = true
-    }
-  }
+  trust_policy_enabled = var.sku == "Premium" && var.trust_policy_enabled
 
   # Resource tags for organization and cost management
   tags = var.tags
