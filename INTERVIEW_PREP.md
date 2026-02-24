@@ -7,6 +7,7 @@
 - [Section 2: Architecture Decisions](#section-2-architecture-decisions)
   - [Why Azure Container Apps?](#q-why-azure-container-apps-over-app-service-or-aks)
   - [Why Python + FastAPI?](#q-why-python--fastapi-instead-of-nodejs-go-or-net)
+  - [How to scale Python to 100k req/min?](#q-how-would-you-scale-python-to-100k-reqmin-without-rewriting-to-go)
   - [What is type safety?](#q-what-is-type-safety-and-how-does-this-project-use-it)
   - [Why python:3.13-slim?](#q-why-python313-slim-instead-of-alpine-or-distroless)
   - [Why Terraform over Bicep?](#q-why-terraform-over-bicep)
@@ -203,7 +204,64 @@ Crossover: ~50-100k sustained req/min
 
 **If challenged on performance:** The assessment required 1000 req/min - Python handles this comfortably. If we needed 100k req/min, I'd choose Go. Right tool for the job.
 
-#### Q: What is type safety and how does this project use it?
+#### Q: How would you scale Python to 100k req/min without rewriting to Go?
+
+**The Math:**
+```
+Current:  1 replica = ~1,000 req/min
+Target:   100,000 req/min = 100 replicas
+```
+
+**Strategy 1: Horizontal Scaling (Easiest)**
+```hcl
+# Just increase replicas in Terraform
+min_replicas = 20   # Was 2
+max_replicas = 100  # Was 10
+```
+**Cost:** ~$720/month vs ~$72/month
+
+**Strategy 2: Add Caching (Biggest Impact)**
+
+Most applicants get checked multiple times. Cache the result.
+```python
+async def get_risk_score(request: ValidateRequest) -> RiskScore:
+    cache_key = f"risk:{request.idNumber}"
+    cached = await redis.get(cache_key)
+
+    if cached:
+        return cached  # Cache HIT - instant response
+
+    result = await riskshield_client.validate(request)
+    await redis.setex(cache_key, 3600, result)  # Cache 1 hour
+    return result
+```
+
+**Impact if 80% cache hits:**
+- 100k req/min → 20k actual API calls
+- 20 replicas instead of 100
+- **$144/month instead of $720/month**
+
+**Strategy 3: Already Optimized**
+
+| Optimization | Status | Impact |
+|--------------|--------|--------|
+| Connection pooling | ✅ httpx AsyncClient | Reuses connections |
+| Async I/O | ✅ FastAPI + httpx | Handles concurrency |
+| Non-blocking | ✅ All I/O is async | No thread blocking |
+
+**Recommended Approach:**
+```
+Step 1: Add Redis caching (1 day) → Handles 80% of traffic
+Step 2: Scale to 20-30 replicas    → Handles remaining 20%
+Step 3: Add Azure Front Door       → Cache at edge
+
+Total: ~$200/mo vs $720/mo (just scaling) vs rewrite cost
+```
+
+**Interview One-Liner:**
+> "Before rewriting to Go, I'd add Redis caching - most applicants get checked multiple times. With 80% cache hits, Python handles 100k req/min with 20 replicas at a fraction of the rewrite cost."
+
+---
 
 **Simple Definition:**
 > If a function expects a `str`, you MUST pass a `str`. Anything else is an error.
