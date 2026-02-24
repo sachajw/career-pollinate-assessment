@@ -106,7 +106,7 @@ App Service:     Pay for what you RESERVE (instance-hours)
 Container Apps:  0 → 300 replicas (KEDA-driven)
                  Scales on: HTTP requests, queue depth, cron schedules, custom metrics
 
-App Service:     1 → 30 instances (CPU/memory-driven)
+App Service:     1 → 100 instances (Premium v3, CPU/memory-driven)
                  Scales on: CPU > 70%, memory > 70%, HTTP queue length
 ```
 
