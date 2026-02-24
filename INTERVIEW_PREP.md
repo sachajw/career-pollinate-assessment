@@ -7,6 +7,7 @@
 - [Section 2: Architecture Decisions](#section-2-architecture-decisions)
   - [Why Azure Container Apps?](#q-why-azure-container-apps-over-app-service-or-aks)
   - [Why Python + FastAPI?](#q-why-python--fastapi-instead-of-nodejs-go-or-net)
+  - [What is type safety?](#q-what-is-type-safety-and-how-does-this-project-use-it)
   - [Why python:3.13-slim?](#q-why-python313-slim-instead-of-alpine-or-distroless)
   - [Why Terraform over Bicep?](#q-why-terraform-over-bicep)
 - [Section 3: Security Deep Dive](#section-3-security-deep-dive)
@@ -201,6 +202,61 @@ Crossover: ~50-100k sustained req/min
 **Trade-off Accepted:** Go would be faster for high-throughput scenarios, but Python handles 1000 req/min easily which exceeds our requirements.
 
 **If challenged on performance:** The assessment required 1000 req/min - Python handles this comfortably. If we needed 100k req/min, I'd choose Go. Right tool for the job.
+
+#### Q: What is type safety and how does this project use it?
+
+**Definition:** Type safety means the language catches type errors before they cause runtime bugs.
+
+**Type-Safe vs Type-Unsafe Example:**
+
+```python
+# TYPE-UNSAFE (JavaScript)
+let score = "72";
+let result = score + 10;    // "7210" - silent string concatenation!
+
+# TYPE-SAFE (Python + mypy)
+score: int = 72
+result = score + "10"       # mypy error: Unsupported operand types
+```
+
+**Levels of Type Safety:**
+
+| Level | Language | When Caught | Example |
+|-------|----------|-------------|---------|
+| **Static** | Go, Rust, Java, C# | Compile time | Code won't compile |
+| **Gradual** | Python + mypy, TypeScript | IDE/CI (optional) | Type hints + linter |
+| **Dynamic** | Python (no hints), JS | Runtime only | Error when executed |
+
+**How This Project Uses Type Safety:**
+
+**1. Runtime Validation (Pydantic):**
+```python
+class ValidateRequest(BaseModel):
+    firstName: str = Field(..., min_length=1, max_length=100)
+    idNumber: str = Field(..., min_length=13, max_length=13)
+
+# Throws ValidationError at API boundary
+ValidateRequest(firstName=123, idNumber="abc")  # ❌ Wrong types
+```
+
+**2. Static Checking (mypy in CI):**
+```python
+def validate_applicant(request: ValidateRequest) -> RiskLevel: ...
+
+# mypy catches before running
+validate_applicant("not a request")  # ❌ Incompatible type
+```
+
+**Why This Matters:**
+
+| Without Type Safety | With Type Safety |
+|---------------------|------------------|
+| Bugs found in production | Bugs found in IDE/CI |
+| Refactoring is risky | Compiler catches breaks |
+| Read code to understand | Types document intent |
+
+**Interview Response:**
+> "Python is dynamically typed, but I added static type hints with mypy for CI checks and Pydantic for runtime validation. This 'gradual typing' catches invalid API requests at the boundary and catches developer mistakes in CI - before production."
 
 ---
 
