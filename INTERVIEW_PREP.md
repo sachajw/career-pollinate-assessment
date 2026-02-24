@@ -470,7 +470,7 @@ BUILD → INFRASTRUCTURE → DEPLOY
 
 **Stage 1: Build:** Quality gates (lint, type check, unit tests), Docker build, Trivy scan, push to ACR
 
-**Stage 2: Infrastructure:** Dev auto-deploys, Prod requires manual approval
+**Stage 2: Infrastructure:** tfsec scan, Terraform plan/apply, Dev auto-deploys, Prod requires manual approval
 
 **Stage 3: Deploy:** Update Container App, smoke test `/health`, rollback on failure
 
@@ -564,7 +564,7 @@ variable "aad_client_id" { default = null }
 
 **Layer 3: Integration Testing** - httpx AsyncClient for API testing, all error scenarios
 
-**Layer 4: Security Scanning** - Trivy (container), Bandit (Python), fail on HIGH/CRITICAL
+**Layer 4: Security Scanning** - tfsec (Terraform), Trivy (container), Bandit (Python), fail on HIGH/CRITICAL
 
 ---
 
