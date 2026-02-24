@@ -8,6 +8,7 @@
   - [Why Azure Container Apps?](#q-why-azure-container-apps-over-app-service-or-aks)
   - [Why Python + FastAPI?](#q-why-python--fastapi-instead-of-nodejs-go-or-net)
   - [How to scale Python to 100k req/min?](#q-how-would-you-scale-python-to-100k-reqmin-without-rewriting-to-go)
+  - [What does asynchronous mean?](#q-what-does-asynchronous-mean)
   - [What is type safety?](#q-what-is-type-safety-and-how-does-this-project-use-it)
   - [Why python:3.13-slim?](#q-why-python313-slim-instead-of-alpine-or-distroless)
   - [Why Terraform over Bicep?](#q-why-terraform-over-bicep)
@@ -260,6 +261,56 @@ Total: ~$200/mo vs $720/mo (just scaling) vs rewrite cost
 
 **Interview One-Liner:**
 > "Before rewriting to Go, I'd add Redis caching - most applicants get checked multiple times. With 80% cache hits, Python handles 100k req/min with 20 replicas at a fraction of the rewrite cost."
+
+#### Q: What does "asynchronous" mean?
+
+**Simple Definition:**
+> **Sync** = Do one thing at a time, wait for each to finish
+> **Async** = Start multiple things, handle them as they complete
+
+**Real-World Analogy:**
+
+```
+SYNCHRONOUS (like a queue):
+1. Order food → Wait 2 min → Get food
+2. Order drink → Wait 1 min → Get drink
+Total: 3 minutes
+
+ASYNCHRONOUS (like a buzzer):
+1. Order food → Get buzzer
+2. Order drink → Get buzzer
+3. Sit down, check phone (do other things)
+4. Buzzers ring → Pick up both
+Total: 2 minutes (happened in parallel)
+```
+
+**In Code:**
+
+```python
+# SYNCHRONOUS - one at a time
+result1 = call_riskshield(request1)  # Wait 2 sec...
+result2 = call_riskshield(request2)  # Wait 2 sec...
+result3 = call_riskshield(request3)  # Wait 2 sec...
+# Total: 6 seconds
+
+# ASYNCHRONOUS - all at once
+result1, result2, result3 = await asyncio.gather(
+    call_riskshield(request1),  # Start
+    call_riskshield(request2),  # Start
+    call_riskshield(request3),  # Start
+)
+# Total: 2 seconds (all ran in parallel)
+```
+
+**Why It Matters for This Project:**
+
+| Server Type | 100 Requests | Wait Time |
+|-------------|--------------|-----------|
+| Synchronous | One at a time | Last request waits 200s |
+| Async (FastAPI) | All start immediately | All done in ~2s |
+
+**Interview One-Liner:**
+> "Asynchronous means the server handles multiple requests at once instead of waiting for each to finish. FastAPI doesn't block while waiting for RiskShield - it processes other requests. That's why Python handles 1000+ req/min despite being 'slower' than Go."
 
 ---
 
