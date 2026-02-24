@@ -109,11 +109,13 @@ The assessment explicitly required a **production-ready** solution (not a protot
 #### Deep Dive: Container Apps vs App Service
 
 **When to Choose Container Apps:**
+
 - Variable/bursty traffic, event-driven workloads
 - Microservices architecture (Dapr)
 - Need gRPC or TCP ingress
 
 **When to Choose App Service:**
+
 - Traditional web apps with steady traffic
 - Need zero cold start, team unfamiliar with containers
 
@@ -123,14 +125,14 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 **The Difference:**
 
-|                  | **CPU-Driven**                 | **Event-Driven (KEDA)**                  |
-| ---------------- | ------------------------------ | ---------------------------------------- |
-| **Triggers on**  | CPU usage > 70%                | External events (requests, queues, time) |
-| **Good for**     | Compute-heavy workloads        | I/O-heavy, bursty traffic                |
-| **Example**      | Video processing, ML inference | APIs, queue consumers, scheduled jobs    |
-| **Azure Service**| App Service                    | Container Apps, Functions                |
+|                   | **App Service CPU-Driven**     | **Container Apps Event-Driven (KEDA)**   |
+| ----------------- | ------------------------------ | ---------------------------------------- |
+| **Triggers on**   | CPU usage > 70%                | External events (requests, queues, time) |
+| **Good for**      | Compute-heavy workloads        | I/O-heavy, bursty traffic                |
+| **Example**       | Video processing, ML inference | APIs, queue consumers, scheduled jobs    |
 
 **When to Choose:**
+
 - **CPU-Driven**: Compute-intensive workloads (video encoding, ML)
 - **Event-Driven**: I/O-bound APIs, bursty traffic ← **This project**
 
@@ -142,17 +144,19 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 **Dapr = Distributed Application Runtime** - building blocks for microservices as configuration, not code.
 
-| What Dapr Provides    | What It Means                            | Without Dapr               | With Dapr              |
-| --------------------- | ---------------------------------------- | -------------------------- | ---------------------- |
-| **Retries**           | Auto-retry failed API calls              | Write yourself             | Configure              |
-| **Circuit Breaker**   | Stop calling failing services            | Implement yourself         | Built-in               |
-| **Service Discovery** | Find services by name, not IP            | Hardcode URLs              | Automatic              |
-| **State Management**  | Store data without knowing the database  | Provider-specific code     | Same API for any store |
+| What Dapr Provides    | What It Means                           | Without Dapr           | With Dapr              |
+| --------------------- | --------------------------------------- | ---------------------- | ---------------------- |
+| **Retries**           | Auto-retry failed API calls             | Write yourself         | Configure              |
+| **Circuit Breaker**   | Stop calling failing services           | Implement yourself     | Built-in               |
+| **Service Discovery** | Find services by name, not IP           | Hardcode URLs          | Automatic              |
+| **State Management**  | Store data without knowing the database | Provider-specific code | Same API for any store |
 
 **What Dapr Does NOT Provide:**
+
 - **Graceful degradation** - Dapr's circuit breaker returns errors to the caller; it doesn't return cached/fallback data. For UX benefits (e.g., "RiskShield is down, here's a default risk score"), you'd implement that in application code.
 
 **Why Dapr Benefits This Project:**
+
 - Future-proof for microservices expansion
 - Built into Container Apps (just enable it)
 
@@ -164,14 +168,15 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 **Consider AKS when:**
 
-| Factor            | Container Apps      | AKS Needed                        |
-| ----------------- | ------------------- | --------------------------------- |
-| **Microservices** | < 10 services       | 10+ with complex interactions     |
-| **Traffic**       | < 100k req/min      | 100k+ req/min, predictable        |
-| **Team Size**     | < 5 platform eng    | 5+ with K8s expertise             |
-| **Control**       | Managed abstractions| Need pod-level control, operators |
+| Factor            | Container Apps       | AKS Needed                        |
+| ----------------- | -------------------- | --------------------------------- |
+| **Microservices** | < 10 services        | 10+ with complex interactions     |
+| **Traffic**       | < 100k req/min       | 100k+ req/min, predictable        |
+| **Team Size**     | < 5 platform eng     | 5+ with K8s expertise             |
+| **Control**       | Managed abstractions | Need pod-level control, operators |
 
 **Why AKS Was Wrong for This Project:**
+
 1. Single service - no microservices complexity
 2. No dedicated K8s expertise needed
 3. Ops burden: cluster upgrades, node patching
@@ -214,6 +219,7 @@ The assessment explicitly required a **production-ready** solution (not a protot
 min_replicas = 20   # Was 2
 max_replicas = 100  # Was 10
 ```
+
 **Cost:** ~$720/month vs ~$72/month
 
 **Strategy 2: Add Caching (Biggest Impact)**
@@ -243,12 +249,14 @@ async def get_risk_score(request: ValidateRequest) -> RiskScore:
 > **Async** = Start multiple things, handle them as they complete
 
 **Analogy:**
+
 ```
 SYNC (like a queue): Order → Wait → Get. Total: 3 min
 ASYNC (like a buzzer): Order → Get buzzer → Do other things → Pick up. Total: 2 min (parallel)
 ```
 
 **In Code:**
+
 ```python
 # SYNC - one at a time
 result1 = call_riskshield(request1)  # Wait 2s...
@@ -319,13 +327,14 @@ greet(123)       # ❌ Integer → type error
 
 ### Q: Why Terraform over Bicep?
 
-| Criterion         | Terraform | Bicep      |
-| ----------------- | --------- | ---------- |
-| Multi-cloud       | Yes       | Azure only |
-| Module Ecosystem  | Massive   | Growing    |
-| State Management  | Built-in  | Built-in   |
+| Criterion        | Terraform | Bicep      |
+| ---------------- | --------- | ---------- |
+| Multi-cloud      | Yes       | Azure only |
+| Module Ecosystem | Massive   | Growing    |
+| State Management | Built-in  | Built-in   |
 
 **Key Reasoning:**
+
 1. **Multi-cloud Optionality**: Skills transfer if FinSure expands to AWS/GCP
 2. **Module Library**: Huge ecosystem of pre-built modules
 3. **State Management**: Remote state with locking prevents team conflicts
@@ -367,16 +376,17 @@ Layer 5: Observability
 
 **STRIDE Analysis:**
 
-| Threat              | Mitigation                              |
-| ------------------- | --------------------------------------- |
-| **Spoofing**        | Azure AD auth (bonus feature - opt-in)  |
-| **Tampering**       | HTTPS/TLS 1.2+ enforced                 |
-| **Repudiation**     | Full audit logging in Log Analytics     |
-| **Info Disclosure** | Key Vault + Managed Identity            |
-| **DoS**             | Container Apps autoscaling              |
-| **Elevation**       | Non-root user, RBAC, least privilege    |
+| Threat              | Mitigation                             |
+| ------------------- | -------------------------------------- |
+| **Spoofing**        | Azure AD auth (bonus feature - opt-in) |
+| **Tampering**       | HTTPS/TLS 1.2+ enforced                |
+| **Repudiation**     | Full audit logging in Log Analytics    |
+| **Info Disclosure** | Key Vault + Managed Identity           |
+| **DoS**             | Container Apps autoscaling             |
+| **Elevation**       | Non-root user, RBAC, least privilege   |
 
 **Trust Boundaries:**
+
 1. **Internet → Azure**: Untrusted, TLS required, input validation
 2. **Container App → Key Vault**: Managed Identity auth, RBAC-scoped
 3. **Container App → RiskShield**: API key from Key Vault, HTTPS, timeouts
@@ -385,11 +395,11 @@ Layer 5: Observability
 
 ### Q: Why Managed Identity over Service Principal with secrets?
 
-| Aspect    | Managed Identity       | Service Principal          |
-| --------- | ---------------------- | -------------------------- |
-| Secrets   | Zero                   | Must rotate manually       |
-| Rotation  | Automatic (1hr tokens) | Manual process             |
-| Audit     | Full Azure AD logging  | Limited                    |
+| Aspect   | Managed Identity       | Service Principal    |
+| -------- | ---------------------- | -------------------- |
+| Secrets  | Zero                   | Must rotate manually |
+| Rotation | Automatic (1hr tokens) | Manual process       |
+| Audit    | Full Azure AD logging  | Limited              |
 
 **Service Principal Problems:** Secrets in CI/CD = attack surface, manual 90-day rotation, credential sprawl
 
@@ -418,6 +428,7 @@ HTTP_TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0)
     retry=retry_if_exception_type(httpx.HTTPStatusError),
 )
 ```
+
 - Retries on 5xx errors and 429 rate limiting, NOT 4xx client errors
 - Wait times: 1s → 2s → 4s
 
@@ -445,8 +456,14 @@ class CorrelationIDMiddleware(BaseHTTPMiddleware):
 **Flow:** Client → Middleware generates/propagates ID → Bound to all logs → Returned to client for support tickets
 
 **Example Log:**
+
 ```json
-{"event": "validation_completed", "correlation_id": "abc-123", "risk_score": 72, "duration_ms": 234}
+{
+  "event": "validation_completed",
+  "correlation_id": "abc-123",
+  "risk_score": 72,
+  "duration_ms": 234
+}
 ```
 
 ---
@@ -479,12 +496,12 @@ BUILD → INFRASTRUCTURE → DEPLOY
 
 **Azure DevOps Extensions Used:**
 
-| Extension  | Purpose                               |
-| ---------- | ------------------------------------- |
-| SBOM Tool  | Generate Software Bill of Materials   |
-| Terraform  | IaC deployment                        |
-| tfsec      | Terraform security scanning           |
-| Trivy      | Container vulnerability scanning      |
+| Extension | Purpose                             |
+| --------- | ----------------------------------- |
+| SBOM Tool | Generate Software Bill of Materials |
+| Terraform | IaC deployment                      |
+| tfsec     | Terraform security scanning         |
+| Trivy     | Container vulnerability scanning    |
 
 ---
 
@@ -531,11 +548,13 @@ terraform apply -var="riskshield_api_key=$(RISKSHIELD_API_KEY)"
 ### Q: What if RiskShield API is down frequently?
 
 **Current mitigations:**
+
 1. Circuit breaker prevents cascading failures
 2. Retry logic handles transient issues
 3. 503 response with correlation ID for support
 
 **Additional options:**
+
 1. **Fallback**: Return cached/default risk score
 2. **Queue-based**: Accept request, process later
 3. **Multi-vendor**: Backup risk scoring provider
@@ -631,16 +650,16 @@ variable "aad_client_id" { default = null }
 
 ### Already Well-Implemented (Not Improvements)
 
-| Feature            | Implementation                  | Location                            |
-| ------------------ | ------------------------------- | ----------------------------------- |
-| Circuit Breaker    | 5 failures → 60s recovery       | `services/riskshield.py`            |
-| Retry Logic        | 3 attempts, exponential backoff | `services/riskshield.py`            |
-| Timeouts           | 5s connect, 10s read            | `services/riskshield.py`            |
-| Correlation IDs    | Full middleware implementation  | `core/middleware.py`                |
-| Structured Logging | structlog with JSON renderer    | `core/logging.py`                   |
-| Input Validation   | Pydantic with field validators  | `models/validation.py`              |
-| Secret Caching     | 5-minute TTL for Key Vault      | `core/secrets.py`                   |
-| Non-root Container | appuser (UID 1000)              | `Dockerfile`                        |
+| Feature            | Implementation                  | Location                 |
+| ------------------ | ------------------------------- | ------------------------ |
+| Circuit Breaker    | 5 failures → 60s recovery       | `services/riskshield.py` |
+| Retry Logic        | 3 attempts, exponential backoff | `services/riskshield.py` |
+| Timeouts           | 5s connect, 10s read            | `services/riskshield.py` |
+| Correlation IDs    | Full middleware implementation  | `core/middleware.py`     |
+| Structured Logging | structlog with JSON renderer    | `core/logging.py`        |
+| Input Validation   | Pydantic with field validators  | `models/validation.py`   |
+| Secret Caching     | 5-minute TTL for Key Vault      | `core/secrets.py`        |
+| Non-root Container | appuser (UID 1000)              | `Dockerfile`             |
 
 ---
 
@@ -835,13 +854,13 @@ return await current_algorithm(request)
 
 ### Infrastructure Improvements
 
-| Improvement           | Current            | Proposed         | Cost      |
-| --------------------- | ------------------ | ---------------- | --------- |
-| Multi-region          | Single (East US 2) | Active-passive   | +$120/mo  |
-| WAF                   | None               | Azure Front Door | +$35/mo   |
-| Secrets auto-rotation | Manual             | 90-day policy    | $0        |
-| Private endpoints     | Opt-in (var)       | Default for prod | +$35/mo   |
-| Redis cache           | None               | Basic tier       | +$15/mo   |
+| Improvement           | Current            | Proposed         | Cost     |
+| --------------------- | ------------------ | ---------------- | -------- |
+| Multi-region          | Single (East US 2) | Active-passive   | +$120/mo |
+| WAF                   | None               | Azure Front Door | +$35/mo  |
+| Secrets auto-rotation | Manual             | 90-day policy    | $0       |
+| Private endpoints     | Opt-in (var)       | Default for prod | +$35/mo  |
+| Redis cache           | None               | Basic tier       | +$15/mo  |
 
 ---
 
@@ -865,11 +884,11 @@ return await current_algorithm(request)
 
 **6-Month Strategic:**
 
-| Item                    | Effort  | Impact              |
-| ----------------------- | ------- | ------------------- |
-| Multi-region DR         | 2 weeks | 99.99% SLA          |
-| Contract testing        | 1 week  | Catch API changes   |
-| Feature flags           | 1 week  | Safe rollouts       |
+| Item             | Effort  | Impact            |
+| ---------------- | ------- | ----------------- |
+| Multi-region DR  | 2 weeks | 99.99% SLA        |
+| Contract testing | 1 week  | Catch API changes |
+| Feature flags    | 1 week  | Safe rollouts     |
 
 ---
 
