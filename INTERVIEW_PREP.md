@@ -151,6 +151,13 @@ The assessment explicitly required a **production-ready** solution (not a protot
 | **Service Discovery** | Find services by name, not IP           | Hardcode URLs          | Automatic              |
 | **State Management**  | Store data without knowing the database | Provider-specific code | Same API for any store |
 
+**Why Stop Calling a Failing Service?**
+
+1. **Prevent cascading failures** - If RiskShield is down, requests hang for 10s. With 100 concurrent requests, your service exhausts threads/connections and becomes unresponsive too.
+2. **Protect the failing service** - Hammering an overwhelmed service with retries makes it worse (thundering herd). Circuit breaker gives it breathing room.
+3. **Fail fast** - Return 503 immediately instead of making users wait 10s for an inevitable timeout.
+4. **Free up resources** - No threads wasted on hopeless requests; resources available for health checks and other endpoints.
+
 **What Dapr Does NOT Provide:**
 
 - **Graceful degradation** - Dapr's circuit breaker returns errors to the caller; it doesn't return cached/fallback data. For UX benefits (e.g., "RiskShield is down, here's a default risk score"), you'd implement that in application code.
