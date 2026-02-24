@@ -123,11 +123,12 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 **The Difference:**
 
-|                 | **CPU-Driven**                 | **Event-Driven (KEDA)**                  |
-| --------------- | ------------------------------ | ---------------------------------------- |
-| **Triggers on** | CPU usage > 70%                | External events (requests, queues, time) |
-| **Good for**    | Compute-heavy workloads        | I/O-heavy, bursty traffic                |
-| **Example**     | Video processing, ML inference | APIs, queue consumers, scheduled jobs    |
+|                  | **CPU-Driven**                 | **Event-Driven (KEDA)**                  |
+| ---------------- | ------------------------------ | ---------------------------------------- |
+| **Triggers on**  | CPU usage > 70%                | External events (requests, queues, time) |
+| **Good for**     | Compute-heavy workloads        | I/O-heavy, bursty traffic                |
+| **Example**      | Video processing, ML inference | APIs, queue consumers, scheduled jobs    |
+| **Azure Service**| App Service                    | Container Apps, Functions                |
 
 **When to Choose:**
 - **CPU-Driven**: Compute-intensive workloads (video encoding, ML)
