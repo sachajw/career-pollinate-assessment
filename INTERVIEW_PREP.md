@@ -205,80 +205,57 @@ Crossover: ~50-100k sustained req/min
 
 #### Q: What is type safety and how does this project use it?
 
-**Definition:** Type safety means the language catches type errors before they cause runtime bugs.
-
-**Important Distinction:**
-
-| Concept | What It Catches | Who Made Mistake |
-|---------|-----------------|------------------|
-| **Type Safety** | Code using wrong data types | Developer |
-| **Input Validation** | Invalid data from outside | End user |
+**Simple Definition:**
+> If a function expects a `str`, you MUST pass a `str`. Anything else is an error.
 
 ```python
-# TYPE SAFETY - catches DEVELOPER mistake (wrong type in code)
-def calculate_risk(score: int) -> str:
-    return "HIGH" if score > 70 else "LOW"
+def greet(name: str) -> str:
+    return f"Hello, {name}"
 
-calculate_risk("72")  # ❌ Type error - passed string, expected int
-
-# INPUT VALIDATION - catches USER mistake (invalid input data)
-class ValidateRequest(BaseModel):
-    idNumber: str = Field(..., min_length=13)
-
-ValidateRequest(idNumber="123")  # ❌ Too short - user typed wrong value
+greet("Jane")    # ✅ String → works
+greet(123)       # ❌ Integer → type error
+greet(True)      # ❌ Boolean → type error
 ```
 
-**Type-Safe vs Type-Unsafe Example:**
-
+**Why It's Called "Safety":**
+Without type safety, languages silently do weird things:
 ```python
-# TYPE-UNSAFE (JavaScript)
-let score = "72";
-let result = score + 10;    // "7210" - silent string concatenation!
+# JavaScript (no type safety)
+score = "72"
+result = score + 10    // "7210" - silently concatenated strings!
 
-# TYPE-SAFE (Python + mypy)
+# Python + mypy (type safe)
 score: int = 72
-result = score + "10"       # mypy error: Unsupported operand types
+result = score + "10"  # ❌ mypy error - caught before running
 ```
 
-**Levels of Type Safety:**
+**Type Safety vs Input Validation:**
 
-| Level | Language | When Caught | Example |
-|-------|----------|-------------|---------|
-| **Static** | Go, Rust, Java, C# | Compile time | Code won't compile |
-| **Gradual** | Python + mypy, TypeScript | IDE/CI (optional) | Type hints + linter |
-| **Dynamic** | Python (no hints), JS | Runtime only | Error when executed |
+| Concept | Catches | Example |
+|---------|---------|---------|
+| **Type Safety** | Wrong data TYPE | Pass `123` where `str` expected |
+| **Input Validation** | Invalid VALUE | User types `"abc"` for email |
 
-**How This Project Uses Both:**
-
-**1. Type Safety (mypy in CI) - catches developer errors:**
 ```python
-def validate_applicant(request: ValidateRequest) -> RiskLevel: ...
+# Type safety - wrong TYPE
+def get_risk(score: int) -> str: ...
+get_risk("72")     # ❌ Passed string, expected int
 
-validate_applicant("not a request")  # ❌ mypy: Incompatible type
-validate_applicant(123)              # ❌ mypy: Expected ValidateRequest, got int
+# Input validation - invalid VALUE
+class Request(BaseModel):
+    idNumber: str = Field(..., min_length=13)
+Request(idNumber="123")  # ❌ Correct type (str), but too short
 ```
 
-**2. Input Validation (Pydantic) - catches user errors:**
-```python
-class ValidateRequest(BaseModel):
-    firstName: str = Field(..., min_length=1, max_length=100)
-    idNumber: str = Field(..., min_length=13, max_length=13)
+**How This Project Uses It:**
 
-# Both caught at API boundary
-ValidateRequest(firstName=123, idNumber="abc")    # ❌ Wrong TYPE
-ValidateRequest(firstName="Jane", idNumber="123") # ❌ Invalid VALUE (too short)
-```
+| Tool | What It Does | Catches |
+|------|--------------|---------|
+| **mypy** | Checks type hints in code | Developer passes wrong type |
+| **Pydantic** | Validates at API boundary | Both wrong types AND invalid values |
 
-**Why This Matters:**
-
-| Without Type Safety | With Type Safety |
-|---------------------|------------------|
-| Bugs found in production | Bugs found in IDE/CI |
-| Refactoring is risky | Compiler catches breaks |
-| Read code to understand | Types document intent |
-
-**Interview Response:**
-> "Type safety catches developer mistakes - like passing a string to a function expecting a number. It's different from input validation, which catches user errors. Python is dynamically typed, but I added mypy for static type checking and Pydantic for both type safety AND input validation at the API boundary."
+**Interview One-Liner:**
+> "Type safety means if a function expects a string, you must pass a string. Python is dynamically typed, so I added mypy to catch type mismatches in CI, and Pydantic to validate both types and values at the API boundary."
 |---------------------|------------------|
 | Bugs found in production | Bugs found in IDE/CI |
 | Refactoring is risky | Compiler catches breaks |
