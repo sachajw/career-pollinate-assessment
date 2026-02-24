@@ -88,6 +88,40 @@
 
 **If asked about App Service:** I considered App Service because the team may be more familiar with it, but the always-on pricing model doesn't make sense for a dev environment that may sit idle. Container Apps gives us Kubernetes benefits without the operational burden.
 
+#### Deep Dive: Container Apps vs App Service
+
+**Pricing Philosophy:**
+```
+Container Apps:  Pay for what you USE (vCPU-seconds)
+App Service:     Pay for what you RESERVE (instance-hours)
+```
+
+**Scaling Model:**
+```
+Container Apps:  0 → 300 replicas (KEDA-driven)
+                 Scales on: HTTP requests, queue depth, cron schedules, custom metrics
+
+App Service:     1 → 30 instances (CPU/memory-driven)
+                 Scales on: CPU > 70%, memory > 70%, HTTP queue length
+```
+
+**When to Choose Container Apps:**
+- Variable/unpredictable traffic (scale-to-zero saves money)
+- Event-driven workloads (queue processing, scheduled jobs)
+- Microservices architecture (Dapr service mesh)
+- Need gRPC or TCP ingress
+- Burst traffic patterns
+
+**When to Choose App Service:**
+- Traditional web apps (.NET, Node.js, Python, Java)
+- Predictable, steady traffic
+- Need zero cold start (always warm)
+- Team unfamiliar with containers
+- Simple web app + API use case
+
+**Cold Start Follow-up:**
+> "Cold starts are 2-3 seconds, acceptable for a loan validation API that's not real-time user-facing. In production with `min_replicas=2`, there's no cold start - you just lose scale-to-zero cost savings."
+
 ---
 
 ### Q: Why Python + FastAPI instead of Node.js, Go, or .NET?
