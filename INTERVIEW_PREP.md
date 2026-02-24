@@ -210,7 +210,7 @@ The assessment explicitly required a **production-ready** solution (not a protot
 **Key Reasoning:**
 
 1. **Dev Velocity**: FastAPI auto-generates OpenAPI docs, Pydantic provides runtime validation.
-2. **FinTech Standard**: Python is industry standard for financial data - easier hiring, more libraries.
+2. **FinTech Fit**: Python is widely used for data-heavy FinTech workloads - risk scoring, ML, API integrations.
 3. **Python 3.13**: 16 months of production hardening, experimental JIT (10-30% faster).
 4. **uv Package Manager**: 10-100x faster than pip, Rust-based.
 
