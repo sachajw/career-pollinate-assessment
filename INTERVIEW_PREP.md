@@ -268,34 +268,41 @@ Request(idNumber="123")  # ❌ Correct type (str), but too short
 
 ### Q: Why python:3.13-slim instead of Alpine or Distroless?
 
-**Answer:**
+**Simple Rule:**
+> **Alpine** = smallest but packages break
+> **Distroless** = most secure but can't debug
+> **Slim** = sweet spot (works + debuggable + small enough)
 
-| Base Image           | Size  | Build Time | Compatibility | Debugging |
-| -------------------- | ----- | ---------- | ------------- | --------- |
-| **python:3.13-slim** | 175MB | Fast       | Excellent     | Easy      |
-| Alpine               | 100MB | Slow\*     | Poor\*\*      | Medium    |
-| Distroless           | 90MB  | Fast       | Good          | Hard      |
+| Image | Size | Packages Work? | Can Debug? |
+|-------|------|----------------|------------|
+| **python:3.13-slim** | 175MB | ✅ Yes | ✅ Yes |
+| Alpine | 100MB | ❌ Some don't | ✅ Yes |
+| Distroless | 90MB | ✅ Yes | ❌ No shell |
 
 **Why NOT Alpine:**
+```bash
+# Alpine uses musl libc - many Python packages don't have wheels
+pip install azure-identity  # ❌ Must compile from source = slow builds
 
-- Uses musl libc instead of glibc - causes **wheel compatibility issues**
-- Many Python packages (including some Azure SDKs) don't have musl wheels
-- Would require compiling all dependencies from source = slow builds
+# Slim uses glibc - everything just works
+pip install azure-identity  # ✅ Pre-built wheel, installs in seconds
+```
 
 **Why NOT Distroless:**
-
-- No shell = no `kubectl exec` for debugging
-- Health checks require workarounds
-- Operational friction in production incidents
+```bash
+# Production incident at 2am - need to debug?
+kubectl exec -it mypod -- /bin/sh
+# Distroless: ❌ No shell exists
+# Slim:        ✅ Works, can inspect and debug
+```
 
 **Why Slim:**
+- All packages work (glibc compatibility)
+- Shell access for debugging
+- 175MB is under 200MB target
 
-- glibc compatibility = all wheels work, fast builds
-- Shell access for debugging production issues
-- Still achieves 175MB (under 200MB target)
-- Debian-based = well-understood, good security updates
-
----
+**Interview One-Liner:**
+> "Alpine breaks some Python packages. Distroless has no shell so you can't debug production issues. Slim gives us compatibility and debugging while still hitting our size target."
 
 ### Q: Why Terraform over Bicep?
 
