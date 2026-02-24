@@ -375,6 +375,7 @@ Layer 4: Container Security
 └── Trivy vulnerability scanning
 
 Layer 5: Observability
+├── Diagnostic logging enabled (Key Vault, Container Apps)
 ├── All Key Vault access logged
 └── Correlation IDs for distributed tracing
 ```
@@ -446,6 +447,8 @@ HTTP_TIMEOUT = httpx.Timeout(connect=5.0, read=10.0, write=5.0, pool=5.0)
 
 **Why all three?** Timeouts prevent hanging, retries handle transient failures, circuit breaker prevents cascading failures.
 
+**Error Handling:** API returns appropriate HTTP status codes (422 for validation errors, 500 for internal errors, 503 for RiskShield unavailable) with structured error responses including correlation ID for support.
+
 ---
 
 ### Q: Explain your correlation ID implementation.
@@ -509,6 +512,11 @@ BUILD → INFRASTRUCTURE → DEPLOY
 | Terraform | IaC deployment                      |
 | tfsec     | Terraform security scanning         |
 | Trivy     | Container vulnerability scanning    |
+
+**Service Connections:**
+- Azure Resource Manager connection for infrastructure deployment
+- Container Registry connection for image push/pull
+- Scoped to specific subscriptions/resource groups (least privilege)
 
 ---
 
