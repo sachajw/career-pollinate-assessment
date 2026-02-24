@@ -577,11 +577,27 @@ terraform apply -var="riskshield_api_key=$(RISKSHIELD_API_KEY)"
 | Azure AD Auth     | $0          | Production, sensitive data |
 | Private Endpoints | +$35/mo     | Regulated industries       |
 
+**Network Restrictions Implementation (Key Vault):**
+
+```hcl
+# terraform/modules/key-vault/main.tf
+dynamic "network_acls" {
+  for_each = var.network_acls_enabled ? [1] : []
+  content {
+    bypass                     = var.network_acls_bypass      # AzureServices
+    default_action             = var.network_acls_default_action  # Deny
+    ip_rules                   = var.allowed_ip_ranges        # CIDR allowlist
+    virtual_network_subnet_ids = var.allowed_subnet_ids       # Subnet allowlist
+  }
+}
+```
+
 **Opt-In via Variables:**
 
 ```hcl
 variable "enable_private_endpoints" { default = false }
-variable "aad_client_id" { default = null }
+variable "network_acls_enabled" { default = false }
+variable "allowed_ip_ranges" { default = [] }
 ```
 
 **Reasoning:** Dev doesn't need full hardening, private endpoints require VNet-connected build agents, security is a spectrum.
