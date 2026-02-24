@@ -56,7 +56,20 @@
 
 **FinSure Capital** is a FinTech company providing SME lending solutions. They needed to integrate with **RiskShield API** (third-party vendor) to validate loan applicants' identity and get a risk score before approving loans.
 
-**My Role:** Design, build, containerize, and deploy a secure, production-ready integration platform on Azure.
+**My Role:** Design, build, containerize, and deploy a **production-ready** integration platform on Azure.
+
+### Key Requirement: Production-Ready
+
+The assessment explicitly required a **production-ready** solution (not a prototype). This means:
+
+| Requirement | What I Delivered |
+|-------------|------------------|
+| **Resilience** | Circuit breaker, retry logic, timeouts |
+| **Security** | Managed Identity, Key Vault, HTTPS-only |
+| **Observability** | Structured logging, correlation IDs, App Insights |
+| **IaC** | Modular Terraform, remote state, reusable for dev/prod |
+| **CI/CD** | 3-stage pipeline, environment gating, smoke tests |
+| **Container Security** | Non-root user, multi-stage build, vulnerability scanning |
 
 ### Problem Statement
 
@@ -64,7 +77,7 @@
 - Call RiskShield REST API with API key authentication
 - Return vendor's risk score response
 - Deploy to Azure using Terraform + Azure DevOps
-- Follow DevOps and security best practices
+- **Production-ready** with DevOps and security best practices
 
 ---
 
@@ -82,14 +95,16 @@
 | KEDA Scaling | Native                    | No                     | Manual setup |
 | Dapr Ready   | Yes                       | No                     | Yes          |
 
-**Key Reasoning:**
+**Key Reasoning (Production-Ready Focus):**
 
-1. **Cost Optimization**: Scale-to-zero capability is critical for dev environments. Container Apps only charges for active vCPU-seconds ($0.000024/vCPU-s). Dev environment costs ~$8/month total.
-2. **Future-Ready**: KEDA support means we can scale based on HTTP requests, queue depth, etc. Dapr integration enables service mesh patterns without code changes.
-3. **Simplicity vs AKS**: AKS would be overkill for a single microservice - adds cluster management, node patching, upgrade cycles.
-4. **Trade-off Accepted**: Cold start latency of 2-3s, but mitigated by setting `min_replicas=2` in production.
+1. **Event-Driven Scaling (KEDA)**: Production traffic is bursty. KEDA scales on HTTP requests, queue depth, cron schedules - not just CPU/memory. This is more efficient for a loan validation API.
+2. **Production Resilience**: Dapr integration provides service mesh patterns (retries, circuit breakers) without code changes. Future-proof for microservices expansion.
+3. **Right-Sized Complexity**: AKS is overkill for a single service - adds cluster management, node patching, upgrade cycles. Container Apps gives production-grade K8s without the ops burden.
+4. **Cost Efficiency**: Scale-to-zero saves dev costs, but production uses `min_replicas=2` for high availability.
 
-**If asked about App Service:** I considered App Service because the team may be more familiar with it, but the always-on pricing model doesn't make sense for a dev environment that may sit idle. Container Apps gives us Kubernetes benefits without the operational burden.
+**Trade-off Accepted:** Cold start latency of 2-3s for dev environment. Production mitigates this with `min_replicas=2` (always warm).
+
+**If asked about App Service:** App Service is production-ready, but lacks event-driven scaling (KEDA) and Dapr. For a FinTech integration that may have bursty loan application periods, Container Apps scales more intelligently.
 
 #### Deep Dive: Container Apps vs App Service
 
