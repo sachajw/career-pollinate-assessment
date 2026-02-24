@@ -91,12 +91,14 @@
 #### Deep Dive: Container Apps vs App Service
 
 **Pricing Philosophy:**
+
 ```
 Container Apps:  Pay for what you USE (vCPU-seconds)
 App Service:     Pay for what you RESERVE (instance-hours)
 ```
 
 **Scaling Model:**
+
 ```
 Container Apps:  0 → 300 replicas (KEDA-driven)
                  Scales on: HTTP requests, queue depth, cron schedules, custom metrics
@@ -106,6 +108,7 @@ App Service:     1 → 30 instances (CPU/memory-driven)
 ```
 
 **When to Choose Container Apps:**
+
 - Variable/unpredictable traffic (scale-to-zero saves money)
 - Event-driven workloads (queue processing, scheduled jobs)
 - Microservices architecture (Dapr service mesh)
@@ -113,6 +116,7 @@ App Service:     1 → 30 instances (CPU/memory-driven)
 - Burst traffic patterns
 
 **When to Choose App Service:**
+
 - Traditional web apps (.NET, Node.js, Python, Java)
 - Predictable, steady traffic
 - Need zero cold start (always warm)
@@ -120,22 +124,24 @@ App Service:     1 → 30 instances (CPU/memory-driven)
 - Simple web app + API use case
 
 **Cold Start Follow-up:**
+
 > "Cold starts are 2-3 seconds, acceptable for a loan validation API that's not real-time user-facing. In production with `min_replicas=2`, there's no cold start - you just lose scale-to-zero cost savings."
 
 #### When Would AKS Be the Right Choice?
 
 **AKS Thresholds - consider AKS when:**
 
-| Factor | Container Apps Limit | AKS Needed |
-|--------|---------------------|------------|
-| **Microservices** | < 10 services | 10+ services with complex interactions |
-| **Traffic** | < 100k req/min | 100k+ req/min, predictable baseline |
-| **Team Size** | < 5 platform engineers | 5+ with K8s expertise |
-| **Control** | Managed abstractions | Need pod-level control, custom operators |
-| **Network** | Basic ingress | Service mesh (Istio), complex policies |
-| **Compliance** | Standard Azure compliance | Custom security policies, Azure Policy at pod level |
+| Factor            | Container Apps Limit      | AKS Needed                                          |
+| ----------------- | ------------------------- | --------------------------------------------------- |
+| **Microservices** | < 10 services             | 10+ services with complex interactions              |
+| **Traffic**       | < 100k req/min            | 100k+ req/min, predictable baseline                 |
+| **Team Size**     | < 5 platform engineers    | 5+ with K8s expertise                               |
+| **Control**       | Managed abstractions      | Need pod-level control, custom operators            |
+| **Network**       | Basic ingress             | Service mesh (Istio), complex policies              |
+| **Compliance**    | Standard Azure compliance | Custom security policies, Azure Policy at pod level |
 
 **Cost Crossover Point:**
+
 ```
 Container Apps:  $0.000024/vCPU-s + $0.000003/GiB-s
 AKS (D2s v3):    ~$70/node/month + control plane (free)
@@ -147,17 +153,17 @@ Crossover: ~50-100k sustained req/min
 
 **What AKS Provides That Container Apps Doesn't:**
 
-| Capability | Container Apps | AKS |
-|------------|---------------|-----|
-| Pod-to-pod communication | Limited (Dapr) | Full CNI, Network Policies |
-| Custom operators | No | Yes |
-| DaemonSets | No | Yes |
-| StatefulSets | No | Yes |
-| Node pools | No | Yes (GPU, high-memory, spot) |
-| Init containers | Limited | Full support |
-| Sidecar patterns | Dapr sidecars | Any sidecar |
-| RBAC granularity | App-level | Pod/namespace-level |
-| Admission controllers | No | Yes (OPA Gatekeeper, Kyverno) |
+| Capability               | Container Apps | AKS                           |
+| ------------------------ | -------------- | ----------------------------- |
+| Pod-to-pod communication | Limited (Dapr) | Full CNI, Network Policies    |
+| Custom operators         | No             | Yes                           |
+| DaemonSets               | No             | Yes                           |
+| StatefulSets             | No             | Yes                           |
+| Node pools               | No             | Yes (GPU, high-memory, spot)  |
+| Init containers          | Limited        | Full support                  |
+| Sidecar patterns         | Dapr sidecars  | Any sidecar                   |
+| RBAC granularity         | App-level      | Pod/namespace-level           |
+| Admission controllers    | No             | Yes (OPA Gatekeeper, Kyverno) |
 
 **Why AKS Was Wrong for This Project:**
 
@@ -168,6 +174,7 @@ Crossover: ~50-100k sustained req/min
 5. **Time to Value** - Hours to set up AKS properly vs minutes for Container Apps
 
 **Interview Response:**
+
 > "AKS would be the right choice if we had 10+ microservices with complex service-to-service communication, needed a service mesh like Istio, or had compliance requirements for pod-level security policies. For a single integration service, the operational overhead doesn't justify the control. Container Apps gives us 80% of K8s benefits with 20% of the complexity."
 
 ---
@@ -655,19 +662,19 @@ variable "kv_allowed_ips" { default = [] }
 
 ### Already Well-Implemented (Not Improvements)
 
-| Feature | Implementation | Location |
-|---------|---------------|----------|
-| Circuit Breaker | 5 failures → 60s recovery | `services/riskshield.py` |
-| Retry Logic | 3 attempts, exponential backoff | `services/riskshield.py` (tenacity) |
-| Timeouts | 5s connect, 10s read | `services/riskshield.py` (httpx) |
-| Correlation IDs | Full middleware implementation | `core/middleware.py` |
-| Structured Logging | structlog with JSON renderer | `core/logging.py` |
-| Input Validation | Pydantic with field validators | `models/validation.py` |
-| Secret Caching | 5-minute TTL for Key Vault | `core/secrets.py` |
-| Demo Mode | Fallback when no API key | `services/riskshield.py` |
-| Health Probes | Liveness + readiness endpoints | `api/v1/routes.py` |
-| Non-root Container | appuser (UID 1000) | `Dockerfile` |
-| Multi-stage Build | Builder + production stages | `Dockerfile` |
+| Feature            | Implementation                  | Location                            |
+| ------------------ | ------------------------------- | ----------------------------------- |
+| Circuit Breaker    | 5 failures → 60s recovery       | `services/riskshield.py`            |
+| Retry Logic        | 3 attempts, exponential backoff | `services/riskshield.py` (tenacity) |
+| Timeouts           | 5s connect, 10s read            | `services/riskshield.py` (httpx)    |
+| Correlation IDs    | Full middleware implementation  | `core/middleware.py`                |
+| Structured Logging | structlog with JSON renderer    | `core/logging.py`                   |
+| Input Validation   | Pydantic with field validators  | `models/validation.py`              |
+| Secret Caching     | 5-minute TTL for Key Vault      | `core/secrets.py`                   |
+| Demo Mode          | Fallback when no API key        | `services/riskshield.py`            |
+| Health Probes      | Liveness + readiness endpoints  | `api/v1/routes.py`                  |
+| Non-root Container | appuser (UID 1000)              | `Dockerfile`                        |
+| Multi-stage Build  | Builder + production stages     | `Dockerfile`                        |
 
 ---
 
@@ -703,12 +710,12 @@ resource "azurerm_monitor_metric_alert" "error_rate" {
 
 **Recommended Alerts:**
 
-| Alert | Condition | Severity |
-|-------|-----------|----------|
-| High error rate | 5xx > 5% over 5 min | Critical |
-| Circuit breaker open | Consecutive failures > 5 | Critical |
-| P95 latency | Response time > 2s | Warning |
-| Key Vault access denied | 403 responses | Critical |
+| Alert                   | Condition                | Severity |
+| ----------------------- | ------------------------ | -------- |
+| High error rate         | 5xx > 5% over 5 min      | Critical |
+| Circuit breaker open    | Consecutive failures > 5 | Critical |
+| P95 latency             | Response time > 2s       | Warning  |
+| Key Vault access denied | 403 responses            | Critical |
 
 ---
 
@@ -717,22 +724,23 @@ resource "azurerm_monitor_metric_alert" "error_rate" {
 **Current State:** All security scans have `continueOnError: true` - they report issues but don't block deployment.
 
 **Gap:**
+
 ```yaml
 - script: uv run ruff check src/
-  continueOnError: true  # Doesn't fail build
+  continueOnError: true # Doesn't fail build
 
 - script: uv run bandit -r src/
-  continueOnError: true  # Doesn't fail build
+  continueOnError: true # Doesn't fail build
 ```
 
 **Solution:** Remove `continueOnError` for critical checks, or add quality thresholds
 
 ```yaml
 - script: uv run ruff check src/
-  continueOnError: false  # Now blocks deployment
+  continueOnError: false # Now blocks deployment
 
 - script: uv run pytest --cov=src --cov-fail-under=80
-  continueOnError: false  # Enforce 80% coverage
+  continueOnError: false # Enforce 80% coverage
 ```
 
 **Business Case:** Prevent security issues from reaching production.
@@ -905,13 +913,13 @@ return await current_algorithm(request)
 
 ### Infrastructure Improvements
 
-| Improvement | Current | Proposed | Cost Impact |
-|-------------|---------|----------|-------------|
-| Multi-region | Single (East US 2) | Active-passive | +$120/mo |
-| WAF | None | Azure Front Door | +$35/mo |
-| Secrets auto-rotation | Manual | 90-day policy | $0 |
-| Private endpoints | Opt-in (var) | Default for prod | +$35/mo |
-| Redis cache | None | Basic tier | +$15/mo |
+| Improvement           | Current            | Proposed         | Cost Impact |
+| --------------------- | ------------------ | ---------------- | ----------- |
+| Multi-region          | Single (East US 2) | Active-passive   | +$120/mo    |
+| WAF                   | None               | Azure Front Door | +$35/mo     |
+| Secrets auto-rotation | Manual             | 90-day policy    | $0          |
+| Private endpoints     | Opt-in (var)       | Default for prod | +$35/mo     |
+| Redis cache           | None               | Basic tier       | +$15/mo     |
 
 ---
 
@@ -919,40 +927,42 @@ return await current_algorithm(request)
 
 **30-Day Quick Wins (Low effort, high impact):**
 
-| Item | Effort | Impact |
-|------|--------|--------|
-| Add Azure Monitor alerts | 1 day | Proactive incident response |
+| Item                     | Effort  | Impact                       |
+| ------------------------ | ------- | ---------------------------- |
+| Add Azure Monitor alerts | 1 day   | Proactive incident response  |
 | Enforce CI quality gates | 2 hours | Prevent security regressions |
-| Add rate limiting | 1 day | Protect against abuse |
+| Add rate limiting        | 1 day   | Protect against abuse        |
 
 **90-Day Improvements (Medium effort):**
 
-| Item | Effort | Impact |
-|------|--------|--------|
-| Graceful degradation | 3 days | Business continuity |
-| Idempotency keys | 2 days | Safe client retries |
-| Application Insights SDK | 2 days | End-to-end tracing |
+| Item                     | Effort | Impact              |
+| ------------------------ | ------ | ------------------- |
+| Graceful degradation     | 3 days | Business continuity |
+| Idempotency keys         | 2 days | Safe client retries |
+| Application Insights SDK | 2 days | End-to-end tracing  |
 
 **6-Month Strategic:**
 
-| Item | Effort | Impact |
-|------|--------|--------|
-| Multi-region DR | 2 weeks | 99.99% SLA |
-| Contract testing | 1 week | Catch API changes early |
-| Feature flags | 1 week | Safe rollouts |
-| Terramate orchestration | 1 week | Scalable IaC workflow |
+| Item                    | Effort  | Impact                  |
+| ----------------------- | ------- | ----------------------- |
+| Multi-region DR         | 2 weeks | 99.99% SLA              |
+| Contract testing        | 1 week  | Catch API changes early |
+| Feature flags           | 1 week  | Safe rollouts           |
+| Terramate orchestration | 1 week  | Scalable IaC workflow   |
 
 ---
 
 ### Q: What about Terraform orchestration at scale?
 
 **Current State:**
+
 - Manual pipeline with `terraform init/plan/apply` commands
 - Separate pipeline stages for dev/prod
 - No change detection - runs all stacks even if unchanged
 - Some code duplication between `environments/dev/` and `environments/prod/`
 
 **Problem at Scale:**
+
 - 10+ environments = 10+ pipeline stages to maintain
 - Every PR triggers full plan even for unrelated changes
 - No automatic dependency ordering between stacks
@@ -961,12 +971,14 @@ return await current_algorithm(request)
 #### Option 1: Terramate
 
 **What it provides:**
+
 - **Code generation** - DRY Terraform with templates
 - **Change detection** - Only run stacks with git changes
 - **Stack orchestration** - Automatic dependency ordering
 - **GitOps native** - Works with any CI/CD
 
 **Example structure:**
+
 ```
 terramate/
 ├── config.tm.hcl          # Global config
@@ -979,6 +991,7 @@ terramate/
 ```
 
 **Key command:**
+
 ```bash
 # Only runs stacks with changes since main
 terramate run --changed -- terraform plan
@@ -996,10 +1009,12 @@ terramate run -- terraform apply
 | TFC/TFE | Official HashiCorp | Expensive at scale |
 
 **ROI for this project:**
+
 - Current: 2 environments, simple structure - Terramate is overkill
 - Future: 5+ environments, multiple regions - Terramate saves significant CI time
 
 **When I'd recommend it:**
+
 - 3+ environments OR
 - Multi-region with shared components OR
 - Team of 3+ platform engineers
@@ -1007,12 +1022,14 @@ terramate run -- terraform apply
 #### Option 2: Keep Current Approach (Recommended for Now)
 
 **Why it's fine:**
+
 - Only 2 environments (dev/prod)
 - Simple dependency graph (no cross-stack dependencies)
 - Pipeline is ~100 lines, easy to maintain
 - No additional tooling to learn
 
 **Incremental improvement - add change detection without Terramate:**
+
 ```yaml
 # In Azure DevOps pipeline
 - script: |
@@ -1035,6 +1052,7 @@ terramate run -- terraform apply
 **Do say:** "Given the 6-10 hour timebox, I focused on production-ready fundamentals - circuit breaker, retries, managed identity, structured logging. Here's my prioritized v2 backlog based on actual gaps..."
 
 **What I intentionally deferred:**
+
 - Alerts - requires operational context (PagerDuty integration, on-call rotation)
 - Rate limiting - requires Redis infrastructure decision
 - Contract testing - requires RiskShield API access for verification
