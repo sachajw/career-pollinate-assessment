@@ -148,6 +148,9 @@ The assessment explicitly required a **production-ready** solution (not a protot
 | **Service Discovery** | Find services by name, not IP            | Hardcode URLs              | Automatic              |
 | **State Management**  | Store data without knowing the database  | Provider-specific code     | Same API for any store |
 
+**What Dapr Does NOT Provide:**
+- **Graceful degradation** - Dapr's circuit breaker returns errors to the caller; it doesn't return cached/fallback data. For UX benefits (e.g., "RiskShield is down, here's a default risk score"), you'd implement that in application code.
+
 **Why Dapr Benefits This Project:**
 - Future-proof for microservices expansion
 - Built into Container Apps (just enable it)
