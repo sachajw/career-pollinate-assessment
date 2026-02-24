@@ -6,6 +6,8 @@
 - [Section 1: Project Overview](#section-1-project-overview)
 - [Section 2: Architecture Decisions](#section-2-architecture-decisions)
   - [Why Azure Container Apps?](#q-why-azure-container-apps-over-app-service-or-aks)
+  - [Event-driven vs CPU-driven scaling?](#q-what-is-event-driven-vs-cpu-driven-scaling)
+  - [What is Dapr?](#q-what-is-dapr-and-why-is-it-a-benefit)
   - [Why Python + FastAPI?](#q-why-python--fastapi-instead-of-nodejs-go-or-net)
   - [How to scale Python to 100k req/min?](#q-how-would-you-scale-python-to-100k-reqmin-without-rewriting-to-go)
   - [What does asynchronous mean?](#q-what-does-asynchronous-mean)
@@ -144,6 +146,71 @@ App Service:     1 → 100 instances (Premium v3, CPU/memory-driven)
 **Cold Start Follow-up:**
 
 > "Cold starts are 2-3 seconds, acceptable for a loan validation API that's not real-time user-facing. In production with `min_replicas=2`, there's no cold start - you just lose scale-to-zero cost savings."
+
+#### Q: What is event-driven vs CPU-driven scaling?
+
+**The Difference:**
+
+| | **CPU-Driven** | **Event-Driven (KEDA)** |
+|---|----------------|-------------------------|
+| **Triggers on** | CPU usage > 70% | External events (requests, queues, time) |
+| **Good for** | Compute-heavy workloads | I/O-heavy, bursty traffic |
+| **Example** | Video processing, ML inference | APIs, queue consumers, scheduled jobs |
+
+**Visual:**
+```
+CPU-DRIVEN:
+Request burst → Wait for CPU to hit 70% → Then scale up
+
+EVENT-DRIVEN:
+Request burst → 100 requests in queue → Scale up immediately
+```
+
+**When to Choose CPU-Driven:**
+- Compute-intensive (video encoding, ML training)
+- Steady, predictable traffic
+
+**When to Choose Event-Driven:**
+- I/O-bound (APIs calling external services) ← **This project**
+- Bursty, unpredictable traffic
+- Queue-based processing
+
+**Interview One-Liner:**
+> "CPU-driven scales when compute gets busy. Event-driven scales on actual demand - requests, queue depth. For an API calling external services, event-driven responds faster because it doesn't wait for CPU to rise."
+
+#### Q: What is Dapr and why is it a benefit?
+
+**Dapr = Distributed Application Runtime**
+
+Building blocks for microservices that handle cross-cutting concerns WITHOUT writing the code.
+
+| What Dapr Provides | Without Dapr | With Dapr |
+|--------------------|--------------|-----------|
+| **Retries** | Write retry logic yourself | Configure, don't code |
+| **Circuit Breaker** | Implement yourself | Built-in |
+| **Service Discovery** | Hardcode URLs | Automatic |
+| **State Management** | Write Redis/SQL code | Same API for any store |
+| **Pub/Sub** | Provider-specific code | Same API for Kafka, RabbitMQ, etc. |
+
+**Example:**
+```python
+# WITHOUT Dapr - write retry logic
+@retry(stop=stop_after_attempt(3))
+async def call_riskshield(request):
+    return await http_client.post(url, json=request)
+
+# WITH Dapr - just configure, Dapr handles retry
+async def call_riskshield(request):
+    return await dapr_client.invoke_method("riskshield", "score", data=request)
+```
+
+**Why Dapr Benefits This Project:**
+- **Future-proof** - Add microservices without rewriting infrastructure code
+- **Less code** - Retries, circuit breakers handled by Dapr
+- **Built into Container Apps** - Just enable it, no extra deployment
+
+**Interview One-Liner:**
+> "Dapr provides microservice building blocks - retries, circuit breakers, service discovery - as configuration instead of code. It's built into Container Apps, so if we expand to multiple services, we get service mesh patterns without writing infrastructure code."
 
 #### When Would AKS Be the Right Choice?
 
