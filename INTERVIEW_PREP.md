@@ -122,6 +122,54 @@ App Service:     1 → 30 instances (CPU/memory-driven)
 **Cold Start Follow-up:**
 > "Cold starts are 2-3 seconds, acceptable for a loan validation API that's not real-time user-facing. In production with `min_replicas=2`, there's no cold start - you just lose scale-to-zero cost savings."
 
+#### When Would AKS Be the Right Choice?
+
+**AKS Thresholds - consider AKS when:**
+
+| Factor | Container Apps Limit | AKS Needed |
+|--------|---------------------|------------|
+| **Microservices** | < 10 services | 10+ services with complex interactions |
+| **Traffic** | < 100k req/min | 100k+ req/min, predictable baseline |
+| **Team Size** | < 5 platform engineers | 5+ with K8s expertise |
+| **Control** | Managed abstractions | Need pod-level control, custom operators |
+| **Network** | Basic ingress | Service mesh (Istio), complex policies |
+| **Compliance** | Standard Azure compliance | Custom security policies, Azure Policy at pod level |
+
+**Cost Crossover Point:**
+```
+Container Apps:  $0.000024/vCPU-s + $0.000003/GiB-s
+AKS (D2s v3):    ~$70/node/month + control plane (free)
+
+Crossover: ~50-100k sustained req/min
+- Below: Container Apps cheaper
+- Above: AKS with reserved instances cheaper
+```
+
+**What AKS Provides That Container Apps Doesn't:**
+
+| Capability | Container Apps | AKS |
+|------------|---------------|-----|
+| Pod-to-pod communication | Limited (Dapr) | Full CNI, Network Policies |
+| Custom operators | No | Yes |
+| DaemonSets | No | Yes |
+| StatefulSets | No | Yes |
+| Node pools | No | Yes (GPU, high-memory, spot) |
+| Init containers | Limited | Full support |
+| Sidecar patterns | Dapr sidecars | Any sidecar |
+| RBAC granularity | App-level | Pod/namespace-level |
+| Admission controllers | No | Yes (OPA Gatekeeper, Kyverno) |
+
+**Why AKS Was Wrong for This Project:**
+
+1. **Single Service** - No microservices complexity to manage
+2. **Small Team** - No dedicated K8s expertise needed
+3. **Ops Burden** - Cluster upgrades, node patching, CNI management
+4. **Cost** - Minimum ~$150/month vs ~$8/month for dev
+5. **Time to Value** - Hours to set up AKS properly vs minutes for Container Apps
+
+**Interview Response:**
+> "AKS would be the right choice if we had 10+ microservices with complex service-to-service communication, needed a service mesh like Istio, or had compliance requirements for pod-level security policies. For a single integration service, the operational overhead doesn't justify the control. Container Apps gives us 80% of K8s benefits with 20% of the complexity."
+
 ---
 
 ### Q: Why Python + FastAPI instead of Node.js, Go, or .NET?
