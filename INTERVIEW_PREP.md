@@ -141,12 +141,12 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 **Dapr = Distributed Application Runtime** - building blocks for microservices as configuration, not code.
 
-| What Dapr Provides    | Without Dapr               | With Dapr                          |
-| --------------------- | -------------------------- | ---------------------------------- |
-| **Retries**           | Write yourself             | Configure                          |
-| **Circuit Breaker**   | Implement yourself         | Built-in                           |
-| **Service Discovery** | Hardcode URLs              | Automatic                          |
-| **State Management**  | Provider-specific code     | Same API for any store             |
+| What Dapr Provides    | What It Means                            | Without Dapr               | With Dapr              |
+| --------------------- | ---------------------------------------- | -------------------------- | ---------------------- |
+| **Retries**           | Auto-retry failed API calls              | Write yourself             | Configure              |
+| **Circuit Breaker**   | Stop calling failing services            | Implement yourself         | Built-in               |
+| **Service Discovery** | Find services by name, not IP            | Hardcode URLs              | Automatic              |
+| **State Management**  | Store data without knowing the database  | Provider-specific code     | Same API for any store |
 
 **Why Dapr Benefits This Project:**
 - Future-proof for microservices expansion
