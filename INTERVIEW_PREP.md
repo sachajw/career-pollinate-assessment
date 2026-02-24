@@ -476,6 +476,15 @@ BUILD → INFRASTRUCTURE → DEPLOY
 
 **Environment Strategy:** `dev` branch → auto, `main` branch → manual approval
 
+**Azure DevOps Extensions Used:**
+
+| Extension  | Purpose                               |
+| ---------- | ------------------------------------- |
+| SBOM Tool  | Generate Software Bill of Materials   |
+| Terraform  | IaC deployment                        |
+| tfsec      | Terraform security scanning           |
+| Trivy      | Container vulnerability scanning      |
+
 ---
 
 ### Q: How do you handle secrets in CI/CD?
