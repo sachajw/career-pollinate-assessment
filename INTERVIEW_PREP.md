@@ -43,7 +43,7 @@
 
 | Category      | Choice                         | Key Rationale                                          |
 | ------------- | ------------------------------ | ------------------------------------------------------ |
-| **Compute**   | Azure Container Apps           | Scale-to-zero saves 50-70% cost in dev                 |
+| **Compute**   | Azure Container Apps           | Right-sized complexity: K8s features without AKS overhead |
 | **Runtime**   | Python 3.13 + FastAPI          | Fastest development, auto OpenAPI, Pydantic validation |
 | **Container** | python:3.13-slim (multi-stage) | glibc compatibility, 175MB image, debugging capability |
 | **Secrets**   | Key Vault + Managed Identity   | Zero secrets in code, SOC 2 compliant                  |
@@ -91,35 +91,46 @@ The assessment explicitly required a **production-ready** solution (not a protot
 
 | Criteria     | Container Apps            | App Service            | AKS          |
 | ------------ | ------------------------- | ---------------------- | ------------ |
-| Cost (Dev)   | ~$0/month (scale-to-zero) | ~$12/month (always-on) | ~$150/month  |
-| Cost (Prod)  | ~$72/month                | ~$113/month            | ~$500/month  |
+| Cost (Prod)  | ~$122/month               | ~$113/month            | ~$500/month  |
 | Ops Overhead | Low                       | Low                    | High         |
 | KEDA Scaling | Native                    | No                     | Manual setup |
 | Dapr Ready   | Yes                       | No                     | Yes          |
+| gRPC/TCP     | Yes                       | Limited                | Yes          |
 
-**Key Reasoning:**
+**Key Reasoning (Production-Ready Focus):**
 
-1. **Event-Driven Scaling (KEDA)**: Scales on HTTP requests, queue depth - not just CPU/memory. Better for bursty loan validation traffic.
-2. **Dapr Integration**: Service mesh patterns (retries, circuit breakers) without code changes.
-3. **Right-Sized Complexity**: Production-grade K8s without AKS cluster management overhead.
-4. **Cost Efficiency**: Scale-to-zero for dev, `min_replicas=2` for prod HA.
+1. **Right-Sized Complexity**: Production-grade K8s capabilities without AKS cluster management overhead (upgrades, node patching, control plane).
+2. **Event-Driven Scaling (KEDA)**: Scales on HTTP requests, queue depth - not just CPU/memory. Better for bursty loan validation traffic.
+3. **Dapr Integration**: Built-in service mesh patterns (retries, circuit breakers, service discovery) if we expand to microservices.
+4. **Future-Proof**: If FinSure grows to 5-10 services, we don't need to migrate from App Service to AKS - we're already on a K8s-based platform.
+5. **Same Cost, More Capability**: ~$122/mo vs ~$113/mo for App Service, but with KEDA, Dapr, and K8s-style features.
 
-**Trade-off:** Cold start 2-3s for dev. Production is always warm.
+**Production Configuration:**
+```hcl
+min_replicas = 2   # No cold starts, always warm for HA
+max_replicas = 10  # Scale on HTTP traffic via KEDA
+```
+
+**Dev Environment Bonus:** Scale-to-zero saves ~$8/mo in dev, but this is a secondary benefit - the primary choice was based on production requirements.
 
 #### Deep Dive: Container Apps vs App Service
 
 **When to Choose Container Apps:**
 
 - Variable/bursty traffic, event-driven workloads
-- Microservices architecture (Dapr)
+- Planning microservices architecture (Dapr built-in)
 - Need gRPC or TCP ingress
+- Want K8s-style features without cluster management
+- Future-proofing for service expansion
 
 **When to Choose App Service:**
 
-- Traditional web apps with steady traffic
-- Need zero cold start, team unfamiliar with containers
+- Traditional web apps with steady, predictable traffic
+- Team unfamiliar with containers
+- Simple CRUD APIs with no scaling complexity
+- Don't need Dapr, KEDA, or gRPC
 
-**Cold Start Follow-up:** "Cold starts are 2-3 seconds, acceptable for loan validation (not real-time user-facing). Production uses `min_replicas=2` - no cold start."
+**Cold Start Follow-up:** "Production uses `min_replicas=2` so there are no cold starts. Scale-to-zero is only for dev environments - the production-ready requirement means we're always warm."
 
 #### Q: What is event-driven vs CPU-driven scaling?
 
@@ -185,9 +196,9 @@ The assessment explicitly required a **production-ready** solution (not a protot
 **Why AKS Was Wrong for This Project:**
 
 1. Single service - no microservices complexity
-2. No dedicated K8s expertise needed
-3. Ops burden: cluster upgrades, node patching
-4. Cost: ~$150/month vs ~$8/month for dev
+2. No dedicated K8s expertise on team
+3. Ops burden: cluster upgrades, node patching, control plane management
+4. Cost: ~$500/month minimum vs ~$122/month for Container Apps
 
 **Interview Response:**
 
@@ -227,7 +238,7 @@ min_replicas = 20   # Was 2
 max_replicas = 100  # Was 10
 ```
 
-**Cost:** ~$720/month vs ~$72/month
+**Cost:** ~$720/month vs ~$122/month (current production)
 
 **Strategy 2: Add Caching (Biggest Impact)**
 
@@ -242,7 +253,7 @@ async def get_risk_score(request: ValidateRequest) -> RiskScore:
     return result
 ```
 
-**Impact if 80% cache hits:** 100k req/min → 20k actual API calls → 20 replicas → **$144/month vs $720/month**
+**Impact if 80% cache hits:** 100k req/min → 20k actual API calls → 20 replicas → **$240/month vs $720/month**
 
 **Already Optimized:** Connection pooling (httpx AsyncClient), Async I/O (FastAPI), Non-blocking
 
@@ -549,14 +560,14 @@ terraform apply -var="riskshield_api_key=$(RISKSHIELD_API_KEY)"
 
 ### Q: What would you change if this needed to handle 100x traffic?
 
-1. **Compute**: min_replicas=5, max_replicas=50
-2. **Caching**: Redis for repeated applicant checks
+1. **Compute**: min_replicas=10, max_replicas=100
+2. **Caching**: Redis for repeated applicant checks (80% cache hit = 5x fewer API calls)
 3. **Database**: Cosmos DB for audit records at scale
 4. **API Gateway**: Azure APIM for rate limiting, caching
 5. **Regional**: Multi-region with Front Door
 6. **Async**: Message queue for high-volume periods
 
-**Cost impact:** ~$500-1000/month vs current ~$122/month
+**Cost impact:** ~$800-1500/month vs current ~$122/month
 
 ---
 
@@ -642,10 +653,10 @@ variable "allowed_ip_ranges" { default = [] }
 
 | Metric                    | Value      | Context                     |
 | ------------------------- | ---------- | --------------------------- |
-| Dev monthly cost          | ~$8        | Scale-to-zero enabled       |
-| Prod monthly cost         | ~$122      | 2 replicas, always-on       |
+| Prod monthly cost         | ~$122      | 2 replicas min, KEDA scaling |
+| Dev monthly cost          | ~$8        | Scale-to-zero (bonus)       |
 | Container image size      | 175MB      | Under 200MB target          |
-| Cold start latency        | 2-3s       | Mitigated by min_replicas=2 |
+| Production replicas       | min=2      | No cold starts, HA          |
 | Circuit breaker threshold | 5 failures | Then 60s recovery           |
 | Retry attempts            | 3          | Exponential backoff         |
 | API timeout               | 10s read   | 5s connect                  |
@@ -655,9 +666,9 @@ variable "allowed_ip_ranges" { default = [] }
 
 ## Quick Fire Responses
 
-**"Why Container Apps?"** → Scale-to-zero saves 70% dev costs, KEDA for event-driven scaling, Dapr-ready.
+**"Why Container Apps?"** → Right-sized complexity: K8s features (KEDA, Dapr) without AKS overhead. Production-ready at ~$122/mo vs ~$500/mo for AKS.
 
-**"Why not AKS?"** → Overkill for single service, adds ops burden, $500+/month vs $72.
+**"Why not AKS?"** → Overkill for single service, adds ops burden (cluster upgrades, node patching), $500+/month vs $122/month.
 
 **"Why Python?"** → Fastest dev velocity, Pydantic validation, FinTech standard, handles 1000 req/min easily.
 
@@ -968,7 +979,7 @@ terramate run -- terraform apply
 
 **Don't say:** "I made mistakes, here's what I'd fix"
 
-**Do say:** "Given the 6-10 hour timebox, I focused on production-ready fundamentals - circuit breaker, retries, managed identity, structured logging. Here's my prioritized v2 backlog based on actual gaps."
+**Do say:** "The assessment required production-ready, so I prioritized: min_replicas=2 for HA, circuit breaker + retries for resilience, Managed Identity for security, structured logging for observability. Here's my prioritized v2 backlog for operational maturity."
 
 **What I intentionally deferred:** Alerts (needs PagerDuty context), rate limiting (Redis decision), contract testing (RiskShield API access)
 
