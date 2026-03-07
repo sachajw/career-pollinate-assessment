@@ -1,0 +1,75 @@
+{
+  "files": [
+    {
+      "fileName": "./image-tag.txt",
+      "SPDXID": "SPDXRef-File--image-tag.txt-45D9A8AC6B769817D6B5E4A18936A1A6BAB70ED9",
+      "checksums": [
+        {
+          "algorithm": "SHA256",
+          "checksumValue": "08abb9e497a278928b9c4d80a270b58df1484db1010ef72d27e0fc9b83b486db"
+        },
+        {
+          "algorithm": "SHA1",
+          "checksumValue": "45d9a8ac6b769817d6b5e4a18936a1a6bab70ed9"
+        }
+      ],
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoInFiles": [
+        "NOASSERTION"
+      ],
+      "copyrightText": "NOASSERTION"
+    }
+  ],
+  "packages": [
+    {
+      "name": "applicant-validator",
+      "SPDXID": "SPDXRef-RootPackage",
+      "downloadLocation": "NOASSERTION",
+      "packageVerificationCode": {
+        "packageVerificationCodeValue": "7b61bc2a989a2db751d67bdb433a3a10af2e192f"
+      },
+      "filesAnalyzed": true,
+      "licenseConcluded": "NOASSERTION",
+      "licenseInfoFromFiles": [
+        "NOASSERTION"
+      ],
+      "licenseDeclared": "NOASSERTION",
+      "copyrightText": "NOASSERTION",
+      "versionInfo": "v0.1.0-17-ga1d7e53",
+      "externalRefs": [
+        {
+          "referenceCategory": "PACKAGE-MANAGER",
+          "referenceType": "purl",
+          "referenceLocator": "pkg:swid/FinSure%20Capital/finsurecapital.com/applicant-validator@v0.1.0-17-ga1d7e53?tag_id=03474934-ee52-4a58-bb17-1e3a27766956"
+        }
+      ],
+      "supplier": "Organization: FinSure Capital",
+      "hasFiles": [
+        "SPDXRef-File--image-tag.txt-45D9A8AC6B769817D6B5E4A18936A1A6BAB70ED9"
+      ]
+    }
+  ],
+  "externalDocumentRefs": [],
+  "relationships": [
+    {
+      "relationshipType": "DESCRIBES",
+      "relatedSpdxElement": "SPDXRef-RootPackage",
+      "spdxElementId": "SPDXRef-DOCUMENT"
+    }
+  ],
+  "spdxVersion": "SPDX-2.2",
+  "dataLicense": "CC0-1.0",
+  "SPDXID": "SPDXRef-DOCUMENT",
+  "name": "applicant-validator v0.1.0-17-ga1d7e53",
+  "documentNamespace": "https://finsurecapital.com/applicant-validator/v0.1.0-17-ga1d7e53/hAqUcyRtQEiLHMG00015YA",
+  "creationInfo": {
+    "created": "2026-02-16T11:38:52Z",
+    "creators": [
+      "Organization: FinSure Capital",
+      "Tool: Microsoft.SBOMTool-4.1.5"
+    ]
+  },
+  "documentDescribes": [
+    "SPDXRef-RootPackage"
+  ]
+}
